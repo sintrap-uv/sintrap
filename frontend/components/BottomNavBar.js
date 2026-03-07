@@ -6,7 +6,7 @@ const NAV_CONFIGS = {
   // Rol: Usuario normal
   usuario: [
     { key: 'inicio',    label: 'Inicio',    icon: 'home'          },
-    { key: 'favoritos', label: 'Favoritos', icon: 'star'          },
+    { key: 'favoritos', label: 'Favoritos', icon: 'heart',        },
     { key: 'rutas',     label: 'Rutas',     icon: 'location'      },
     { key: 'perfil',    label: 'Perfil',    icon: 'person'        },
   ],
@@ -16,15 +16,16 @@ const NAV_CONFIGS = {
     { key: 'rutas',     label: 'Rutas',     icon: 'navigate'      },
     { key: 'agregar',   label: 'Reportar',  icon: 'add-circle'    },
     { key: 'bus',       label: 'Mi Bus',    icon: 'bus'           },
-    { key: 'stats',     label: 'Stats',     icon: 'bar-chart'     },
+    //{ key: 'stats',     label: 'Stats',     icon: 'bar-chart'     },
   ],
   // Rol: Administrativo
   administrativo: [
-    { key: 'inicio',    label: 'Inicio',    icon: 'home'          },
-    { key: 'usuarios',  label: 'Usuarios',  icon: 'people'        },
-    { key: 'rutas',     label: 'Rutas',     icon: 'map'           },
-    { key: 'reportes',  label: 'Reportes',  icon: 'document-text' },
-    { key: 'config',    label: 'Config',    icon: 'settings'      },
+    { key: 'inicio',    label: 'Inicio',    icon: 'home'                },
+    { key: 'rutas',     label: 'Rutas',     icon: 'map'                 },
+    { key: 'crear',     label: 'Crear',  icon: 'add'               },
+    { key: 'buses',       label: 'Buses',    icon: 'bus'                },
+    { key: 'graficas',     label: 'Graficas',icon: 'bar-chart'  },
+     
   ],
 };
 
