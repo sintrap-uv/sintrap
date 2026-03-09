@@ -1,3 +1,5 @@
+import { signUp } from "../../services/auth"
+import { createProfile } from "../../services/profileService"
 import React, { useState } from "react"
 import {
   View,
@@ -6,46 +8,74 @@ import {
   TouchableOpacity,
   StyleSheet
 } from "react-native"
-
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons"
-import { signIn } from "../services/auth"
 
-export default function Login() {
+export default function LoginScreen() {
 
+  const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
 
-  const handleLogin = async () => {
+  const handleRegister = async () => {
 
-    const { data, error } = await signIn(email, password)
-
-    if (error) {
-      alert("Error al iniciar sesión: " + error.message)
-    } else {
-      alert("Inicio de sesión exitoso: " + data.user.email)
+    if (!name || !email || !password) {
+      alert("Completa todos los campos")
+      return
     }
 
+    const { data, error } = await signUp(email, password)
+
+    if (error) {
+      alert("Error al registrarse: " + error.message)
+      return
+    }
+
+    const user = data.user
+
+    if (!user) {
+      alert("No se pudo crear el usuario")
+      return
+    }
+
+    const { error: profileError } = await createProfile({
+      id: user.id,
+      nombre: name,
+      rol: "usuario",
+      activo: true
+    })
+
+    if (profileError) {
+      alert("Error creando perfil: " + profileError.message)
+    } else {
+      alert("Registro exitoso")
+    }
   }
 
   return (
     <View style={styles.container}>
 
-      {/* Icono */}
       <View style={styles.iconContainer}>
         <FontAwesome name="map-marker" size={60} color="#444" />
         <FontAwesome name="bus" size={24} color="#fff" style={styles.busIcon}/>
       </View>
 
-      {/* Título */}
       <Text style={styles.title}>Bienvenido a</Text>
       <Text style={styles.titleBold}>Sintrap</Text>
 
-      {/* Card */}
       <View style={styles.card}>
 
-        {/* Email */}
         <View style={styles.inputContainer}>
-          <MaterialIcons name="email" size={20} color="#444"/>
+          <FontAwesome name="user" size={20} color="#444" />
+          <TextInput
+            placeholder="Nombre completo"
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <MaterialIcons name="email" size={20} color="#444" />
           <TextInput
             placeholder="Correo electronico"
             style={styles.input}
@@ -54,35 +84,28 @@ export default function Login() {
           />
         </View>
 
-        {/* Password */}
         <View style={styles.inputContainer}>
-          <FontAwesome name="lock" size={20} color="#444"/>
+          <FontAwesome name="lock" size={20} color="#444" />
           <TextInput
             placeholder="Contraseña"
-            secureTextEntry
             style={styles.input}
+            secureTextEntry
             value={password}
             onChangeText={setPassword}
           />
         </View>
 
-        {/* Botón login */}
         <TouchableOpacity
           style={styles.button}
-          onPress={handleLogin}
+          onPress={handleRegister}
         >
-          <Text style={styles.buttonText}>Inicio sesión</Text>
+          <Text style={styles.buttonText}>Crear cuenta</Text>
         </TouchableOpacity>
 
-        {/* Links */}
-        <Text style={styles.forgot}>
-          ¿olvidaste tu contraseña?
-        </Text>
+        <Text style={styles.forgot}>¿Olvidaste tu contraseña?</Text>
 
         <TouchableOpacity>
-          <Text style={styles.register}>
-            Crear una cuenta
-          </Text>
+          <Text style={styles.register}>Iniciar sesión</Text>
         </TouchableOpacity>
 
       </View>
@@ -91,7 +114,6 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     backgroundColor: "#d9d9d9",
@@ -146,7 +168,7 @@ const styles = StyleSheet.create({
   },
 
   button: {
-    marginTop: 25,
+    marginTop: 20,
     backgroundColor: "#0d5b0d",
     paddingVertical: 12,
     paddingHorizontal: 40,
@@ -170,5 +192,4 @@ const styles = StyleSheet.create({
     color: "#8B0000",
     fontWeight: "bold"
   }
-
 })
