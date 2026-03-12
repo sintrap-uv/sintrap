@@ -117,14 +117,8 @@ export default function Home() {
 
     <View style={styles.container}>
       {/* ── Header fijo (siempre visible) ──────────────────── */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Hola {perfil?.nombre?.split(' ')[0] ?? 'Usuario'}</Text>
-        <Text style={styles.headerSub}>
-          {tabActivo === "inicio"
-            ? "¿A dónde vamos hoy?"
-            : obtenerSubtitulo(tabActivo)}
-        </Text>
-      </View>
+      <Header titulo={`Hola ${perfil?.nombre?.split(' ')[0] ?? 'Usuario'}`} mode="light" />
+      
 
       {/* ── Área de contenido (cambia según el tab) ─────────── */}
       <View style={styles.contenido}>{renderContenido()}</View>
