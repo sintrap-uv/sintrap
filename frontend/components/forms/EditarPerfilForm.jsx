@@ -12,7 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import {
   validarConductor,
@@ -61,6 +61,7 @@ export default function EditarPerfilForm({
     celular: perfilInicial?.celular ?? "",
     genero: perfilInicial?.genero ?? "",
     avatar_url: perfilInicial?.avatar_url ?? "",
+    edad: perfilInicial?.edad ?? "",
   });
 
   const [errores, setErrores] = useState({});
@@ -117,6 +118,7 @@ export default function EditarPerfilForm({
         celular: form.celular.trim(),
         genero: form.genero,
         // avatar_url: pendiente hasta implemnetar supabase storage
+        edad: form.edad,
       };
 
       const { data, error} = await updateProfile(userId, cambios);
@@ -176,10 +178,11 @@ export default function EditarPerfilForm({
         <CampoTexto
           label="Nombre completo"
           icono="person-outline"
+          iconFamily={Ionicons}
           valor={form.nombre}
           onChange={(v) => actualizarCampo("nombre", v)}
           error={errores.nombre}
-          placeholder="Ej: Carlos Ramírez"
+          placeholder="Carlos Ramírez"
           autoCapitalize="words"
         />
 
@@ -187,10 +190,11 @@ export default function EditarPerfilForm({
         <CampoTexto
           label="Número de cédula"
           icono="card-outline"
+          iconFamily={Ionicons}
           valor={form.cedula}
           onChange={(v) => actualizarCampo("cedula", v)}
           error={errores.cedula}
-          placeholder="Ej: 1020304050"
+          placeholder="1020304050"
           keyboardType="numeric"
           maxLength={15}
         />
@@ -199,12 +203,25 @@ export default function EditarPerfilForm({
         <CampoTexto
           label="Teléfono / Celular"
           icono="call-outline"
+          iconFamily={Ionicons}
           valor={form.celular}
           onChange={(v) => actualizarCampo("celular", v)}
           error={errores.celular}
-          placeholder="Ej: 3001234567"
+          placeholder="3001234567"
           keyboardType="phone-pad"
           maxLength={15}
+        />
+
+        {/*--- Campo: Edad*/}
+        <CampoTexto
+          label="Edad"
+          icono="birthday-cake"
+          iconFamily={FontAwesome}
+          valor={form.edad}
+          onChange={(v) => actualizarCampo("edad", v)}
+          error={errores.edad}
+          placeholder="20"
+          keyboardType="numeric"
         />
 
         {/* ── Selector: Género ───────────────────────────── */}
@@ -271,7 +288,7 @@ export default function EditarPerfilForm({
 
 // SUB-COMPONENTE: CampoTexto reutilizable
 
-function CampoTexto({ label, icono, valor, onChange, error, ...inputProps }) {
+function CampoTexto({ label, icono, iconFamily: IconFamily, valor, onChange, error, ...inputProps }) {
   const [enfocado, setEnfocado] = useState(false);
 
   return (
@@ -284,7 +301,7 @@ function CampoTexto({ label, icono, valor, onChange, error, ...inputProps }) {
           error && styles.inputWrapperError,
         ]}
       >
-        <Ionicons
+        <IconFamily
           name={icono}
           size={18}
           color={
