@@ -1,4 +1,8 @@
 import React, { useState } from "react";
+import PhoneInput, {
+  ICountry,
+  isValidPhoneNumber,
+} from "react-native-international-phone-number";
 import {
   View,
   Text,
@@ -67,6 +71,18 @@ export default function EditarPerfilForm({
   const [errores, setErrores] = useState({});
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false); // feedback de éxito
+  //const [phoneNumber, setPhoneNumber] = useState('');
+  //const [selectedCountry, setSelectedCountry] = useState(null);
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [inputValue, setInputValue] = useState("");
+
+  function handleInputValue(phoneNumber) {
+    setInputValue(phoneNumber);
+  }
+
+  function handleSelectedCountry(country) {
+    setSelectedCountry(country);
+  }
 
   // Actualizar campo del formulario
   const actualizarCampo = (campo, valor) => {
@@ -121,13 +137,13 @@ export default function EditarPerfilForm({
         edad: form.edad,
       };
 
-      const { data, error} = await updateProfile(userId, cambios);
+      const { data, error } = await updateProfile(userId, cambios);
 
-      if (error) throw new Error(error.message ?? 'Error al guardar los cambios');
-      
+      if (error)
+        throw new Error(error.message ?? "Error al guardar los cambios");
+
       setGuardado(true);
       if (onGuardado) onGuardado(data);
-
     } catch (e) {
       Alert.alert("Error", e.message ?? "No se pudieron guardar los cambios.");
     } finally {
@@ -198,6 +214,16 @@ export default function EditarPerfilForm({
           keyboardType="numeric"
           maxLength={15}
         />
+
+        <View>
+          <PhoneInput
+            defaultValue="+573189827384"
+            value={inputValue}
+            onchangeText={handleInputValue}
+            selectedCountry={selectedCountry}
+            onChangeCountry={handleSelectedCountry}
+          />
+        </View>
 
         {/* ── Campo: Teléfono ────────────────────────────── */}
         <CampoTexto
@@ -288,7 +314,15 @@ export default function EditarPerfilForm({
 
 // SUB-COMPONENTE: CampoTexto reutilizable
 
-function CampoTexto({ label, icono, iconFamily: IconFamily, valor, onChange, error, ...inputProps }) {
+function CampoTexto({
+  label,
+  icono,
+  iconFamily: IconFamily,
+  valor,
+  onChange,
+  error,
+  ...inputProps
+}) {
   const [enfocado, setEnfocado] = useState(false);
 
   return (
