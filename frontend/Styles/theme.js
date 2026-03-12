@@ -42,7 +42,7 @@ const tipografia = {
 
 const shadows = {
   card: {
-    shadowColor: "#FFFFFF",
+    shadowColor: "#000000",
     shadowOffset: {
       width: 0,   // X
       height: 4,  // Y
@@ -148,7 +148,7 @@ const theme = {
         cards: {
             background:"#1E293B",
             border: "#334155",
-            borderRadius:"16px",
+            borderRadius: 16 ,
         },
         
         //Botones
@@ -204,3 +204,4 @@ const theme = {
 
 }
 
+export default theme;

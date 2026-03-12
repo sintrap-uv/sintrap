@@ -2,30 +2,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BottomNavBar } from '../components/BottomNavBar';
+import Header from '../components/Header';
+
+
+
+
 
 const ROL_ACTUAL = 'usuario';
 
 export default function Home() {
   return (
-    <View style={styles.container}>
-
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Hola Nombre</Text>
-        <Text style={styles.headerSub}>¿a donde vamos hoy?</Text>
-      </View>
-
-      {/* Contenido */}
-      <LinearGradient colors={['#2D6A2D', '#A8D5A2', '#e8f5e9']} style={styles.gradient}>
-        <TouchableOpacity style={styles.alertBtn}>
-          <Ionicons name="notifications" size={16} color="#fff" style={{ marginRight: 8 }} />
-          <Text style={styles.alertText}>Avisarme cuando el bus este cerca</Text>
-        </TouchableOpacity>
-      </LinearGradient>
-
-      {/* 👇 Componente reutilizable — no repites código */}
-      <BottomNavBar rol={ROL_ACTUAL} initialTab="inicio" />
-
+    
+    <View>
+      <Header titulo="Hola " mode="light" />
     </View>
   );
 }
