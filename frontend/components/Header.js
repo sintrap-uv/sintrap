@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import theme from "../Styles/theme";
+import theme from "../constants/theme";
 
 
 const Header = ({titulo, mode = "light"})=>{
