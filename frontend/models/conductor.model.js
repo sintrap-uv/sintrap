@@ -1,15 +1,3 @@
-/**
- * Modleo del conductor
- * Refleja los campos de la tabla profiles en Supbase
- *
- * Uso:
- *  import { conductorVaci, validarConductor } from '../models/conductor.model'
- */
-
-/**
- * Estructura base del conductor
- * Todos los campos opcionales pueden ser null si aún no se han rellenado.
- */
 export const conductorVacio = {
   id: null, // UUID - Viene de Supabase Auth (no editable)
   nombre: "",
@@ -18,6 +6,7 @@ export const conductorVacio = {
   rol: "conductor",
   avatar_url: "",
   cedula: "",
+  edad: null,
 };
 
 /**

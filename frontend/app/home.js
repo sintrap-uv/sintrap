@@ -12,13 +12,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BottomNavBar } from "../components/BottomNavBar";
 import Header from "../components/Header";
-
+import { getProfile } from "../services/profileService";
+import { getCurrentUser } from "../services/auth";
 
 // ── Importa aquí los componentes de cada tab ──────────────────
 import EditarPerfilForm from "../components/forms/EditarPerfilForm";
-
-const ROL_ACTUAL = "administrador"; // cambia a 'usuario' o 'administrador' para probar
-
 
 
 export default function Home() {
@@ -142,8 +140,8 @@ export default function Home() {
 
       <View style={styles.container}>
         {/* ── Header fijo (siempre visible) ──────────────────── */}
-        {tabActivo !=='perfil' && <Header titulo={HEADER_CONFIGS[ROL_ACTUAL][tabActivo]?.titulo ?? "Inicio" } subtitulo={HEADER_CONFIGS[ROL_ACTUAL][tabActivo]?.subtitulo ?? ""}  
-        mode="light" iconoDerecha={ROL_ACTUAL === 'administrador' || ROL_ACTUAL === 'conductor'  ?
+        {tabActivo !=='perfil' && <Header titulo={HEADER_CONFIGS[perfil?.rol ?? 'usuario'][tabActivo]?.titulo ?? "Inicio" } subtitulo={HEADER_CONFIGS[perfil?.rol ?? 'usuario'][tabActivo]?.subtitulo ?? ""}  
+        mode="light" iconoDerecha={perfil?.rol === 'administrador' || perfil?.rol  === 'conductor' ?
         <TouchableOpacity onPress={()=>setTabActivo('perfil')}> 
           <Ionicons name="person-circle-outline" size={36} color="#fff" style={{marginTop: -25}}/> 
         </TouchableOpacity>
@@ -154,7 +152,7 @@ export default function Home() {
 
         {/* ── Navbar fijo abajo ───────────────────────────────── */}
         <BottomNavBar
-          rol={ROL_ACTUAL}
+          rol={perfil?.rol ?? 'usuario'}
           initialTab="inicio"
           onTabPress={(key) => setTabActivo(key)}
         />
