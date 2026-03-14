@@ -2,7 +2,7 @@ import { View, Text, StyleSheet } from "react-native";
 import Svg, { Defs, RadialGradient, Stop, Rect } from "react-native-svg";
 import theme from "../constants/theme";
 
-const Header = ({titulo,subtitulo, mode = "light"})=>{
+const Header = ({titulo,subtitulo, mode = "light", iconoDerecha = null })=>{
  const colors = mode ==="dark" ? theme.darkMode : theme.lightMode;
  const h = colors.Headers;
 
@@ -25,7 +25,10 @@ const Header = ({titulo,subtitulo, mode = "light"})=>{
     </Svg>
 
      <View style={styles.content}>
+        <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
         <Text style={styles.title}>{titulo}</Text>
+        {iconoDerecha}
+        </View>
         <Text style={styles.subtitulo}>{subtitulo}</Text>
       </View>
 

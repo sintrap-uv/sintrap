@@ -17,7 +17,7 @@ import Header from "../components/Header";
 // ── Importa aquí los componentes de cada tab ──────────────────
 import EditarPerfilForm from "../components/forms/EditarPerfilForm";
 
-const ROL_ACTUAL = "usuario"; // cambia a 'usuario' o 'administrador' para probar
+const ROL_ACTUAL = "administrador"; // cambia a 'usuario' o 'administrador' para probar
 
 
 
@@ -42,12 +42,18 @@ export default function Home() {
     perfil:    { titulo: "Mi Perfil" },
   },
   administrador: {
-    inicio:   { titulo: "Panel Administrivo" },
+    inicio:   { titulo: "Panel Administrivo", subtitulo: "Gestion rutas y buses" },
+    rutas:    { titulo: "Gestion de rutas", subtitulo: "Administrar las rutas del sistema"},
+    crear:    { titulo: "Crear Ruta",  subtitulo: "Gestion de rutas" },
+    buses:    { titulo: "Buses", subtitulo: "Gestion de buses" },
+    graficas: { titulo: "Estadisticas",  subtitulo: "Actividad del sistema" },
+  },
+  conductor:{
+    inicio:   { titulo: "Panel conductor"},
     rutas:    { titulo: "Gestion de rutas" },
     crear:    { titulo: "Crear Ruta" },
     buses:    { titulo: "Buses" },
-    graficas: { titulo: "Gráficas" },
-  },
+  }
 };
 
   const cargarPerfil = async () => {
@@ -134,22 +140,26 @@ export default function Home() {
 
   return (
 
-    <View style={styles.container}>
-      {/* ── Header fijo (siempre visible) ──────────────────── */}
-      {tabActivo !=='perfil' && <Header titulo={HEADER_CONFIGS[ROL_ACTUAL][tabActivo]?.titulo ?? "Inicio" } subtitulo={HEADER_CONFIGS[ROL_ACTUAL][tabActivo]?.subtitulo ?? ""}  
-      mode="light" />}     
+      <View style={styles.container}>
+        {/* ── Header fijo (siempre visible) ──────────────────── */}
+        {tabActivo !=='perfil' && <Header titulo={HEADER_CONFIGS[ROL_ACTUAL][tabActivo]?.titulo ?? "Inicio" } subtitulo={HEADER_CONFIGS[ROL_ACTUAL][tabActivo]?.subtitulo ?? ""}  
+        mode="light" iconoDerecha={ROL_ACTUAL === 'administrador' || ROL_ACTUAL === 'conductor'  ?
+        <TouchableOpacity onPress={()=>setTabActivo('perfil')}> 
+          <Ionicons name="person-circle-outline" size={36} color="#fff" style={{marginTop: -25}}/> 
+        </TouchableOpacity>
+      : null}/>}     
 
-      {/* ── Área de contenido (cambia según el tab) ─────────── */}
-      <View style={styles.contenido}>{renderContenido()}</View>
+        {/* ── Área de contenido (cambia según el tab) ─────────── */}
+        <View style={styles.contenido}>{renderContenido()}</View>
 
-      {/* ── Navbar fijo abajo ───────────────────────────────── */}
-      <BottomNavBar
-        rol={ROL_ACTUAL}
-        initialTab="inicio"
-        onTabPress={(key) => setTabActivo(key)}
-      />
-    </View>
-  );
+        {/* ── Navbar fijo abajo ───────────────────────────────── */}
+        <BottomNavBar
+          rol={ROL_ACTUAL}
+          initialTab="inicio"
+          onTabPress={(key) => setTabActivo(key)}
+        />
+      </View>
+    );
 }
 
 // Subtítulo del header según tab activo
