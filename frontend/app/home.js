@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -10,11 +11,15 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BottomNavBar } from "../components/BottomNavBar";
-import { getProfile } from "../services/profileService"
-import { getCurrentUser } from "../services/auth";
+import Header from "../components/Header";
+
 
 // ── Importa aquí los componentes de cada tab ──────────────────
 import EditarPerfilForm from "../components/forms/EditarPerfilForm";
+
+const ROL_ACTUAL = "administrador"; // cambia a 'usuario' o 'administrador' para probar
+
+
 
 export default function Home() {
   const [tabActivo, setTabActivo] = useState("inicio");
@@ -27,6 +32,29 @@ export default function Home() {
   useEffect(() => {
     cargarPerfil();
   }, []);
+
+  const HEADER_CONFIGS = {
+  usuario: {
+    inicio:    { titulo: `Hola ${perfil?.nombre?.split(' ')[0] ?? 'Usuario'}`,
+                  subtitulo: '¿a donde vamos hoy?'},
+    favoritos: { titulo: "Mis Favoritos" },
+    rutas:     { titulo: "Rutas" },
+    perfil:    { titulo: "Mi Perfil" },
+  },
+  administrador: {
+    inicio:   { titulo: "Panel Administrivo", subtitulo: "Gestion rutas y buses" },
+    rutas:    { titulo: "Gestion de rutas", subtitulo: "Administrar las rutas del sistema"},
+    crear:    { titulo: "Crear Ruta",  subtitulo: "Gestion de rutas" },
+    buses:    { titulo: "Buses", subtitulo: "Gestion de buses" },
+    graficas: { titulo: "Estadisticas",  subtitulo: "Actividad del sistema" },
+  },
+  conductor:{
+    inicio:   { titulo: "Panel conductor"},
+    rutas:    { titulo: "Gestion de rutas" },
+    crear:    { titulo: "Crear Ruta" },
+    buses:    { titulo: "Buses" },
+  }
+};
 
   const cargarPerfil = async () => {
     try {
@@ -111,28 +139,27 @@ export default function Home() {
   }
 
   return (
-    <View style={styles.container}>
-      {/* ── Header fijo (siempre visible) ──────────────────── */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Hola {perfil?.nombre?.split(' ')[0] ?? 'Usuario'}</Text>
-        <Text style={styles.headerSub}>
-          {tabActivo === "inicio"
-            ? "¿A dónde vamos hoy?"
-            : obtenerSubtitulo(tabActivo)}
-        </Text>
+
+      <View style={styles.container}>
+        {/* ── Header fijo (siempre visible) ──────────────────── */}
+        {tabActivo !=='perfil' && <Header titulo={HEADER_CONFIGS[ROL_ACTUAL][tabActivo]?.titulo ?? "Inicio" } subtitulo={HEADER_CONFIGS[ROL_ACTUAL][tabActivo]?.subtitulo ?? ""}  
+        mode="light" iconoDerecha={ROL_ACTUAL === 'administrador' || ROL_ACTUAL === 'conductor'  ?
+        <TouchableOpacity onPress={()=>setTabActivo('perfil')}> 
+          <Ionicons name="person-circle-outline" size={36} color="#fff" style={{marginTop: -25}}/> 
+        </TouchableOpacity>
+      : null}/>}     
+
+        {/* ── Área de contenido (cambia según el tab) ─────────── */}
+        <View style={styles.contenido}>{renderContenido()}</View>
+
+        {/* ── Navbar fijo abajo ───────────────────────────────── */}
+        <BottomNavBar
+          rol={ROL_ACTUAL}
+          initialTab="inicio"
+          onTabPress={(key) => setTabActivo(key)}
+        />
       </View>
-
-      {/* ── Área de contenido (cambia según el tab) ─────────── */}
-      <View style={styles.contenido}>{renderContenido()}</View>
-
-      {/* ── Navbar fijo abajo ───────────────────────────────── */}
-      <BottomNavBar
-        rol={perfil?.rol ?? 'usuario'}
-        initialTab="inicio"
-        onTabPress={(key) => setTabActivo(key)}
-      />
-    </View>
-  );
+    );
 }
 
 // Subtítulo del header según tab activo
@@ -154,6 +181,7 @@ function TabPendiente({ nombre, icono }) {
       <Ionicons name={icono} size={48} color="#D1D5DB" />
       <Text style={styles.pendienteTexto}>{nombre}</Text>
       <Text style={styles.pendienteSubtexto}>Próximamente</Text>
+
     </View>
   );
 }
