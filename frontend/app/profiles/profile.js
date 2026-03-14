@@ -8,7 +8,6 @@ import theme from "../../constants/theme";
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const t = theme.lightMode;
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -18,7 +17,6 @@ export default function ProfileScreen() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // Obtener el usuario autenticado
         const { data: { user }, error: authError } = await supabase.auth.getUser();
 
         if (authError || !user) {
@@ -26,7 +24,6 @@ export default function ProfileScreen() {
           return;
         }
 
-        // Llamar al servicio profileService.getProfile
         const { data, error } = await getProfile(user.id);
 
         if (error) {
@@ -55,11 +52,12 @@ export default function ProfileScreen() {
   return (
     <View style={styles.screen}>
       <ProfileCard
-        // Datos del perfil desde Supabase
-        name={profile?.full_name ?? ""}
+        // ── Columnas reales de la tabla profiles en Supabase ──
+        name={profile?.nombre ?? ""}
         email={profile?.email ?? ""}
         avatarUri={profile?.avatar_url ?? null}
-        role={profile?.rol ?? "usuario"} // rol_tipo: "usuario" | "administrador" | "conductor"
+        role={profile?.rol ?? "usuario"}       // rol_tipo: "usuario" | "administrador" | "conductor"
+        isActive={profile?.activo ?? true}
         loading={loading}
 
         // ── Actividad ──
