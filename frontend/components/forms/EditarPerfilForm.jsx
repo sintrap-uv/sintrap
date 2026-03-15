@@ -12,95 +12,60 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { subirAvatar } from "../../services/uploadService";
+import theme from "../../constants/theme";
+
+const T = theme.lightMode; // cambia a theme.darkMode para modo oscuro
+
 import {
   validarConductor,
   GENERO_OPCIONES,
 } from "../../models/conductor.model";
-import {
-  actualizarPerfil,
-  subirFotoPerfil,
-} from "../../services/profile.service";
-import { updateProfile } from "../../services/profile.service";
-
-const COLORS = {
-  primary: "#1B4FD8", // Azul principal
-  primaryLight: "#EEF2FF", // Fondo azul suave
-  primaryDark: "#1338A0", // Hover/press
-  success: "#16A34A",
-  successLight: "#DCFCE7",
-  error: "#DC2626",
-  errorLight: "#FEE2E2",
-  text: "#111827",
-  textSecondary: "#6B7280",
-  border: "#D1D5DB",
-  borderFocus: "#1B4FD8",
-  background: "#F9FAFB",
-  white: "#FFFFFF",
-  surface: "#FFFFFF",
-};
-
-// COMPONENTE PRINCIPAL
-
-/**
- * @param {object}   perfilInicial  - Datos actuales del conductor (del servicio)
- * @param {string}   userId         - UUID del usuario autenticado
- * @param {Function} onGuardado     - Callback cuando se guarda exitosamente
- */
+import { updateProfile } from "../../services/profileService";
 
 export default function EditarPerfilForm({
   perfilInicial,
   userId,
   onGuardado,
 }) {
-  // Estado del formulario
   const [form, setForm] = useState({
     nombre: perfilInicial?.nombre ?? "",
     cedula: perfilInicial?.cedula ?? "",
     celular: perfilInicial?.celular ?? "",
-    genero: perfilInicial?.genero ?? "",
-    avatar_url: perfilInicial?.avatar_url ?? "",
+    genero: perfilInicial?.genero ?? null,
+    avatar_url: perfilInicial?.avatar_url ?? null,
+    edad: perfilInicial?.edad ? String(perfilInicial.edad) : "",
   });
 
   const [errores, setErrores] = useState({});
   const [guardando, setGuardando] = useState(false);
-  const [guardado, setGuardado] = useState(false); // feedback de éxito
+  const [guardado, setGuardado] = useState(false);
 
-  // Actualizar campo del formulario
   const actualizarCampo = (campo, valor) => {
     setForm((prev) => ({ ...prev, [campo]: valor }));
-    // Limpiar error del campo al escribir
-    if (errores[campo]) {
-      setErrores((prev) => ({ ...prev, [campo]: undefined }));
-    }
+    if (errores[campo]) setErrores((prev) => ({ ...prev, [campo]: undefined }));
     setGuardado(false);
   };
 
-  // ── Seleccionar foto
   const seleccionarFoto = async () => {
     const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permiso.granted) {
-      Alert.alert(
-        "Permiso requerido",
-        "Necesitamos acceso a tu galería para cambiar la foto.",
-      );
+      Alert.alert("Permiso requerido", "Necesitamos acceso a tu galería.");
       return;
     }
     const resultado = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [1, 1], // cuadrado para foto de perfil
+      aspect: [1, 1],
       quality: 0.7,
     });
-    if (!resultado.canceled) {
+    if (!resultado.canceled)
       actualizarCampo("avatar_url", resultado.assets[0].uri);
-    }
   };
 
-  // ── Guardar cambios
   const handleGuardar = async () => {
-    // 1. Validar
     const { valido, errores: erroresValidacion } = validarConductor(form);
     if (!valido) {
       setErrores(erroresValidacion);
@@ -109,31 +74,40 @@ export default function EditarPerfilForm({
 
     setGuardando(true);
     setErrores({});
-
     try {
+      let avatar_url = form.avatar_url;
+
+      // Si se seleccionó una foto nueva (URI local empieza con file://)
+      if (avatar_url && avatar_url.startsWith("file:///")) {
+        const { publicUrl, error: errorFoto } = await subirAvatar(
+          userId,
+          avatar_url,
+        );
+        if (errorFoto) throw new Error("Error subiendo foto: " + errorFoto);
+        avatar_url = publicUrl; // URL públic de supbase Storage
+      }
+
       const cambios = {
         nombre: form.nombre.trim(),
         cedula: form.cedula.trim(),
         celular: form.celular.trim(),
         genero: form.genero,
-        // avatar_url: pendiente hasta implemnetar supabase storage
+        edad: form.edad ? parseInt(form.edad) : null,
+        avatar_url,
       };
 
-      const { data, error} = await updateProfile(userId, cambios);
+      const { data, error } = await updateProfile(userId, cambios);
+      if (error) throw new Error(error.message ?? "Error al guardar");
 
-      if (error) throw new Error(error.message ?? 'Error al guardar los cambios');
-      
       setGuardado(true);
       if (onGuardado) onGuardado(data);
-
     } catch (e) {
-      Alert.alert("Error", e.message ?? "No se pudieron guardar los cambios.");
+      Alert.alert("Error", e.message);
     } finally {
       setGuardando(false);
     }
   };
 
-  // RENDER
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -145,7 +119,7 @@ export default function EditarPerfilForm({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Foto de perfil ─────────────────────────────── */}
+        {/* Foto de perfil */}
         <View style={styles.avatarSection}>
           <TouchableOpacity
             onPress={seleccionarFoto}
@@ -155,59 +129,66 @@ export default function EditarPerfilForm({
               <Image source={{ uri: form.avatar_url }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <Ionicons
-                  name="person"
-                  size={48}
-                  color={COLORS.textSecondary}
-                />
+                <Ionicons name="person" size={48} color={T.text.secondary} />
               </View>
             )}
             <View style={styles.avatarBadge}>
-              <Ionicons name="camera" size={14} color={COLORS.white} />
+              <Ionicons name="camera" size={14} color="#fff" />
             </View>
           </TouchableOpacity>
           <Text style={styles.avatarHint}>Toca para cambiar foto</Text>
         </View>
 
-        {/* ── Título sección ─────────────────────────────── */}
         <Text style={styles.sectionTitle}>Información personal</Text>
 
-        {/* ── Campo: Nombre ──────────────────────────────── */}
         <CampoTexto
           label="Nombre completo"
           icono="person-outline"
+          IconLib={Ionicons}
           valor={form.nombre}
           onChange={(v) => actualizarCampo("nombre", v)}
           error={errores.nombre}
-          placeholder="Ej: Carlos Ramírez"
+          placeholder="Carlos Ramírez"
           autoCapitalize="words"
         />
 
-        {/* ── Campo: Cédula ──────────────────────────────── */}
         <CampoTexto
           label="Número de cédula"
           icono="card-outline"
+          IconLib={Ionicons}
           valor={form.cedula}
           onChange={(v) => actualizarCampo("cedula", v)}
           error={errores.cedula}
-          placeholder="Ej: 1020304050"
+          placeholder="1020304050"
           keyboardType="numeric"
           maxLength={15}
         />
 
-        {/* ── Campo: Teléfono ────────────────────────────── */}
         <CampoTexto
           label="Teléfono / Celular"
           icono="call-outline"
+          IconLib={Ionicons}
           valor={form.celular}
           onChange={(v) => actualizarCampo("celular", v)}
           error={errores.celular}
-          placeholder="Ej: 3001234567"
+          placeholder="3001234567"
           keyboardType="phone-pad"
           maxLength={15}
         />
 
-        {/* ── Selector: Género ───────────────────────────── */}
+        <CampoTexto
+          label="Edad"
+          icono="birthday-cake"
+          IconLib={FontAwesome}
+          valor={form.edad}
+          onChange={(v) => actualizarCampo("edad", v)}
+          error={errores.edad}
+          placeholder="25"
+          keyboardType="numeric"
+          maxLength={3}
+        />
+
+        {/* Género */}
         <View style={styles.campoWrapper}>
           <Text style={styles.label}>Género</Text>
           <View style={styles.generoGrid}>
@@ -234,21 +215,15 @@ export default function EditarPerfilForm({
           </View>
         </View>
 
-        {/* ── Mensaje de éxito ───────────────────────────── */}
         {guardado && (
           <View style={styles.mensajeExito}>
-            <Ionicons
-              name="checkmark-circle"
-              size={18}
-              color={COLORS.success}
-            />
+            <Ionicons name="checkmark-circle" size={18} color={T.icon.active} />
             <Text style={styles.mensajeExitoTexto}>
               Perfil actualizado correctamente
             </Text>
           </View>
         )}
 
-        {/* ── Botón guardar ──────────────────────────────── */}
         <TouchableOpacity
           style={[styles.botonGuardar, guardando && styles.botonDeshabilitado]}
           onPress={handleGuardar}
@@ -256,10 +231,10 @@ export default function EditarPerfilForm({
           activeOpacity={0.85}
         >
           {guardando ? (
-            <ActivityIndicator color={COLORS.white} size="small" />
+            <ActivityIndicator color="#fff" size="small" />
           ) : (
             <>
-              <Ionicons name="save-outline" size={18} color={COLORS.white} />
+              <Ionicons name="save-outline" size={18} color="#fff" />
               <Text style={styles.botonTexto}>Guardar cambios</Text>
             </>
           )}
@@ -269,32 +244,34 @@ export default function EditarPerfilForm({
   );
 }
 
-// SUB-COMPONENTE: CampoTexto reutilizable
-
-function CampoTexto({ label, icono, valor, onChange, error, ...inputProps }) {
+// CampoTexto reutilizable
+function CampoTexto({
+  label,
+  icono,
+  IconLib,
+  valor,
+  onChange,
+  error,
+  ...rest
+}) {
   const [enfocado, setEnfocado] = useState(false);
-
   return (
     <View style={styles.campoWrapper}>
       <Text style={styles.label}>{label}</Text>
       <View
         style={[
           styles.inputWrapper,
-          enfocado && styles.inputWrapperFocus,
-          error && styles.inputWrapperError,
+          enfocado && styles.inputFocus,
+          error && styles.inputError,
         ]}
       >
-        <Ionicons
+        <IconLib
           name={icono}
           size={18}
           color={
-            error
-              ? COLORS.error
-              : enfocado
-                ? COLORS.primary
-                : COLORS.textSecondary
+            error ? T.icon.error : enfocado ? T.icon.active : T.icon.default
           }
-          style={styles.inputIcono}
+          style={{ marginRight: 8 }}
         />
         <TextInput
           style={styles.input}
@@ -302,207 +279,131 @@ function CampoTexto({ label, icono, valor, onChange, error, ...inputProps }) {
           onChangeText={onChange}
           onFocus={() => setEnfocado(true)}
           onBlur={() => setEnfocado(false)}
-          placeholderTextColor={COLORS.textSecondary}
-          {...inputProps}
+          placeholderTextColor={T.input.placeholder}
+          {...rest}
         />
       </View>
       {error && (
-        <View style={styles.errorWrapper}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginTop: 4,
+            gap: 4,
+          }}
+        >
           <Ionicons
             name="alert-circle-outline"
             size={13}
-            color={COLORS.error}
+            color={T.icon.error}
           />
-          <Text style={styles.errorTexto}>{error}</Text>
+          <Text style={{ fontSize: 12, color: T.icon.error }}>{error}</Text>
         </View>
       )}
     </View>
   );
 }
 
-// ESTILOS
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  container: {
-    padding: 20,
-    paddingBottom: 48,
-  },
+  scroll: { flex: 1, backgroundColor: T.background },
+  container: { padding: 20, paddingBottom: 48 },
 
-  // Foto de perfil
-  avatarSection: {
-    alignItems: "center",
-    marginBottom: 28,
-    marginTop: 8,
-  },
-  avatarWrapper: {
-    position: "relative",
-    width: 96,
-    height: 96,
-  },
-  avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: COLORS.border,
-  },
+  avatarSection: { alignItems: "center", marginBottom: 28, marginTop: 8 },
+  avatarWrapper: { position: "relative", width: 96, height: 96 },
+  avatar: { width: 96, height: 96, borderRadius: 48 },
   avatarPlaceholder: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: T.cards.background,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: COLORS.border,
+    borderColor: T.cards.border,
     borderStyle: "dashed",
   },
   avatarBadge: {
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: COLORS.primary,
+    backgroundColor: T.Button.primary.background,
     borderRadius: 12,
     width: 28,
     height: 28,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: COLORS.white,
+    borderColor: "#fff",
   },
-  avatarHint: {
-    marginTop: 8,
-    fontSize: 12,
-    color: COLORS.textSecondary,
-  },
-
-  // Título sección
+  avatarHint: { marginTop: 8, fontSize: 12, color: T.text.secondary },
   sectionTitle: {
     fontSize: 13,
     fontWeight: "600",
-    color: COLORS.textSecondary,
+    color: T.text.secondary,
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: 16,
   },
-
-  // Campos
-  campoWrapper: {
-    marginBottom: 16,
-  },
+  campoWrapper: { marginBottom: 16 },
   label: {
     fontSize: 14,
     fontWeight: "500",
-    color: COLORS.text,
+    color: T.text.primary,
     marginBottom: 6,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.white,
+    backgroundColor: T.input.background,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
-    borderRadius: 10,
+    borderColor: T.input.border,
+    borderRadius: T.input.borderRadius,
     paddingHorizontal: 12,
     height: 48,
   },
-  inputWrapperFocus: {
-    borderColor: COLORS.borderFocus,
-    backgroundColor: COLORS.primaryLight,
-  },
-  inputWrapperError: {
-    borderColor: COLORS.error,
-    backgroundColor: COLORS.errorLight,
-  },
-  inputIcono: {
-    marginRight: 8,
-  },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    color: COLORS.text,
-    paddingVertical: 0,
-  },
+  inputFocus: { borderColor: T.icon.active },
+  inputError: { borderColor: T.icon.error },
+  input: { flex: 1, fontSize: 15, color: T.input.text, paddingVertical: 0 },
 
-  // Errores
-  errorWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-    gap: 4,
-  },
-  errorTexto: {
-    fontSize: 12,
-    color: COLORS.error,
-  },
-
-  // Selector género
-  generoGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
+  generoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   generoOpcion: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.white,
+    borderColor: T.cards.border,
+    backgroundColor: T.cards.background,
   },
-  generoOpcionActiva: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryLight,
-  },
-  generoTexto: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-  generoTextoActivo: {
-    color: COLORS.primary,
-    fontWeight: "600",
-  },
+  generoOpcionActiva: { borderColor: T.icon.active },
+  generoTexto: { fontSize: 13, color: T.text.secondary },
+  generoTextoActivo: { color: T.text.routName, fontWeight: "600" },
 
-  // Mensaje éxito
   mensajeExito: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: COLORS.successLight,
+    backgroundColor: "#DCFCE7",
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
   },
-  mensajeExitoTexto: {
-    color: COLORS.success,
-    fontSize: 14,
-    fontWeight: "500",
-  },
+  mensajeExitoTexto: { color: T.icon.active, fontSize: 14, fontWeight: "500" },
 
-  // Botón guardar
   botonGuardar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
+    backgroundColor: T.Button.primary.background,
+    borderRadius: T.Button.primary.borderRadius,
     height: 50,
     marginTop: 8,
-    shadowColor: COLORS.primary,
+    shadowColor: T.Button.primary.background,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
-  botonDeshabilitado: {
-    opacity: 0.7,
-  },
-  botonTexto: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  botonDeshabilitado: { opacity: 0.7 },
+  botonTexto: { color: T.Button.primary.Text, fontSize: 16, fontWeight: "600" },
 });

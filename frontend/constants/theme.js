@@ -42,7 +42,7 @@ const tipografia = {
 
 const shadows = {
   card: {
-    shadowColor: "#FFFFFF",
+    shadowColor: "#000000",
     shadowOffset: {
       width: 0,   // X
       height: 4,  // Y
@@ -65,9 +65,12 @@ const theme = {
         // Usar con <LinearGradient colors={theme.lightMode.headers.gradientColors}>
 
         Headers: {
-            gradientColors:["#16A34A", "#22C55E"],
-            gradianteCenter: {x: 0.5, y: 0.5 },
-            gradianteRadius: { x: 0.5, y: 0.5 },
+            innerColor:"#16A34A",
+            outerColor : "#22C55E",
+            cx: "50%",
+            cy: "50%",
+            rx: "50%",
+            ry: "50%",
         },
 
         //Cards 
@@ -139,8 +142,10 @@ const theme = {
         //Header (el cuadro verde que sale en la parte superior del Home, Perfil etc)
          Headers: {
             gradientColors:["#16A34A", "#16A34A"],
-            gradianteCenter: { x: 0.5, y: 0.5 },
-            gradianteRadius: { x: 0.5, y: 0.5 },
+            cx: "50%",
+            cy: "50%",
+            rx: "50%",
+            ry: "50%",
         },
 
         //Cards 
@@ -148,7 +153,7 @@ const theme = {
         cards: {
             background:"#1E293B",
             border: "#334155",
-            borderRadius:"16px",
+            borderRadius: 16 ,
         },
         
         //Botones
@@ -203,4 +208,4 @@ const theme = {
     }
 
 }
-
+export default theme;
