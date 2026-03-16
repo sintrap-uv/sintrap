@@ -17,6 +17,7 @@ import { getCurrentUser } from "../services/auth";
 // ── Importa aquí los componentes de cada tab ──────────────────
 import EditarPerfilForm from "../components/forms/EditarPerfilForm";
 import ConductoresScreen from "./(admin)/conductores";
+import RegistrarVehiculo from "./(admin)/registrar-vehiculo";
 
 export default function Home() {
   const [tabActivo, setTabActivo] = useState("inicio");
@@ -82,7 +83,7 @@ export default function Home() {
       inicio:   () => <ConductoresScreen />,
       rutas:    () => <TabPendiente nombre="Gestión de rutas" icono="map-outline" />,
       crear:    () => <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />,
-      buses:    () => <TabPendiente nombre="Buses" icono="bus" />,
+      buses:    () => <RegistrarVehiculo nombre="Buses" icono="bus" />,
       graficas: () => <TabPendiente nombre="Estadísticas" icono="bar-chart-outline" />,
       perfil:   () => (
         <EditarPerfilForm
