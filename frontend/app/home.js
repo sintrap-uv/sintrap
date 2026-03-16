@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -17,7 +16,7 @@ import { getCurrentUser } from "../services/auth";
 
 // ── Importa aquí los componentes de cada tab ──────────────────
 import EditarPerfilForm from "../components/forms/EditarPerfilForm";
-
+import ConductoresScreen from "./(admin)/conductores";
 
 export default function Home() {
   const [tabActivo, setTabActivo] = useState("inicio");
@@ -72,59 +71,86 @@ export default function Home() {
     }
   };
 
+  // ── Contenido por ROL + TAB 
+  // Cada rol tiene su propio mapa de tabs → componentes.
+  // Así un tab con la misma key ('rutas') muestra cosas
+  // distintas según si el usuario es admin, conductor o usuario.
+  const CONTENIDO = {
+
+    // ── ADMINISTRADOR 
+    administrador: {
+      inicio:   () => <ConductoresScreen />,
+      rutas:    () => <TabPendiente nombre="Gestión de rutas" icono="map-outline" />,
+      crear:    () => <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />,
+      buses:    () => <TabPendiente nombre="Buses" icono="bus" />,
+      graficas: () => <TabPendiente nombre="Estadísticas" icono="bar-chart-outline" />,
+      perfil:   () => (
+        <EditarPerfilForm
+          perfilInicial={perfil}
+          userId={userId}
+          onGuardado={(actualizado) => setPerfil(actualizado)}
+        />
+      ),
+    },
+
+    // ── CONDUCTOR 
+    conductor: {
+      inicio:  () => (
+        <LinearGradient colors={["#2D6A2D", "#A8D5A2", "#e8f5e9"]} style={styles.gradient}>
+          <TouchableOpacity style={styles.alertBtn}>
+            <Ionicons name="notifications" size={16} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.alertText}>Avisarme cuando el bus este cerca</Text>
+          </TouchableOpacity>
+        </LinearGradient>
+      ),
+      rutas:   () => <TabPendiente nombre="Mi Ruta" icono="navigate-outline" />,
+      agregar: () => <TabPendiente nombre="Reportar incidente" icono="warning-outline" />,
+      bus:     () => (
+        <EditarPerfilForm
+          perfilInicial={perfil}
+          userId={userId}
+          onGuardado={(actualizado) => setPerfil(actualizado)}
+        />
+      ),
+      perfil:     () => (
+        <EditarPerfilForm
+          perfilInicial={perfil}
+          userId={userId}
+          onGuardado={(actualizado) => setPerfil(actualizado)}
+        />
+      ),
+
+    },
+
+    // ── USUARIO 
+    usuario: {
+      inicio:    () => (
+        <LinearGradient colors={["#2D6A2D", "#A8D5A2", "#e8f5e9"]} style={styles.gradient}>
+          <TouchableOpacity style={styles.alertBtn}>
+            <Ionicons name="notifications" size={16} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.alertText}>Avisarme cuando el bus este cerca</Text>
+          </TouchableOpacity>
+        </LinearGradient>
+      ),
+      favoritos: () => <TabPendiente nombre="Favoritos" icono="heart-outline" />,
+      rutas:     () => <TabPendiente nombre="Rutas" icono="location-outline" />,
+      perfil:    () => (
+        <EditarPerfilForm
+          perfilInicial={perfil}
+          userId={userId}
+          onGuardado={(actualizado) => setPerfil(actualizado)}
+        />
+      ),
+    },
+  };
+
   const renderContenido = () => {
-    switch (tabActivo) {
-      case "inicio":
-        return (
-          <LinearGradient
-            colors={["#2D6A2D", "#A8D5A2", "#e8f5e9"]}
-            style={styles.gradient}
-          >
-            <TouchableOpacity style={styles.alertBtn}>
-              <Ionicons
-                name="notifications"
-                size={16}
-                color="#fff"
-                style={{ marginRight: 8 }}
-              />
-              <Text style={styles.alertText}>
-                Avisarme cuando el bus este cerca
-              </Text>
-            </TouchableOpacity>
-          </LinearGradient>
-        );
-
-      // Tab "Mi Bus" del conductor → formulario de editar perfil
-      case "bus":
-        return (
-          <EditarPerfilForm
-            perfilInicial={perfil}
-            userId={userId}
-            onGuardado={(actualizado) => console.log("Guardado:", actualizado)}
-          />
-        );
-
-      case "rutas":
-        return <TabPendiente nombre="Rutas" icono="navigate-outline" />;
-
-      case "agregar":
-        return <TabPendiente nombre="Reportar" icono="add-circle-outline" />;
-
-      case "favoritos":
-        return <TabPendiente nombre="Favoritos" icono="heart-outline" />;
-
-      case "perfil":
-        return (
-          <EditarPerfilForm
-            perfilInicial={perfil}
-            userId={userId}
-            onGuardado={(actualizado) => console.log("Guardado:", actualizado)}
-          />
-        );
-
-      default:
-        return <TabPendiente nombre={tabActivo} icono="construct-outline" />;
-    }
+    const rol = perfil?.rol ?? "usuario";
+    const tabsDelRol = CONTENIDO[rol] ?? CONTENIDO.usuario;
+    const componente = tabsDelRol[tabActivo];
+    return componente
+      ? componente()
+      : <TabPendiente nombre={tabActivo} icono="construct-outline" />;
   };
 
   // Miestras carga, Muestra spinner en vez del header

@@ -16,6 +16,7 @@ import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { subirAvatar } from "../../services/uploadService";
 import theme from "../../constants/theme";
+import Header from "../../components/Header";
 
 const T = theme.lightMode; // cambia a theme.darkMode para modo oscuro
 
@@ -113,6 +114,17 @@ export default function EditarPerfilForm({
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
+      <Header
+        titulo={"Editar perfil"}
+        subtitulo={"Modifica los datos personales"}
+        mode="light"
+        iconoDerecha={
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back-outline" size={26} color="#fff" />
+          </TouchableOpacity>
+        }
+      />
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.container}
