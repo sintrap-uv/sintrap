@@ -132,6 +132,9 @@ const theme = {
             iconoActivo: "#22C55E", // Este va con el texto #0F172A
             iconoInactivo : "#94A3B8" ,//Texto debajo del icono es el mismo color
         },
+
+        // Asterisico para formulario
+        asterisk: {color: "#EF4444" }
     },
 
     //Modo oscuro 

@@ -4,8 +4,13 @@ import { supabase } from './supabase';
 export async function getAvailableDrivers() {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, nombre_completo')
+    .select('id, nombre')
     .eq('rol', 'conductor');
+
+    console.log('conductores:' ,JSON.stringify(data));
+    console.log('error:' ,JSON.stringify(error));
+
+
 
   if (error) throw error;
   return data;
