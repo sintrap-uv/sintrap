@@ -105,14 +105,8 @@ export default function Home() {
       ),
       rutas:   () => <TabPendiente nombre="Mi Ruta" icono="navigate-outline" />,
       agregar: () => <TabPendiente nombre="Reportar incidente" icono="warning-outline" />,
-      bus:     () => (
-        <EditarPerfilForm
-          perfilInicial={perfil}
-          userId={userId}
-          onGuardado={(actualizado) => setPerfil(actualizado)}
-        />
-      ),
-      perfil:     () => (
+      bus:     () => <TabPendiente nombre="Buses" icono="bus" />, 
+      perfil:  () => (
         <EditarPerfilForm
           perfilInicial={perfil}
           userId={userId}
