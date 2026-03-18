@@ -119,7 +119,7 @@ export default function EditarPerfilForm({
         subtitulo={"Modifica los datos personales"}
         mode="light"
         iconoDerecha={
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => onGuardado?.()}>
             <Ionicons name="arrow-back-outline" size={26} color="#fff" />
           </TouchableOpacity>
         }

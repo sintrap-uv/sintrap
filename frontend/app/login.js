@@ -62,7 +62,7 @@ export default function Login() {
           <FontAwesome name="lock" size={20} color="#444"/>
           <TextInput
             placeholder="Contraseña"
-            secureTextEntry
+             secureTextEntry={!showPassword}
             style={styles.input}
             value={password}
             onChangeText={setPassword}

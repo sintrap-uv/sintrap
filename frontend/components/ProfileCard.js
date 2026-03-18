@@ -10,12 +10,12 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import theme from "../constants/theme";
 import EditarPerfilForm from "./forms/EditarPerfilForm";
- 
+import Header from "./Header"; // ← usa el Header del proyecto
+
 const t = theme.lightMode;
- 
+
 const cardShadow = {
   shadowColor: "#000",
   shadowOffset: { width: 0, height: 2 },
@@ -23,7 +23,7 @@ const cardShadow = {
   shadowRadius: 8,
   elevation: 4,
 };
- 
+
 const ProfileCard = ({
   name = "Nombre",
   email = "",
@@ -33,26 +33,23 @@ const ProfileCard = ({
   isActive = true,
   perfilInicial = null,
   userId = null,
-  onGuardado,           // ← recibe el handler de home.js
-  // Comunes
+  onGuardado,
   onTripHistory,
   onNotifications,
   onSettings,
   onChangePassword,
   onLogout,
-  // Solo administrador
   onManageUsers,
   onReports,
   onManageRoutes,
-  // Solo conductor
   onMyVehicle,
   onAssignedRoutes,
   onToggleService,
   serviceActive = true,
 }) => {
- 
+
   const [mostrarEditar, setMostrarEditar] = useState(false);
- 
+
   const roleConfig = {
     usuario: {
       label: isActive ? "Usuario activo" : "Usuario inactivo",
@@ -74,7 +71,7 @@ const ProfileCard = ({
     badgeBg: "#F1F5F9",
     badgeText: "#475569",
   };
- 
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -83,46 +80,42 @@ const ProfileCard = ({
       </View>
     );
   }
- 
+
+  // ── volverBtn eliminado — la flecha está en el Header de EditarPerfilForm
   if (mostrarEditar) {
     return (
       <View style={{ flex: 1 }}>
-        <TouchableOpacity
-          style={styles.volverBtn}
-          onPress={() => setMostrarEditar(false)}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back-outline" size={22} color={t.text.primary} />
-          <Text style={styles.volverTexto}>Volver al perfil</Text>
-        </TouchableOpacity>
- 
         <EditarPerfilForm
           perfilInicial={perfilInicial}
           userId={userId}
           onGuardado={(actualizado) => {
-            onGuardado?.(actualizado); // ✅ sube los datos a home.js → actualiza en tiempo real
-            setMostrarEditar(false);   // ✅ vuelve a la vista del perfil
+            onGuardado?.(actualizado);
+            setMostrarEditar(false);
           }}
         />
       </View>
     );
   }
- 
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
- 
-      <LinearGradient colors={t.Headers?.gradientColors ?? ["#16A34A", "#22C55E"]} style={styles.header}>
+
+      {/* ── Header del proyecto + avatar sobresaliendo ── */}
+      <View style={styles.headerContainer}>
+        <Header titulo="" subtitulo="" mode="light" />
+        {/* Avatar encima del header sobresaliendo */}
         <View style={styles.avatarWrapper}>
           {avatarUri ? (
             <Image source={{ uri: avatarUri }} style={styles.avatar} />
           ) : (
             <View style={styles.avatarPlaceholder}>
-              <Ionicons name="person" size={42} color="#fff" />
+              <Ionicons name="person" size={46} color="#fff" />
             </View>
           )}
         </View>
-      </LinearGradient>
- 
+      </View>
+
+      {/* ── Info del usuario ── */}
       <View style={styles.profileInfo}>
         <Text style={styles.name}>{name}</Text>
         <View style={[styles.badgeContainer, { backgroundColor: roleConfig.badgeBg }]}>
@@ -132,7 +125,7 @@ const ProfileCard = ({
         </View>
         {email ? <Text style={styles.email}>{email}</Text> : null}
       </View>
- 
+
       {/* ══ SOLO ADMINISTRADOR ══ */}
       {role === "administrador" && (
         <>
@@ -158,7 +151,7 @@ const ProfileCard = ({
           </View>
         </>
       )}
- 
+
       {/* ══ SOLO CONDUCTOR ══ */}
       {role === "conductor" && (
         <>
@@ -199,8 +192,8 @@ const ProfileCard = ({
           </View>
         </>
       )}
- 
-      {/* ══ ACTIVIDAD — todos los roles ══ */}
+
+      {/* ══ ACTIVIDAD ══ */}
       <Text style={styles.sectionTitle}>Actividad</Text>
       <View style={styles.card}>
         <MenuItem
@@ -215,8 +208,8 @@ const ProfileCard = ({
           onPress={onNotifications}
         />
       </View>
- 
-      {/* ══ CUENTA — todos los roles ══ */}
+
+      {/* ══ CUENTA ══ */}
       <Text style={styles.sectionTitle}>Cuenta</Text>
       <View style={styles.card}>
         <MenuItem
@@ -231,8 +224,8 @@ const ProfileCard = ({
           onPress={onSettings}
         />
       </View>
- 
-      {/* ══ SEGURIDAD — todos los roles ══ */}
+
+      {/* ══ SEGURIDAD ══ */}
       <Text style={styles.sectionTitle}>Seguridad</Text>
       <View style={styles.card}>
         <MenuItem
@@ -248,12 +241,12 @@ const ProfileCard = ({
           labelStyle={{ color: t.icon.error }}
         />
       </View>
- 
+
       <View style={{ height: 32 }} />
     </ScrollView>
   );
 };
- 
+
 const MenuItem = ({ icon, label, onPress, labelStyle }) => (
   <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.6}>
     <View style={styles.iconContainer}>{icon}</View>
@@ -261,9 +254,9 @@ const MenuItem = ({ icon, label, onPress, labelStyle }) => (
     <Ionicons name="chevron-forward" size={20} color={t.icon.default} />
   </TouchableOpacity>
 );
- 
+
 const Divider = () => <View style={styles.divider} />;
- 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -280,44 +273,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: t.text.secondary,
   },
-  volverBtn: {
-    flexDirection: "row",
+  // ── Header container ──
+  headerContainer: {
+    position: "relative",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    paddingTop: Platform.OS === "ios" ? 54 : 44,
-    backgroundColor: t.background,
-  },
-  volverTexto: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: t.text.primary,
-  },
-  header: {
-    height: 170,
-    alignItems: "center",
-    justifyContent: "flex-end",
   },
   avatarWrapper: {
-    marginBottom: -44,
+    position: "absolute",
+    bottom: -50,
     borderRadius: 60,
     borderWidth: 4,
-    borderColor: t.cards.background,
+    borderColor: "#fff",
     ...cardShadow,
   },
-  avatar: { width: 88, height: 88, borderRadius: 44 },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
   avatarPlaceholder: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: "#15803D",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#16A34A",
     alignItems: "center",
     justifyContent: "center",
   },
   profileInfo: {
     alignItems: "center",
-    marginTop: 56,
+    marginTop: 62,
     marginBottom: 20,
     paddingHorizontal: 24,
   },
@@ -376,6 +360,5 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
 });
- 
+
 export default ProfileCard;
- 
