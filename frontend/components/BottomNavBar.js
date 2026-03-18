@@ -18,8 +18,8 @@ const NAV_CONFIGS = {
     { key: 'bus',       label: 'Mi Bus',    icon: 'bus'           },
     //{ key: 'stats',     label: 'Stats',     icon: 'bar-chart'     },
   ],
-  // Rol: Administrativo
-  administrativo: [
+  // Rol: Administrador
+  administrador: [
     { key: 'inicio',    label: 'Inicio',    icon: 'home'                },
     { key: 'rutas',     label: 'Rutas',     icon: 'map'                 },
     { key: 'crear',     label: 'Crear',  icon: 'add'               },

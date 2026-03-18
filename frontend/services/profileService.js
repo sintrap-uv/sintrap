@@ -14,7 +14,7 @@ export const getProfile = async (userId) => {
     const {data, error} = await supabase
     .from('profiles')
     .select()
-    .eq('user_id', userId)
+    .eq('id', userId)
     .single();
     return {data, error};
 }
@@ -23,7 +23,7 @@ export const updateProfile = async (userId, updates) => {
     const {data, error} = await supabase
     .from('profiles')
     .update(updates)
-    .eq('user_id', userId)
+    .eq('id', userId)
     .select()
     .single();
     return {data, error};

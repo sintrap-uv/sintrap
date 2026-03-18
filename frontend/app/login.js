@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet
 } from "react-native"
-
+import { Link } from 'expo-router';
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons"
 import { signIn } from "../services/auth"
 
@@ -78,12 +78,14 @@ export default function Login() {
         <Text style={styles.forgot}>
           ¿olvidaste tu contraseña?
         </Text>
-
-        <TouchableOpacity>
-          <Text style={styles.register}>
-            Crear una cuenta
-          </Text>
-        </TouchableOpacity>
+      
+        <Link href="/register" asChild>
+          <TouchableOpacity>
+            <Text style={styles.register}>
+              Crear una cuenta
+            </Text>
+          </TouchableOpacity>
+        </Link>
 
       </View>
     </View>

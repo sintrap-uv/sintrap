@@ -10,7 +10,7 @@ import {
 } from "react-native"
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons"
 
-export default function LoginScreen() {
+export default function Register() {
 
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
