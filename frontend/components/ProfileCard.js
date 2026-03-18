@@ -56,8 +56,8 @@ const ProfileCard = ({
   const roleConfig = {
     usuario: {
       label: isActive ? "Usuario activo" : "Usuario inactivo",
-      badgeBg: "#DCFCE7",
-      badgeText: "#16A34A",
+      badgeBg:   isActive ? "#DCFCE7" : "#FEE2E2",
+      badgeText: isActive ? "#16A34A" : "#DC2626",
     },
     administrador: {
       label: "Administrador",

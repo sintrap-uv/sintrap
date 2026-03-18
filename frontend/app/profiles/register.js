@@ -9,21 +9,47 @@ import {
   StyleSheet
 } from "react-native"
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons"
-import { useRouter } from "expo-router" // ← agregado
+import { useRouter } from "expo-router"
 
 export default function LoginScreen() {
 
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const router = useRouter() // ← agregado
+  const [name,            setName]            = useState("")
+  const [email,           setEmail]           = useState("")
+  const [password,        setPassword]        = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [showPassword,    setShowPassword]    = useState(false)
+  const [showConfirm,     setShowConfirm]     = useState(false)
+  const [errores,         setErrores]         = useState({})
+  const router = useRouter()
+
+  // ── Validaciones ──
+  const validar = () => {
+    const e = {}
+    if (!name.trim())
+      e.name = "El nombre es obligatorio"
+    if (!email.trim())
+      e.email = "El correo es obligatorio"
+    else if (!/\S+@\S+\.\S+/.test(email))
+      e.email = "El correo no es válido"
+    if (!password)
+      e.password = "La contraseña es obligatoria"
+    else if (password.length < 8)
+      e.password = "Mínimo 8 caracteres"
+    else if (!/[A-Z]/.test(password))
+      e.password = "Debe tener al menos 1 mayúscula"
+    else if (!/[0-9]/.test(password))
+      e.password = "Debe tener al menos 1 número"
+    if (!confirmPassword)
+      e.confirmPassword = "Confirma tu contraseña"
+    else if (password !== confirmPassword)
+      e.confirmPassword = "Las contraseñas no coinciden"
+    setErrores(e)
+    return Object.keys(e).length === 0
+  }
 
   const handleRegister = async () => {
 
-    if (!name || !email || !password) {
-      alert("Completa todos los campos")
-      return
-    }
+    if (!validar()) return
 
     const { data, error } = await signUp(email, password)
 
@@ -46,11 +72,14 @@ export default function LoginScreen() {
       activo: true
     })
 
-    if (profileError) {
+    // ✅ Fix duplicate key
+    if (profileError && !profileError.message.includes("duplicate")) {
       alert("Error creando perfil: " + profileError.message)
-    } else {
-      alert("Registro exitoso")
+      return
     }
+
+    alert("Registro exitoso")
+  
   }
 
   return (
@@ -66,35 +95,69 @@ export default function LoginScreen() {
 
       <View style={styles.card}>
 
+        {/* Nombre */}
         <View style={styles.inputContainer}>
           <FontAwesome name="user" size={20} color="#444" />
           <TextInput
             placeholder="Nombre completo"
             style={styles.input}
             value={name}
-            onChangeText={setName}
+            onChangeText={(v) => { setName(v); setErrores((p) => ({ ...p, name: undefined })) }}
           />
         </View>
+        {errores.name && <Text style={styles.error}>{errores.name}</Text>}
 
+        {/* Email */}
         <View style={styles.inputContainer}>
           <MaterialIcons name="email" size={20} color="#444" />
           <TextInput
             placeholder="Correo electronico"
             style={styles.input}
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(v) => { setEmail(v); setErrores((p) => ({ ...p, email: undefined })) }}
+            keyboardType="email-address"
+            autoCapitalize="none"
           />
         </View>
+        {errores.email && <Text style={styles.error}>{errores.email}</Text>}
 
+        {/* Contraseña */}
         <View style={styles.inputContainer}>
           <FontAwesome name="lock" size={20} color="#444" />
           <TextInput
             placeholder="Contraseña"
             style={styles.input}
-            secureTextEntry
+            secureTextEntry={!showPassword}
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(v) => { setPassword(v); setErrores((p) => ({ ...p, password: undefined })) }}
           />
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+            <FontAwesome name={showPassword ? "eye-slash" : "eye"} size={18} color="#888" />
+          </TouchableOpacity>
+        </View>
+        {errores.password && <Text style={styles.error}>{errores.password}</Text>}
+
+        {/* Confirmar contraseña */}
+        <View style={styles.inputContainer}>
+          <FontAwesome name="lock" size={20} color="#444" />
+          <TextInput
+            placeholder="Confirmar contraseña"
+            style={styles.input}
+            secureTextEntry={!showConfirm}
+            value={confirmPassword}
+            onChangeText={(v) => { setConfirmPassword(v); setErrores((p) => ({ ...p, confirmPassword: undefined })) }}
+          />
+          <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
+            <FontAwesome name={showConfirm ? "eye-slash" : "eye"} size={18} color="#888" />
+          </TouchableOpacity>
+        </View>
+        {errores.confirmPassword && <Text style={styles.error}>{errores.confirmPassword}</Text>}
+
+        {/* Requisitos de contraseña */}
+        <View style={styles.requisitos}>
+          <Requisito ok={password.length >= 8}   texto="Mínimo 8 caracteres" />
+          <Requisito ok={/[A-Z]/.test(password)} texto="Al menos 1 mayúscula" />
+          <Requisito ok={/[0-9]/.test(password)} texto="Al menos 1 número" />
         </View>
 
         <TouchableOpacity
@@ -104,14 +167,27 @@ export default function LoginScreen() {
           <Text style={styles.buttonText}>Crear cuenta</Text>
         </TouchableOpacity>
 
-        <Text style={styles.forgot}>¿Olvidaste tu contraseña?</Text>
-
-        {/* ← Fix: navega al login */}
-        <TouchableOpacity onPress={() => router.push("/login")}>
-          <Text style={styles.register}>Iniciar sesión</Text>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.register}>¿Ya tienes una cuenta?</Text>
         </TouchableOpacity>
 
       </View>
+    </View>
+  )
+}
+
+// ── Componente de requisito ──
+function Requisito({ ok, texto }) {
+  return (
+    <View style={styles.requisitoRow}>
+      <FontAwesome
+        name={ok ? "check-circle" : "circle-o"}
+        size={13}
+        color={ok ? "#0d5b0d" : "#aaa"}
+      />
+      <Text style={[styles.requisitoTexto, ok && styles.requisitoOk]}>
+        {texto}
+      </Text>
     </View>
   )
 }
@@ -160,7 +236,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#eee",
     borderRadius: 20,
     paddingHorizontal: 15,
-    marginBottom: 15,
+    marginBottom: 4,
     width: "100%",
     height: 45
   },
@@ -171,7 +247,7 @@ const styles = StyleSheet.create({
   },
 
   button: {
-    marginTop: 20,
+    marginTop: 12,
     backgroundColor: "#0d5b0d",
     paddingVertical: 12,
     paddingHorizontal: 40,
@@ -194,5 +270,32 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: "#8B0000",
     fontWeight: "bold"
-  }
+  },
+
+  error: {
+    color: "#DC2626",
+    fontSize: 12,
+    alignSelf: "flex-start",
+    marginLeft: 8,
+    marginBottom: 6,
+  },
+  requisitos: {
+    alignSelf: "flex-start",
+    marginLeft: 8,
+    marginTop: 4,
+    marginBottom: 8,
+    gap: 4,
+  },
+  requisitoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  requisitoTexto: {
+    fontSize: 12,
+    color: "#aaa",
+  },
+  requisitoOk: {
+    color: "#0d5b0d",
+  },
 })
