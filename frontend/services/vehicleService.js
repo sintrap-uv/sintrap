@@ -23,12 +23,16 @@ export async function registerVehicle(vehicleData) {
     .insert([
       {
         placa:        vehicleData.placa,
-        seguro:       vehicleData.seguro,
+        capacidad:       vehicleData.capacidad,
         conductor_id: vehicleData.conductor_id,
-        activo:       true,
+        seguro:       vehicleData.seguro,
+        fecha_inicio: vehicleData.fecha_inicio,
+        fecha_vencimiento: vehicleData.fecha_vencimiento,
       },
     ]);
+    
 
   if (error) throw error;
   return data;
+  
 }
