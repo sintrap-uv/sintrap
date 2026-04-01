@@ -4,8 +4,8 @@ import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 // Componente del formulario
 import EditarPerfilForm from "../../components/forms/EditarPerfilForm";
 
-import { getCurrentUser } from '../../services/auth';
-import { getProfile } from '../../services/profileService';
+import { getCurrentUser } from "../../services/auth";
+import { getProfile } from "../../services/profileService";
 
 export default function EditarPerfilScreen() {
   const [perfil, setPerfil] = useState(null);
@@ -23,18 +23,23 @@ export default function EditarPerfilScreen() {
     setError(null);
 
     try {
-      // Obtner usuario autenticado desde supabase 
+      // Obtner usuario autenticado desde supabase
       const { data: authData, error: authError } = await getCurrentUser();
-      if (authError) throw new Error('No se pudo obtener el usuario: ' + authError.message);
+      if (authError)
+        throw new Error("No se pudo obtener el usuario: " + authError.message);
 
       const user = authData?.user;
-      if (!user) throw new Error('No hay sesión activa. Inicia sesión primero.');
+      if (!user)
+        throw new Error("No hay sesión activa. Inicia sesión primero.");
 
       setUserId(user.id);
 
       // Obtener perfil desde la tabla profiles
-      const { data: perfilData, error: perfilError } = await getProfile(user.id);
-      if (perfilError) throw new Error('No se pudo cargar el perfil: ' + perfilError.message);
+      const { data: perfilData, error: perfilError } = await getProfile(
+        user.id,
+      );
+      if (perfilError)
+        throw new Error("No se pudo cargar el perfil: " + perfilError.message);
 
       setPerfil(perfilData);
     } catch (e) {
@@ -48,7 +53,7 @@ export default function EditarPerfilScreen() {
   const handleGuardado = (perfilActualizado) => {
     setPerfil(perfilActualizado);
     // Opcional: volver atrás después de guardar
-    // router.back();
+    router.back();
   };
 
   // ── Estados de carga y error ──────────────────────────────
@@ -108,8 +113,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   botonReintentar: {
-    backgroundColor: '#1B5E20', paddingHorizontal: 24,
-    paddingVertical: 10, borderRadius: 8,
+    backgroundColor: "#1B5E20",
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 8,
   },
-  botonReintentarTexto: { color: '#fff', fontWeight: '600' },
+  botonReintentarTexto: { color: "#fff", fontWeight: "600" },
 });
