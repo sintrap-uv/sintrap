@@ -20,10 +20,13 @@ import EditarPerfilForm from "../components/forms/EditarPerfilForm";
 import ProfileCard from "../components/ProfileCard";          // ← agregado
 import ConductoresScreen from "./(admin)/conductores";
 import RegistrarVehiculo from "./(admin)/registrar-vehiculo";
+import MapaColaboradores from "./(admin)/Rutas/mapa-Colaboradores";
 import { supabase } from "../services/supabase";
 
 import { ObtenerDireccionUsuario } from "../services/geocalizacion";
 import CajaDireccion from "../components/ModalDireccion";
+
+
 
 export default function Home() {
   const [tabActivo, setTabActivo] = useState("inicio");
@@ -35,6 +38,10 @@ export default function Home() {
   const [serviceActive, setServiceActive] = useState(true);
 
   const [mostrarModal, setMostarModal] = useState(true)
+
+  const [colaboradores, setColaboradores] = useState([]);
+  const [grupos, setGrupos] = useState([]);
+  const [cargandoPrueba, setCargandoPrueba] = useState(false);
 
   useEffect(() => {
     cargarPerfil();
@@ -65,6 +72,44 @@ export default function Home() {
     }
   };
 
+  const probarAgrupacion = async () => {
+    setCargandoPrueba(true);
+
+    try {
+      // 1. Obtener colaboradores
+      console.log("📡 Obteniendo colaboradores...");
+      const data = await ubicacionColaboradores();
+      setColaboradores(data);
+      console.log(`✅ Encontrados ${data.length} colaboradores con ubicación`);
+
+      // 2. Mostrar algunos ejemplos
+      if (data.length > 0) {
+        console.log("📋 Ejemplo de colaborador:");
+        console.log(`   Nombre: ${data[0].nombre}`);
+        console.log(`   Dirección: ${data[0].ubicacion_usuario?.[0]?.direccion}`);
+        console.log(`   Coordenadas: ${data[0].ubicacion_usuario?.[0]?.latidud}, ${data[0].ubicacion_usuario?.[0]?.longitud}`);
+      }
+
+      // 3. Agrupar por cercanía
+      console.log("🔄 Agrupando por cercanía...");
+      const clusters = agruparPorCercania(data, 0.3);
+      setGrupos(clusters);
+
+      // 4. Mostrar resultados
+      console.log(`✅ Se crearon ${clusters.length} grupos`);
+      clusters.forEach((grupo, index) => {
+        console.log(`📦 Grupo ${index + 1}: ${grupo.cantidad} personas`);
+        grupo.colaboradores.forEach(col => {
+          console.log(`   - ${col.nombre}`);
+        });
+      });
+
+    } catch (error) {
+      console.error("❌ Error:", error);
+    } finally {
+      setCargandoPrueba(false);
+    }
+  };
 
 
   const cargarPerfil = async () => {
@@ -114,7 +159,7 @@ export default function Home() {
       crear: () => <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />,
       buses: () => <TabPendiente nombre="Buses" icono="bus" />,
       graficas: () => <TabPendiente nombre="Estadísticas" icono="bar-chart-outline" />,
-      crear_Ruta: () => <TabPendiente nombre='listado de rutas' />,
+      crear_Ruta: () => <MapaColaboradores/>,
       crear_Conductor: () => <ConductoresScreen />,
       crear_Bus: () => <RegistrarVehiculo />,
       // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
@@ -259,6 +304,8 @@ export default function Home() {
 
       {/* ── Área de contenido (cambia según el tab) ─────────── */}
       <View style={styles.contenido}>{renderContenido()}</View>
+
+     
 
       {/* ── Navbar fijo abajo ───────────────────────────────── */}
       {tabActivo === 'crear' && (

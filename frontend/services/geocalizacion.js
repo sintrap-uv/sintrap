@@ -4,15 +4,16 @@ import { supabase } from "./supabase";
 // y lo guardaremos en la tabla de supabase con sus respectivas columnas 
 
 
-export async function ubicacionUsuario(userId, direccion, longitud, latidud) {
+export async function ubicacionUsuario(userId, direccion, latidud, longitud) {
 
     const { data, error } = await supabase
         .from('ubicacion_usuario')
         .insert({
             usuario_id: userId,
             direccion: direccion,
-            longitud: longitud,
             latidud: latidud,
+            longitud: longitud,
+            
         })
         .select()
         .single();
@@ -23,26 +24,6 @@ export async function ubicacionUsuario(userId, direccion, longitud, latidud) {
     }
     return { data, error };
 }
-
-export const buscarDirecciones = async (texto) => {
-    if (texto.length < 4) return [];
-
-    try {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(texto)}&countrycodes=co&limit=5`;
-
-        const res = await fetch(url, {
-            headers: { 'User-Agent': 'SintrapApp' }
-        });
-
-        const data = await res.json();
-
-        return data;
-
-    } catch (error) {
-        console.log("Error buscando direcciones", error);
-        return [];
-    }
-};
 
 
 export const obtenerCordenadas = async (direccion,) => {
@@ -101,3 +82,24 @@ export const ObtenerDireccionUsuario = async (userId) => {
 
 };
 
+export const calcularDistancia = (lat1, long1,lat2,long2)=>{
+    const radioTierra = 6371;
+
+    const convertiaRadiantes = (grados) => grados * Math.PI / 180;
+
+    //Diferencia entre coordenadas
+    const dlat = convertiaRadiantes(lat2 -lat1)
+    const dlon = convertiaRadiantes(long2 - long1);
+
+    //formula de Haversine 
+    const a = Math.sin(dlat / 2) * Math.sin(dlat / 2) +
+              Math.cos(convertiaRadiantes(lat1)) * Math.cos(convertiaRadiantes(lat2)) *
+              Math.sin(dlon / 2) * Math.sin(dlon / 2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    
+    // Distancia final en kilómetros
+    const distancia = radioTierra * c;
+    
+    return distancia;
+}

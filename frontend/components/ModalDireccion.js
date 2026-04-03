@@ -5,10 +5,8 @@ import { useState } from "react";
 import * as Location from 'expo-location';
 import { obtenerCordenadas, ubicacionUsuario } from "../services/geocalizacion";
 
-
-
 const CajaDireccion = ({ id, onGuardado }) => {
-   
+
     const [mostrarFormulario, setMostrarFormulario] = useState(false);
     const [tipoVia, setTipoVia] = useState('Calle');
     const [numeroVia, setNumeroVia] = useState('');
@@ -17,6 +15,7 @@ const CajaDireccion = ({ id, onGuardado }) => {
     const [barrio, setBarrio] = useState('');
     const [ciudad, setCiudad] = useState('');
     const [codigoPostal, setCodigoPostal] = useState('');
+    const [buscando, setBuscando] = useState(false);
 
     const ObtenerUbicacion = async () => {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -40,7 +39,7 @@ const CajaDireccion = ({ id, onGuardado }) => {
         const direccion = direccionTextoPlano[0]?.formattedAddress ?? "";
         console.log(direccion)
 
-        await ubicacionUsuario(id, direccion,latidud, longitud)
+        await ubicacionUsuario(id, direccion, latidud, longitud)
         onGuardado();
     }
 
@@ -86,7 +85,6 @@ const CajaDireccion = ({ id, onGuardado }) => {
         setBarrio('');
         setCiudad('');
         setCodigoPostal('');
-        setReferencia('');
     };
 
     const handleGuardadoFormulario = async () => {
@@ -114,160 +112,171 @@ const CajaDireccion = ({ id, onGuardado }) => {
         await ubicacionUsuario(
             id,
             direccionCompleta,
-            coordenadas.latitud,
             coordenadas.longitud,
+            coordenadas.latitud,
             
+
         );
-        onGuardado();
+
+        setBuscando(false);
+
+        setMensajeExito('¡Regsitro exitoso! \n \n Tu direccion ha sido guardada correctamente.')
+        setMostrarMensaje(true);
+
+        setTimeout(() => {
+            setMostrarMensaje(false)
+            onGuardado();
+        }, 2000);
+
     };
 
     return (
-        
+
         <View style={styles.overlay}>
             <View style={styles.tarjeta}>
-                 <ScrollView showsVerticalScrollIndicator={true}
-                 contentContainerStyle ={styles.scrollContent}
+                <ScrollView showsVerticalScrollIndicator={true}
+                    contentContainerStyle={styles.scrollContent}
                 >
 
-                {!mostrarFormulario && (
-                    <>
-                        <Text style={styles.titulo}>¡Hola! Antes de continuar...</Text>
-                        <Text style={styles.subtitulo}>
-                            Necesitamos la direccion de tu hogar para asignarte la ruta de transporte más cercana
-                            a tu hogar. Solo tomará un momento.
-                        </Text>
-                        <View style={styles.separator} />
+                    {!mostrarFormulario && (
+                        <>
+                            <Text style={styles.titulo}>¡Hola! Antes de continuar...</Text>
+                            <Text style={styles.subtitulo}>
+                                Necesitamos la direccion de tu hogar para asignarte la ruta de transporte más cercana
+                                a tu hogar. Solo tomará un momento.
+                            </Text>
+                            <View style={styles.separator} />
 
-                        <Text style={styles.subtitulo}>
-                            Si estás en casa, presiona el botón para obtener tu ubicación actual.
-                        </Text>
+                            <Text style={styles.subtitulo}>
+                                Si estás en casa, presiona el botón para obtener tu ubicación actual.
+                            </Text>
 
-                        <TouchableOpacity style={styles.btnUbicacion} onPress={ObtenerUbicacion}>
-                            <Text style={styles.btnUbicacionTexto}>Obtener ubicacion actual</Text>
-                        </TouchableOpacity>
+                            <TouchableOpacity style={styles.btnUbicacion} onPress={ObtenerUbicacion}>
+                                <Text style={styles.btnUbicacionTexto}>Obtener ubicacion actual</Text>
+                            </TouchableOpacity>
 
-                        <TouchableOpacity onPress={() => setMostrarFormulario(true)}>
-                            <Text style={styles.oManual}>o escríbela manualmente</Text>
-                        </TouchableOpacity>
-                    </>
+                            <TouchableOpacity onPress={() => setMostrarFormulario(true)}>
+                                <Text style={styles.oManual}>o escríbela manualmente</Text>
+                            </TouchableOpacity>
+                        </>
 
-                )}
+                    )}
 
-               
-                {mostrarFormulario && (
-                    <>
-                        <Text style={styles.tituloManual}>Ingresa tu dirección</Text>
 
-                        {/* Selector de tipo de vía */}
-                        <View style={styles.tipoViaContainer}>
-                            <Text style={styles.label}>Tipo de vía *</Text>
-                            <View style={styles.botonesGrupo}>
-                                {['Calle', 'Carrera', 'Transversal', 'Diagonal', 'Avenida', 'Circular'].map((tipo) => (
-                                    <TouchableOpacity
-                                        key={tipo}
-                                        style={[
-                                            styles.tipoViaBoton,
-                                            tipoVia === tipo && styles.tipoViaBotonActivo
-                                        ]}
-                                        onPress={() => setTipoVia(tipo)}
-                                    >
-                                        <Text style={[
-                                            styles.tipoViaTexto,
-                                            tipoVia === tipo && styles.tipoViaTextoActivo
-                                        ]}>
-                                            {tipo}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
+                    {mostrarFormulario && (
+                        <>
+                            <Text style={styles.tituloManual}>Ingresa tu dirección</Text>
+
+                            {/* Selector de tipo de vía */}
+                            <View style={styles.tipoViaContainer}>
+                                <Text style={styles.label}>Tipo de vía *</Text>
+                                <View style={styles.botonesGrupo}>
+                                    {['Calle', 'Carrera', 'Transversal', 'Diagonal', 'Avenida', 'Circular'].map((tipo) => (
+                                        <TouchableOpacity
+                                            key={tipo}
+                                            style={[
+                                                styles.tipoViaBoton,
+                                                tipoVia === tipo && styles.tipoViaBotonActivo
+                                            ]}
+                                            onPress={() => setTipoVia(tipo)}
+                                        >
+                                            <Text style={[
+                                                styles.tipoViaTexto,
+                                                tipoVia === tipo && styles.tipoViaTextoActivo
+                                            ]}>
+                                                {tipo}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
                             </View>
-                        </View>
 
-                        {/* Número de la vía */}
-                        <Text style={styles.label}>Número de la vía *</Text>
-                        <Input
-                            value={numeroVia}
-                            onChangeText={setNumeroVia}
-                            placeholder="Ej: 10, 15B, 1A"
-                        />
+                            {/* Número de la vía */}
+                            <Text style={styles.label}>Número de la vía *</Text>
+                            <Input
+                                value={numeroVia}
+                                onChangeText={setNumeroVia}
+                                placeholder="Ej: 10, 15B, 1A"
+                            />
 
-                        {/* Número de placa y complemento en dos columnas */}
-                        <View style={styles.rowContainer}>
-                            <View style={styles.halfContainer}>
-                                <Text style={styles.label}>Número de vivienda *</Text>
-                                <Input
-                                    value={numeroPlaca}
-                                    onChangeText={setNumeroPlaca}
-                                    placeholder="Ej: 20-46"
-                                    keyboardType="numeric"
-                                />
+                            {/* Número de placa y complemento en dos columnas */}
+                            <View style={styles.rowContainer}>
+                                <View style={styles.halfContainer}>
+                                    <Text style={styles.label}>Número de vivienda *</Text>
+                                    <Input
+                                        value={numeroPlaca}
+                                        onChangeText={setNumeroPlaca}
+                                        placeholder="Ej: 20-46"
+                                        keyboardType="numeric"
+                                    />
+                                </View>
+                                <View style={styles.halfContainer}>
+                                    <Text style={styles.label}>Complemento</Text>
+                                    <Input
+                                        value={complemento}
+                                        onChangeText={setComplemento}
+                                        placeholder="Ej: 54, Apto 101"
+                                    />
+                                </View>
                             </View>
-                            <View style={styles.halfContainer}>
-                                <Text style={styles.label}>Complemento</Text>
-                                <Input
-                                    value={complemento}
-                                    onChangeText={setComplemento}
-                                    placeholder="Ej: 54, Apto 101"
-                                />
+
+                            {/* Barrio */}
+                            <Text style={styles.label}>Barrio o urbanización *</Text>
+                            <Input
+                                value={barrio}
+                                onChangeText={setBarrio}
+                                placeholder="Ej: El Prado, Centro"
+                            />
+
+                            {/* Ciudad y código postal en dos columnas */}
+                            <View style={styles.rowContainer}>
+                                <View style={styles.halfContainer}>
+                                    <Text style={styles.label}>Ciudad *</Text>
+                                    <Input
+                                        value={ciudad}
+                                        onChangeText={setCiudad}
+                                        placeholder="Tuluá"
+                                    />
+                                </View>
+                                <View style={styles.halfContainer}>
+                                    <Text style={styles.label}>Código postal</Text>
+                                    <Input
+                                        value={codigoPostal}
+                                        onChangeText={setCodigoPostal}
+                                        placeholder="760001"
+                                        keyboardType="numeric"
+                                    />
+                                </View>
                             </View>
-                        </View>
 
-                        {/* Barrio */}
-                        <Text style={styles.label}>Barrio o urbanización *</Text>
-                        <Input
-                            value={barrio}
-                            onChangeText={setBarrio}
-                            placeholder="Ej: El Prado, Centro"
-                        />
 
-                        {/* Ciudad y código postal en dos columnas */}
-                        <View style={styles.rowContainer}>
-                            <View style={styles.halfContainer}>
-                                <Text style={styles.label}>Ciudad *</Text>
-                                <Input
-                                    value={ciudad}
-                                    onChangeText={setCiudad}
-                                    placeholder="Tuluá"
-                                />
-                            </View>
-                            <View style={styles.halfContainer}>
-                                <Text style={styles.label}>Código postal</Text>
-                                <Input
-                                    value={codigoPostal}
-                                    onChangeText={setCodigoPostal}
-                                    placeholder="760001"
-                                    keyboardType="numeric"
-                                />
-                            </View>
-                        </View>
 
-                       
+                            {/* Vista previa de la dirección */}
+                            {(tipoVia || numeroVia || numeroPlaca) && (
+                                <View style={styles.vistaPrevia}>
+                                    <Text style={styles.vistaPreviaTitulo}> Vista previa:</Text>
+                                    <Text style={styles.vistaPreviaTexto}>
+                                        {formatearDireccionPreview()}
+                                    </Text>
+                                </View>
+                            )}
 
-                        {/* Vista previa de la dirección */}
-                        {(tipoVia || numeroVia || numeroPlaca) && (
-                            <View style={styles.vistaPrevia}>
-                                <Text style={styles.vistaPreviaTitulo}> Vista previa:</Text>
-                                <Text style={styles.vistaPreviaTexto}>
-                                    {formatearDireccionPreview()}
-                                </Text>
-                            </View>
-                        )}
+                            {/* Botones de acción */}
+                            <TouchableOpacity style={styles.btnGuardar} onPress={handleGuardadoFormulario}>
+                                <Text style={styles.btnGuardarTexto}>Guardar dirección</Text>
+                            </TouchableOpacity>
 
-                        {/* Botones de acción */}
-                        <TouchableOpacity style={styles.btnGuardar} onPress={handleGuardadoFormulario}>
-                            <Text style={styles.btnGuardarTexto}>Guardar dirección</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.btnVolver}
-                            onPress={() => {
-                                setMostrarFormulario(false);
-                                resetFormulario();
-                            }}
-                        >
-                            <Text style={styles.btnVolverTexto}>← Volver</Text>
-                        </TouchableOpacity>
-                    </>
-                )}
+                            <TouchableOpacity
+                                style={styles.btnVolver}
+                                onPress={() => {
+                                    setMostrarFormulario(false);
+                                    resetFormulario();
+                                }}
+                            >
+                                <Text style={styles.btnVolverTexto}>← Volver</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
                 </ScrollView>
             </View>
         </View>
@@ -343,7 +352,7 @@ const styles = StyleSheet.create({
         width: '100%',
         maxWidth: 400,
         shadowColor: "#000",
-         maxHeight: '90%',
+        maxHeight: '90%',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.25,
         shadowRadius: 25,
@@ -455,9 +464,10 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         textAlign: 'center',
     },
-     scrollContent: {
+    scrollContent: {
         paddingBottom: 20,  // Espacio al final del scroll
     },
+    
 
 })
 export default CajaDireccion
