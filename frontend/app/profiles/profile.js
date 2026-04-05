@@ -5,7 +5,8 @@ import { supabase } from "../../services/supabase";
 import { getProfile } from "../../services/profileService";
 import ProfileCard from "../../components/ProfileCard";
 import theme from "../../constants/theme";
- 
+import { signOut } from "../../services/auth";
+
 export default function ProfileScreen() {
   const router = useRouter();
  
@@ -53,7 +54,7 @@ export default function ProfileScreen() {
  
   // ── Logout ──
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
+    const { error } = await signOut();
     if (!error) router.replace("/login");
   };
  
