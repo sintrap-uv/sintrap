@@ -159,7 +159,7 @@ export default function Home() {
       crear: () => <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />,
       buses: () => <TabPendiente nombre="Buses" icono="bus" />,
       graficas: () => <TabPendiente nombre="Estadísticas" icono="bar-chart-outline" />,
-      crear_Ruta: () => <MapaColaboradores/>,
+      crear_Ruta: () => <MapaColaboradores />,
       crear_Conductor: () => <ConductoresScreen />,
       crear_Bus: () => <RegistrarVehiculo />,
       // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
@@ -305,7 +305,7 @@ export default function Home() {
       {/* ── Área de contenido (cambia según el tab) ─────────── */}
       <View style={styles.contenido}>{renderContenido()}</View>
 
-     
+
 
       {/* ── Navbar fijo abajo ───────────────────────────────── */}
       {tabActivo === 'crear' && (
@@ -315,11 +315,14 @@ export default function Home() {
           if (key === 'ruta') setTabActivo('crear_Ruta');
         }} />
       )}
-      <BottomNavBar
-        rol={perfil?.rol ?? 'usuario'}
-        initialTab="inicio"
-        onTabPress={(key) => setTabActivo(key)}
-      />
+      {tabActivo !== 'crear_Ruta' && (
+        <BottomNavBar
+          rol={perfil?.rol ?? 'usuario'}
+          initialTab="inicio"
+          onTabPress={(key) => setTabActivo(key)}
+        />
+      )}
+
 
     </View>
   );

@@ -244,11 +244,61 @@ const MapaColaboradores = () => {
             dibujarLineaConPuntos();
         }
     });
+
+     var puntoAnteriorLat = ${empresaUbicacion?.lat ?? 4.0863};
+     var puntoAnteriorLon = ${empresaUbicacion?.lon ?? -76.195};
     
     map.on('click',function(e) {
-        agregarMarcadorverde(e.latlng.lat, e.latlng.lng);
-        agregarPuntoLinea(e.latlng.lat, e.latlng.lng);
-        window.ReactNativeWebView.postMessage(e.latlng.lat +","+ e.latlng.lng);
+        var lat = e.latlng.lat;
+        var lon = e.latlng.lng;
+        fetch('https://router.project-osrm.org/nearest/v1/driving/' + lon + ',' + lat)
+            .then(function(respuesta){
+                return respuesta.json();
+            })
+            .then(function(datos){
+                var coordenadas = datos.waypoints[0].location;
+                var callelon = coordenadas[0];  // longitud
+                var calleLat = coordenadas[1];
+                var url = 'https://router.project-osrm.org/route/v1/driving/' + puntoAnteriorLon + ','
+                + puntoAnteriorLat + ';' +  callelon + ',' + calleLat + '?geometries=geojson'; 
+
+                
+                fetch(url)
+                 .then(function(r){ return r.json(); })
+                 .then(function(ruta){
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                tipo: 'error',
+                mensaje: 'ruta: ' + JSON.stringify(ruta).substring(0, 150)
+                 }));
+                  console.log('ruta OSRM: ' + JSON.stringify(ruta));  
+                  var puntos = ruta.routes[0].geometry.coordinates;
+                  var puntosLeaflet = puntos.map(function(p){ return [p[1], p[0]]; });
+                  L.polyline(puntosLeaflet, {color:'#22C55E', weight:4}).addTo(map);
+
+                  puntoAnteriorLat = calleLat;
+                  puntoAnteriorLon = callelon;
+
+                  agregarMarcadorverde(calleLat, callelon);
+                  window.ReactNativeWebView.postMessage(calleLat + "," + callelon);
+                
+                })
+                .catch(function(error){
+                    console.log('Error route: ' + error);
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                     tipo: 'error',
+                     mensaje: 'No se pudo calcular la ruta'
+                    }));
+                })
+
+            })
+                .catch(function(error){
+                 console.log('Error OSRM: ' + error);
+                  // Si falla, usar las coordenadas originales del click
+                     agregarMarcadorverde(lat, lon);
+                     agregarPuntoLinea(lat, lon);
+                window.ReactNativeWebView.postMessage(lat + "," + lon);
+    })
+            
     })
 </script>
 </body>
@@ -328,30 +378,31 @@ const MapaColaboradores = () => {
                             ref={webViewRef}
                             source={{ html: htmlMapa }}
                             onMessage={async (event) => {
+                                const data = event.nativeEvent.data;
+
+                                try {
+                                    const mensaje = JSON.parse(data);
+                                    if (mensaje.tipo === 'error') {
+                                        console.log('Error del mapa: ' + mensaje.mensaje);
+                                        return;
+                                    }
+                                } catch (e) {
+                                    // No es JSON, es una coordenada normal
+                                }
+
                                 if (modoEdicion) {
-                                    const coordenada = event.nativeEvent.data;
-                                    console.log('corodenada' + event.nativeEvent.data)
-                                    const [lat, lon] = coordenada.split(',');
+                                    const [lat, lon] = data.split(',');
                                     const latNum = parseFloat(lat);
                                     const lonNum = parseFloat(lon);
 
                                     const direccion = await convertirCoordenadaADireccion(latNum, lonNum);
 
-                                    setPuntosRuta(prev => {
-                                        const nuevosPuntos = [...prev, {
-                                            lat: latNum,
-                                            lon: lonNum,
-                                            direccion: direccion
+                                    setPuntosRuta(prev => [...prev, {
+                                        lat: latNum,
+                                        lon: lonNum,
+                                        direccion: direccion
 
-                                        }];
-
-                                        const puntosParaWebView = nuevosPuntos.map(p => [p.lat, p.lon]);
-                                        webViewRef.current?.postMessage(JSON.stringify({
-                                            tipo: 'actualizarLinea',
-                                            puntos: puntosParaWebView
-                                        }));
-                                        return nuevosPuntos;
-                                    });
+                                    }]);
                                 }
                             }}
                         />
@@ -532,12 +583,12 @@ const styles = StyleSheet.create({
         fontFamily: theme.lightMode.tipografia.fonts.bold,
     },
     botonRutaOptima: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: theme.lightMode.Button.primary.borderRadius,
-    borderWidth: 1,
-    marginLeft: 8,
-},
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: theme.lightMode.Button.primary.borderRadius,
+        borderWidth: 1,
+        marginLeft: 8,
+    },
 });
 
 export default MapaColaboradores;

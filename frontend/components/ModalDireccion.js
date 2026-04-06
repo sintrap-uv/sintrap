@@ -4,6 +4,7 @@ import theme from "../constants/theme";
 import { useState } from "react";
 import * as Location from 'expo-location';
 import { obtenerCordenadas, ubicacionUsuario } from "../services/geocalizacion";
+import { useToast } from "../context/ToastContext";
 
 const CajaDireccion = ({ id, onGuardado }) => {
 
@@ -16,31 +17,44 @@ const CajaDireccion = ({ id, onGuardado }) => {
     const [ciudad, setCiudad] = useState('');
     const [codigoPostal, setCodigoPostal] = useState('');
     const [buscando, setBuscando] = useState(false);
+    const { showSuccess, showError, showInfo, showWarning } = useToast();
 
     const ObtenerUbicacion = async () => {
         const { status } = await Location.requestForegroundPermissionsAsync();
 
         if (status !== 'granted') {
+            showError("Necesitamos permiso para acceder a tu ubicación")
             return;
         }
-        // Obtener coordenadas
-        const ubicacion = await Location.getCurrentPositionAsync({});
-        console.log(ubicacion.coords.latitude, ubicacion.coords.longitude);
+        showInfo("Obteniendo tu ubicación...");
 
+        try {
+            const ubicacion = await Location.getCurrentPositionAsync({});
+            console.log(ubicacion.coords.latitude, ubicacion.coords.longitude);
+            const latidud = ubicacion.coords.latitude;
+            const longitud = ubicacion.coords.longitude;
 
-        const latidud = ubicacion.coords.latitude;
-        const longitud = ubicacion.coords.longitude;
+            let direccionTextoPlano = await Location.reverseGeocodeAsync({
+                latitude: latidud,
+                longitude: longitud,
+            })
+            const direccion = direccionTextoPlano[0]?.formattedAddress ?? "";
+            if (!direccion) {
+                showError("No pudimos obtner tu dirección ");
+                return;
+            }
+            await ubicacionUsuario(id, direccion, latidud, longitud)
+            showSuccess('!Ubicación guardada correctamente!')
 
-        let direccionTextoPlano = await Location.reverseGeocodeAsync({
-            latitude: latidud,
-            longitude: longitud,
-        })
+            setTimeout(() => {
+                onGuardado();
+            }, 1500);
+        } catch (error) {
+            showError("Error al obtener la ubicacion");
+            console.log(direccion);
 
-        const direccion = direccionTextoPlano[0]?.formattedAddress ?? "";
-        console.log(direccion)
+        }
 
-        await ubicacionUsuario(id, direccion, latidud, longitud)
-        onGuardado();
     }
 
     // Función para formatear la dirección y verla en vivo
@@ -94,7 +108,7 @@ const CajaDireccion = ({ id, onGuardado }) => {
         const direccionCompleta = formatearDireccionPreview();
 
         if (!direccionCompleta || direccionCompleta.length < 5) {
-            alert("Por favor completa los campos obligatorios");
+            showError("Por favor completa los campos obligatorios");
             setBuscando(false);
             return;
         }
@@ -103,7 +117,7 @@ const CajaDireccion = ({ id, onGuardado }) => {
         const coordenadas = await obtenerCordenadas(direccionCompleta);
 
         if (!coordenadas) {
-            alert("No pudimos encontrar esa dirección. Verifica los datos.");
+            showError("No pudimos encontrar esa dirección. Verifica los datos.");
             setBuscando(false);
             return;
         }
@@ -112,22 +126,17 @@ const CajaDireccion = ({ id, onGuardado }) => {
         await ubicacionUsuario(
             id,
             direccionCompleta,
-            coordenadas.longitud,
             coordenadas.latitud,
-            
+            coordenadas.longitud,
 
         );
 
         setBuscando(false);
-
-        setMensajeExito('¡Regsitro exitoso! \n \n Tu direccion ha sido guardada correctamente.')
-        setMostrarMensaje(true);
-
+        showSuccess('!Registro exitoso! tu direccion ha sido guardada correctamente')
+        // Cerrar el modal después del éxito
         setTimeout(() => {
-            setMostrarMensaje(false)
             onGuardado();
         }, 2000);
-
     };
 
     return (
@@ -467,7 +476,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingBottom: 20,  // Espacio al final del scroll
     },
-    
+
 
 })
 export default CajaDireccion

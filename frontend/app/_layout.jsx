@@ -16,20 +16,36 @@ import { View, ActivityIndicator } from "react-native";
 import { Slot, useRouter } from "expo-router";
 import { supabase } from "../services/supabase";
 import { getProfile } from "../services/profileService";
+import NotificacionToast from "../components/ToastNotificacion";
+import { ToastProvider } from "../context/ToastContext";
+import { useToast } from "../context/ToastContext";
 import theme from "../constants/theme";
 
 const T = theme.lightMode;
+
+function AppConToast() {
+  const { toast, hideToast } = useToast();
+  
+  return (
+    <>
+      <Slot />
+      <NotificacionToast 
+        visible={toast.visible}
+        mensaje={toast.message}
+        tipo={toast.type}
+        alOcultar={hideToast}
+      />
+    </>
+  );
+}
 
 export default function RootLayout() {
   const router = useRouter();
   const [verificando, setVerificando] = useState(true);
 
   useEffect(() => {
-    // ── 1. Verificar si hay sesión activa al abrir la app ─────
     verificarSesion();
 
-    // ── 2. Escuchar cambios en tiempo real (login / logout) ───
-    // Equivalente a un guard en Angular que corre en cada navegación
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (evento, sesion) => {
@@ -41,7 +57,6 @@ export default function RootLayout() {
       }
     });
 
-    // Limpieza al desmontar (como ngOnDestroy en Angular)
     return () => subscription.unsubscribe();
   }, []);
 
@@ -63,28 +78,23 @@ export default function RootLayout() {
     }
   };
 
-  /**
-   * Obtiene el perfil y redirige según el rol.
-   * Aquí conectas los 3 roles con sus pantallas correspondientes.
-   */
   const redirigirSegunRol = async (userId) => {
     try {
       const { data: perfil, error } = await getProfile(userId);
       if (error || !perfil) {
-        // Si no tiene perfil aún, va al login
         router.replace("/login");
         return;
       }
 
       switch (perfil.rol) {
         case "conductor":
-          router.replace("/home"); // ← pantalla home del conductor
+          router.replace("/home");
           break;
         case "usuario":
-          router.replace("/home"); // ← cuando creen home de usuario
+          router.replace("/home");
           break;
         case "administrador":
-          router.replace("/home"); // ← cuando creen home de admin
+          router.replace("/home");
           break;
         default:
           router.replace("/login");
@@ -95,7 +105,6 @@ export default function RootLayout() {
     }
   };
 
-  // Mientras verifica la sesión muestra un spinner (evita flash de login)
   if (verificando) {
     return (
       <View
@@ -111,6 +120,9 @@ export default function RootLayout() {
     );
   }
 
-  // Slot renderiza la pantalla activa
-  return <Slot />;
+  return (
+    <ToastProvider>
+      <AppConToast />
+    </ToastProvider>
+  );
 }
