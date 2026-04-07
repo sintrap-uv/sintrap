@@ -37,7 +37,7 @@ export default function RootLayout() {
         const storedSession = await getStoredSession();
         
         if (storedSession?.user) {
-          console.log("✅ Sesión encontrada para:", storedSession.user.email);
+          console.log("Sesión encontrada para:", storedSession.user.email);
           // Restaurar sesión en Supabase
           await supabase.auth.setSession({
             access_token: storedSession.access_token,
@@ -47,17 +47,17 @@ export default function RootLayout() {
           // Obtener perfil
           const { data: perfil } = await getProfile(storedSession.user.id);
           
-          // 🔥 PRIMERO: Quitar el loading
+          // Quitar el loading
           setVerificando(false);
           
-          // 🔥 SEGUNDO: Redirigir
+          // Redirigir
           if (perfil?.rol) {
             router.replace("/home");
           } else {
             router.replace("/login");
           }
         } else {
-          console.log("❌ Sin sesión");
+          console.log("Sin sesión");
           setVerificando(false);
           router.replace("/login");
         }

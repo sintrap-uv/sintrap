@@ -77,7 +77,7 @@ export default function Home() {
     }
   };
 
-  // ✅ Actualiza el perfil en tiempo real con merge
+  // Actualiza el perfil en tiempo real con merge
   const handleGuardado = (actualizado) => {
     if (actualizado) {
       setPerfil((prev) => ({ ...prev, ...actualizado }));
@@ -106,7 +106,7 @@ export default function Home() {
       crear:    () => <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />,
       buses:    () => <RegistrarVehiculo nombre="Buses" icono="bus" />,
       graficas: () => <TabPendiente nombre="Estadísticas" icono="bar-chart-outline" />,
-      // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
+      //Perfil → ProfileCard que abre EditarPerfilForm internamente
       perfil:   () => (
         <ProfileCard
           name={perfil?.nombre ?? ""}
@@ -143,7 +143,7 @@ export default function Home() {
       rutas:   () => <TabPendiente nombre="Mi Ruta" icono="navigate-outline" />,
       agregar: () => <TabPendiente nombre="Reportar incidente" icono="warning-outline" />,
       bus:     () => <TabPendiente nombre="Buses" icono="bus" />,
-      // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
+      //Perfil → ProfileCard que abre EditarPerfilForm internamente
       perfil:  () => (
         <ProfileCard
           name={perfil?.nombre ?? ""}
@@ -180,7 +180,7 @@ export default function Home() {
       ),
       favoritos: () => <TabPendiente nombre="Favoritos" icono="heart-outline" />,
       rutas:     () => <TabPendiente nombre="Rutas" icono="location-outline" />,
-      // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
+      //Perfil → ProfileCard que abre EditarPerfilForm internamente
       perfil:    () => (
         <ProfileCard
           name={perfil?.nombre ?? ""}
