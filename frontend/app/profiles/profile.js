@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../../services/supabase";
+import { signOut } from "../../services/auth";
 import { getProfile } from "../../services/profileService";
 import ProfileCard from "../../components/ProfileCard";
 import theme from "../../constants/theme";
@@ -53,9 +54,13 @@ export default function ProfileScreen() {
  
   // ── Logout ──
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) router.replace("/login");
-  };
+  const { error } = await signOut();
+  if (!error) {
+    router.replace("/login");
+  } else {
+    Alert.alert("Error", error.message);
+  }
+};
  
   return (
     <View style={styles.screen}>

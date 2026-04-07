@@ -12,7 +12,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BottomNavBar } from "../components/BottomNavBar";
 import Header from "../components/Header";
 import { getProfile } from "../services/profileService";
-import { getCurrentUser } from "../services/auth";
+import { getCurrentUser, signOut } from "../services/auth";
+import { useRouter } from "expo-router";
 
 // ── Importa aquí los componentes de cada tab ──────────────────
 import EditarPerfilForm from "../components/forms/EditarPerfilForm";
@@ -22,6 +23,7 @@ import RegistrarVehiculo from "./(admin)/registrar-vehiculo";
 import { supabase } from "../services/supabase";
 
 export default function Home() {
+  const router = useRouter();
   const [tabActivo, setTabActivo] = useState("inicio");
  
   const [perfil,        setPerfil]        = useState(null);
@@ -85,8 +87,14 @@ export default function Home() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
+  const { error } = await signOut();
+  if (!error) {
+    console.log("Sesión cerrada correctamente");
+    router.replace("/login");
+  } else {
+    console.error("Error al cerrar sesión:", error);
+  }
+};
 
   // ── Contenido por ROL + TAB ──────────────────────────────────
   const CONTENIDO = {

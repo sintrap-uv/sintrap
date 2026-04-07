@@ -11,11 +11,12 @@
  *   - Si no hay sesión, redirige al login.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { Slot, useRouter } from "expo-router";
 import { supabase } from "../services/supabase";
 import { getProfile } from "../services/profileService";
+import { getStoredSession } from "../services/authStorageService";
 import theme from "../constants/theme";
 
 const T = theme.lightMode;
@@ -23,79 +24,53 @@ const T = theme.lightMode;
 export default function RootLayout() {
   const router = useRouter();
   const [verificando, setVerificando] = useState(true);
+  const ejecutado = useRef(false);
 
   useEffect(() => {
-    // ── 1. Verificar si hay sesión activa al abrir la app ─────
-    verificarSesion();
+    // Solo ejecutar una vez
+    if (ejecutado.current) return;
+    ejecutado.current = true;
 
-    // ── 2. Escuchar cambios en tiempo real (login / logout) ───
-    // Equivalente a un guard en Angular que corre en cada navegación
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (evento, sesion) => {
-      if (evento === "SIGNED_IN" && sesion?.user) {
-        await redirigirSegunRol(sesion.user.id);
-      }
-      if (evento === "SIGNED_OUT") {
+    const iniciar = async () => {
+      try {
+        console.log("🔍 Verificando sesión...");
+        const storedSession = await getStoredSession();
+        
+        if (storedSession?.user) {
+          console.log("✅ Sesión encontrada para:", storedSession.user.email);
+          // Restaurar sesión en Supabase
+          await supabase.auth.setSession({
+            access_token: storedSession.access_token,
+            refresh_token: storedSession.refresh_token,
+          });
+          
+          // Obtener perfil
+          const { data: perfil } = await getProfile(storedSession.user.id);
+          
+          // 🔥 PRIMERO: Quitar el loading
+          setVerificando(false);
+          
+          // 🔥 SEGUNDO: Redirigir
+          if (perfil?.rol) {
+            router.replace("/home");
+          } else {
+            router.replace("/login");
+          }
+        } else {
+          console.log("❌ Sin sesión");
+          setVerificando(false);
+          router.replace("/login");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        setVerificando(false);
         router.replace("/login");
       }
-    });
+    };
 
-    // Limpieza al desmontar (como ngOnDestroy en Angular)
-    return () => subscription.unsubscribe();
+    iniciar();
   }, []);
 
-  const verificarSesion = async () => {
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.user) {
-        await redirigirSegunRol(session.user.id);
-      } else {
-        router.replace("/login");
-      }
-    } catch (e) {
-      console.error("Error verificando sesión:", e.message);
-      router.replace("/login");
-    } finally {
-      setVerificando(false);
-    }
-  };
-
-  /**
-   * Obtiene el perfil y redirige según el rol.
-   * Aquí conectas los 3 roles con sus pantallas correspondientes.
-   */
-  const redirigirSegunRol = async (userId) => {
-    try {
-      const { data: perfil, error } = await getProfile(userId);
-      if (error || !perfil) {
-        // Si no tiene perfil aún, va al login
-        router.replace("/login");
-        return;
-      }
-
-      switch (perfil.rol) {
-        case "conductor":
-          router.replace("/home"); // ← pantalla home del conductor
-          break;
-        case "usuario":
-          router.replace("/home"); // ← cuando creen home de usuario
-          break;
-        case "administrador":
-          router.replace("/home"); // ← cuando creen home de admin
-          break;
-        default:
-          router.replace("/login");
-      }
-    } catch (e) {
-      console.error("Error obteniendo rol:", e.message);
-      router.replace("/login");
-    }
-  };
-
-  // Mientras verifica la sesión muestra un spinner (evita flash de login)
   if (verificando) {
     return (
       <View
@@ -111,6 +86,5 @@ export default function RootLayout() {
     );
   }
 
-  // Slot renderiza la pantalla activa
   return <Slot />;
 }
