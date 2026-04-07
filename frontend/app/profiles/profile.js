@@ -6,7 +6,8 @@ import { signOut } from "../../services/auth";
 import { getProfile } from "../../services/profileService";
 import ProfileCard from "../../components/ProfileCard";
 import theme from "../../constants/theme";
- 
+import { signOut } from "../../services/auth";
+
 export default function ProfileScreen() {
   const router = useRouter();
  
@@ -54,6 +55,7 @@ export default function ProfileScreen() {
  
   // ── Logout ──
   const handleLogout = async () => {
+<<<<<<< HEAD
   const { error } = await signOut();
   if (!error) {
     router.replace("/login");
@@ -61,6 +63,11 @@ export default function ProfileScreen() {
     Alert.alert("Error", error.message);
   }
 };
+=======
+    const { error } = await signOut();
+    if (!error) router.replace("/login");
+  };
+>>>>>>> 9ad13944e9085c60904a3e3bbcf278bf09068ef5
  
   return (
     <View style={styles.screen}>
