@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, TextInput } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, TextInput, ScrollView } from "react-native";
 import { WebView } from "react-native-webview";
 import { useState, useEffect, useRef } from "react";
 import { ubicacionColaboradores } from "../../../services/colaboradores";
@@ -6,6 +6,7 @@ import { agruparPorCercania } from "../../../services/zonas";
 import theme from "../../../constants/theme";
 import { guardarRutaCompleta } from "../../../services/rutaServices";
 import * as Location from 'expo-location';
+import { useToast } from "../../../context/ToastContext";
 
 
 
@@ -20,6 +21,9 @@ const MapaColaboradores = () => {
     const [puntosRuta, setPuntosRuta] = useState([]);
     const [pasoActual, setPasoActual] = useState(1);
     const [empresaUbicacion, setEmpresaUbicacion] = useState(null);
+    //para mostra las notificaciones
+    const { showSuccess, showError, showWarning, showInfo } = useToast();
+    const [calculandoRuta, setCalculandoRuta] = useState(false);
 
     const webViewRef = useRef(null);
 
@@ -38,9 +42,18 @@ const MapaColaboradores = () => {
         setCargando(false);
     }
 
+    const modoEdicionRef = useRef(false);
+
     useEffect(() => {
         cargarDatos();
     }, []);
+
+    useEffect(() => {
+        modoEdicionRef.current = modoEdicion
+    }, [modoEdicion]);
+
+
+
     const convertirCoordenadaADireccion = async (lat, lon) => {
         try {
             const direcciones = await Location.reverseGeocodeAsync({
@@ -89,16 +102,18 @@ const MapaColaboradores = () => {
     `: '';
 
     const marcadorVerdeJS = `
-   function agregarMarcadorverde(lat, lon){
+   function agregarMarcadorverde(id,lat, lon){
     var marcador = L.marker([lat,lon],{
         icon:L.divIcon({
             className: 'punto-marcador',
             iconSize: [12, 12]
         })
     }).addTo(map);
+    marcadoresRuta.push({id:id, marcador : marcador}); 
    }
     `;
     const dibujarLineaJS = `
+    var lineasRuta = [];
     var puntosGuardados = [];
     var lineaActual = null;
     
@@ -124,12 +139,24 @@ const MapaColaboradores = () => {
         puntosGuardados.push([lat, lon]);
         dibujarLineaConPuntos();
     }
-    
+
+    var marcadoresRuta = [];
+
     function limpiarTodosLosPuntos() {
-        puntosGuardados = [];
-        limpiarLinea();
-        // Aquí también deberías limpiar los marcadores verdes
+    puntosGuardados = [];
+    limpiarLinea();
+    for(var i = 0; i < marcadoresRuta.length; i++){
+        map.removeLayer(marcadoresRuta[i].marcador);
     }
+    marcadoresRuta = [];
+    for(var i = 0; i < lineasRuta.length; i++){
+        map.removeLayer(lineasRuta[i]);
+    }
+    lineasRuta = [];
+    // NUEVO: reiniciar punto anterior a la empresa
+    puntoAnteriorLat = ${empresaUbicacion?.lat ?? 4.0863};
+    puntoAnteriorLon = ${empresaUbicacion?.lon ?? -76.195};
+}
 `;
 
     const centroInicial =
@@ -171,6 +198,7 @@ const MapaColaboradores = () => {
         for (let i = 0; i < gruposOrdenados.length; i++) {
             const grupo = gruposOrdenados[i];
             puntos.push({
+                id: Date.now() + '_' + i,  // ← AÑADIR
                 lat: grupo.centro.lat,
                 lon: grupo.centro.lon,
                 direccion: `Grupo ${i + 1} - ${grupo.colaboradores.length} colaboradores`
@@ -214,7 +242,7 @@ const MapaColaboradores = () => {
             border: 2px solid white;
             border-radius: 50%;
             width: 12px;
-            height: 12px;
+            height: 12px;   
         }
     </style>
 </head>
@@ -237,70 +265,128 @@ const MapaColaboradores = () => {
         var datos = JSON.parse(evento.data);
         if (datos.tipo === 'actualizarLinea') {
             puntosGuardados = [];
+
+            for(var i = 0; i< marcadoresRuta.length; i++){
+                 map.removeLayer(marcadoresRuta[i].marcador);
+            }
+            marcadoresRuta = [];
+
             for (var i = 0; i < datos.puntos.length; i++) {
-                puntosGuardados.push([datos.puntos[i][0], datos.puntos[i][1]]);
-                agregarMarcadorverde(datos.puntos[i][0], datos.puntos[i][1]);
+                puntosGuardados.push([datos.puntos[i].lat, datos.puntos[i].lon]);
+                agregarMarcadorverde(datos.puntos[i].id, datos.puntos[i].lat, datos.puntos[i].lon);
             }
             dibujarLineaConPuntos();
         }
+        else if(datos.tipo === 'eliminarPunto'){
+
+            var indiceParaEliminar = -1;
+            //buscamos el id marcado
+            for(var i = 0; i<marcadoresRuta.length; i++){
+
+                if(marcadoresRuta[i].id === datos.id){
+                    //Guardamos el indice que ocupa en puntosGuardados
+                    indiceParaEliminar = i;
+
+                    // Remover marcador del mapa
+                    map.removeLayer(marcadoresRuta[i].marcador);
+                    marcadoresRuta.splice(i,1);
+                    break;  
+                }
+            }
+            if(indiceParaEliminar !== -1){
+                puntosGuardados.splice(indiceParaEliminar, 1)
+                //Redibujamos la linea
+                dibujarLineaConPuntos();
+            }
+        }
+
+        else if(datos.tipo === 'limpiarTodo'){
+            limpiarTodosLosPuntos();
+        }
     });
 
-     var puntoAnteriorLat = ${empresaUbicacion?.lat ?? 4.0863};
-     var puntoAnteriorLon = ${empresaUbicacion?.lon ?? -76.195};
+    var puntoAnteriorLat = ${empresaUbicacion?.lat ?? 4.0863};
+    var puntoAnteriorLon = ${empresaUbicacion?.lon ?? -76.195};
     
-    map.on('click',function(e) {
+    map.on('click', function(e) {
         var lat = e.latlng.lat;
         var lon = e.latlng.lng;
+
+        // Si es el primer punto, forzamos que puntoAnterior sea la empresa
+        if (puntosGuardados.length === 0) {
+            puntoAnteriorLat = ${empresaUbicacion?.lat ?? 4.0863};
+            puntoAnteriorLon = ${empresaUbicacion?.lon ?? -76.195};
+        }
+
         fetch('https://router.project-osrm.org/nearest/v1/driving/' + lon + ',' + lat)
-            .then(function(respuesta){
+            .then(function(respuesta) {
                 return respuesta.json();
             })
-            .then(function(datos){
+            .then(function(datos) {
                 var coordenadas = datos.waypoints[0].location;
-                var callelon = coordenadas[0];  // longitud
+                var callelon = coordenadas[0];
                 var calleLat = coordenadas[1];
-                var url = 'https://router.project-osrm.org/route/v1/driving/' + puntoAnteriorLon + ','
-                + puntoAnteriorLat + ';' +  callelon + ',' + calleLat + '?geometries=geojson'; 
+                var url = 'https://router.project-osrm.org/route/v1/driving/' + puntoAnteriorLon + ',' + puntoAnteriorLat + ';' + callelon + ',' + calleLat + '?geometries=geojson';
 
-                
                 fetch(url)
-                 .then(function(r){ return r.json(); })
-                 .then(function(ruta){
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                tipo: 'error',
-                mensaje: 'ruta: ' + JSON.stringify(ruta).substring(0, 150)
-                 }));
-                  console.log('ruta OSRM: ' + JSON.stringify(ruta));  
-                  var puntos = ruta.routes[0].geometry.coordinates;
-                  var puntosLeaflet = puntos.map(function(p){ return [p[1], p[0]]; });
-                  L.polyline(puntosLeaflet, {color:'#22C55E', weight:4}).addTo(map);
+                    .then(function(r) { 
+                        return r.json(); 
+                    })
+                    .then(function(ruta) {
+                        console.log('ruta OSRM: ' + JSON.stringify(ruta));
+                        var puntos = ruta.routes[0].geometry.coordinates;
+                        var puntosLeaflet = puntos.map(function(p) { 
+                            return [p[1], p[0]]; 
+                        });
+                        L.polyline(puntosLeaflet, {color: '#22C55E', weight: 4}).addTo(map);
 
-                  puntoAnteriorLat = calleLat;
-                  puntoAnteriorLon = callelon;
+                        puntoAnteriorLat = calleLat;
+                        puntoAnteriorLon = callelon;
 
-                  agregarMarcadorverde(calleLat, callelon);
-                  window.ReactNativeWebView.postMessage(calleLat + "," + callelon);
-                
-                })
-                .catch(function(error){
-                    console.log('Error route: ' + error);
-                    window.ReactNativeWebView.postMessage(JSON.stringify({
-                     tipo: 'error',
-                     mensaje: 'No se pudo calcular la ruta'
-                    }));
-                })
+                        var nuevoId = Date.now();
+                        agregarMarcadorverde(nuevoId, calleLat, callelon);
+                        window.ReactNativeWebView.postMessage(JSON.stringify({
+                            id: nuevoId,
+                            lat: calleLat,
+                            lon: callelon
+                        }));
+                    })
+                    .catch(function(error) {
+                        console.log('Error route: ' + error);
+                        window.ReactNativeWebView.postMessage(JSON.stringify({
+                            tipo: 'error',
+                            mensaje: 'No se pudo calcular la ruta'
+                        }));
 
+                        var nuevoId = Date.now();
+                        agregarMarcadorverde(nuevoId, lat, lon);
+                        agregarPuntoLinea(lat, lon);
+                        window.ReactNativeWebView.postMessage(JSON.stringify({
+                            id: nuevoId,
+                            lat: lat,
+                            lon: lon
+                        }));
+                    });
             })
-                .catch(function(error){
-                 console.log('Error OSRM: ' + error);
-                  // Si falla, usar las coordenadas originales del click
-                     agregarMarcadorverde(lat, lon);
-                     agregarPuntoLinea(lat, lon);
-                window.ReactNativeWebView.postMessage(lat + "," + lon);
-    })
-            
-    })
-</script>
+            .catch(function(error) {
+                console.log('Error OSRM nearest: ' + error);
+
+                var nuevoId = Date.now();
+                agregarMarcadorverde(nuevoId, lat, lon);
+                agregarPuntoLinea(lat, lon);
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                    id: nuevoId,
+                    lat: lat,
+                    lon: lon
+                }));
+
+                if (puntosGuardados.length === 0) {
+                    puntoAnteriorLat = lat;
+                    puntoAnteriorLon = lon;
+                }
+            });
+    });
+    </script>
 </body>
 </html>
 `;
@@ -311,7 +397,7 @@ const MapaColaboradores = () => {
         const puntosOptimos = generarRutaOptima(grupos, empresaUbicacion);
 
         if (puntosOptimos.length === 0) {
-            alert("No se pudo generar la ruta óptima");
+            showWarning("No se pudo generar la ruta óptima");
             return;
         }
 
@@ -319,7 +405,11 @@ const MapaColaboradores = () => {
         setPuntosRuta(puntosOptimos);
 
         // Enviar al WebView para dibujar
-        const puntosParaWebView = puntosOptimos.map(p => [p.lat, p.lon]);
+        const puntosParaWebView = puntosOptimos.map(p => ({
+            lat: p.lat,
+            lon: p.lon,
+            id: p.id
+        }));
         webViewRef.current?.postMessage(JSON.stringify({
             tipo: 'actualizarLinea',
             puntos: puntosParaWebView
@@ -327,8 +417,19 @@ const MapaColaboradores = () => {
 
         // Activar modo edición
         setModoEdicion(true);
+        showSuccess(`Ruta óptima generada con ${puntosOptimos.length} puntos`);
+    };
 
-        console.log("Ruta óptima generada con", puntosOptimos.length, "puntos");
+    const eliminarPunto = (id) => {
+        console.log('Eleminando punto con id : ', id);
+        setPuntosRuta(prev => prev.filter(punto => punto.id !== id));
+
+        //Enviamos mensaje al WebView
+        webViewRef.current?.postMessage(JSON.stringify({
+            tipo: 'eliminarPunto',
+            id: id
+        }));
+        showInfo('Punto eliminado');
     };
 
     return (
@@ -380,32 +481,33 @@ const MapaColaboradores = () => {
                             onMessage={async (event) => {
                                 const data = event.nativeEvent.data;
 
-                                try {
-                                    const mensaje = JSON.parse(data);
-                                    if (mensaje.tipo === 'error') {
-                                        console.log('Error del mapa: ' + mensaje.mensaje);
-                                        return;
+                                if (modoEdicionRef.current) {
+
+                                    try {
+                                        const mensaje = JSON.parse(data);
+                                        if (mensaje.id && mensaje.lat && mensaje.lon) {
+                                            const nuevoPunto = {
+                                                id: mensaje.id,
+                                                lat: mensaje.lat,
+                                                lon: mensaje.lon
+                                            };
+                                            setPuntosRuta(prev => [...prev, nuevoPunto]);
+                                            console.log("id punto" + puntosRuta);
+                                        }
+                                    } catch (e) {
+                                        // si no es JSON, ignorar
+                                        console.log("Mensaje no JSON:", data);
                                     }
-                                } catch (e) {
-                                    // No es JSON, es una coordenada normal
-                                }
 
-                                if (modoEdicion) {
-                                    const [lat, lon] = data.split(',');
-                                    const latNum = parseFloat(lat);
-                                    const lonNum = parseFloat(lon);
-
-                                    const direccion = await convertirCoordenadaADireccion(latNum, lonNum);
-
-                                    setPuntosRuta(prev => [...prev, {
-                                        lat: latNum,
-                                        lon: lonNum,
-                                        direccion: direccion
-
-                                    }]);
                                 }
                             }}
                         />
+                        {calculandoRuta && (
+                            <View style={styles.loadingOverlay}>
+                                <ActivityIndicator size="large" color="#22C55E" />
+                                <Text style={styles.loadingText}>Calculando ruta...</Text>
+                            </View>
+                        )}
                     </View>
 
                     {/* Panel de edición */}
@@ -456,14 +558,32 @@ const MapaColaboradores = () => {
                             {/*contiene todo*/}
                             <View>
                                 <Text>Puntos seleccionados : {puntosRuta.length}</Text>
+
                                 {/*Recorremos todos los puntos */}
-                                {puntosRuta.map((punto, indice) => (
-                                    <Text key={indice} style={{ color: T.text.secondary, fontSize: 12 }}>
-                                        {indice + 1}. {punto.direccion || `${punto.lat.toFixed(5)}, ${punto.lon.toFixed(5)}`})
-                                    </Text>
-                                ))}
-                                <TouchableOpacity onPress={() => setPuntosRuta([])}>
-                                    <Text>Limpiar puntos</Text>
+                                <ScrollView style={{ maxHeight: 140 }}>
+                                    {puntosRuta.map((punto, indice) => (
+                                        <View key={punto.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 4 }}>
+                                            <Text style={{ color: T.text.secondary, fontSize: 12 }}>
+                                                {indice + 1}. {punto.direccion || `${punto.lat.toFixed(5)}, ${punto.lon.toFixed(5)}`})
+                                            </Text>
+                                            <TouchableOpacity onPress={() => eliminarPunto(punto.id)}>
+                                                <Text style={{ color: 'red', fontSize: 16 }}>basura</Text>
+
+                                            </TouchableOpacity>
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                                <TouchableOpacity
+                                    style={styles.botonLimpiar}
+                                    onPress={() => {
+                                        setPuntosRuta([]);
+                                        webViewRef.current?.postMessage(JSON.stringify({
+                                            tipo: 'limpiarTodo',
+                                            id: id
+                                        }))
+                                        showInfo('Punto Todos los puntos han sido eliminados');
+                                    }}>
+                                    <Text style={styles.textoLimpiar}>Limpiar puntos</Text>
                                 </TouchableOpacity>
                             </View>
 
@@ -471,11 +591,24 @@ const MapaColaboradores = () => {
                             <TouchableOpacity
                                 style={[styles.botonGuardar, { backgroundColor: T.Button.primary.background }]}
                                 onPress={async () => {
-                                    await guardarRutaCompleta(nombreRuta, numeroRuta, puntosRuta, empresaUbicacion);
-                                    setModoEdicion(false);
-                                    setNombreRuta("");
-                                    setNumeroRuta("");
-                                    setPuntosRuta([]);
+                                    if (!nombreRuta.trim()) {
+                                        showError("El nombre de la ruta es obligatorio");
+                                        return;
+                                    }
+                                    if (puntosRuta.length === 0) {
+                                        showWarning('Debes seleccionar al menos un punto');
+                                        return;
+                                    }
+                                    try {
+                                        await guardarRutaCompleta(nombreRuta, numeroRuta, puntosRuta, empresaUbicacion);
+                                        setModoEdicion(false);
+                                        setNombreRuta("");
+                                        setNumeroRuta("");
+                                        setPuntosRuta([]);
+                                    } catch (error) {
+                                        showError('Error al guardar la ruta')
+                                    }
+
                                 }}
                             >
                                 <Text style={[styles.textoGuardar, { color: T.Button.primary.Text }]}>
@@ -588,6 +721,38 @@ const styles = StyleSheet.create({
         borderRadius: theme.lightMode.Button.primary.borderRadius,
         borderWidth: 1,
         marginLeft: 8,
+    },
+    botonLimpiar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        marginVertical: 8,
+        borderRadius: 8,
+        backgroundColor: '#FEE2E2',
+    },
+    textoLimpiar: {
+        color: '#DC2626',
+        fontSize: 14,
+        fontWeight: '500',
+        marginLeft: 8,
+    },
+    loadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
+    },
+    loadingText: {
+        color: 'white',
+        fontSize: 16,
+        marginTop: 10,
+        fontWeight: 'bold',
     },
 });
 

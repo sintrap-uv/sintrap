@@ -11,10 +11,10 @@ export const ToastProvider = ({ children }) => {
     });
 
     //funcion para mostrar mensaje 
-    const mostrarToast = (mensaje, tipo = 'success') => {
+    const mostrarToast = (message, tipo = 'success') => {
         setToast({
             visible: true,
-            mensaje,
+            message,
             tipo,
         })
         //ocultamos el mensaje despues de 3 segundo
@@ -24,10 +24,10 @@ export const ToastProvider = ({ children }) => {
     };
 
     //Funciones especificas para cada tipo
-    const showSuccess = (message) => mostrarToast(message, 'success');
-    const showError = (message) => mostrarToast(message, 'Error');
+    const showSuccess = (message) => mostrarToast(message, 'exito');
+    const showError = (message) => mostrarToast(message, 'error');
     const showInfo = (message) => mostrarToast(message, 'info');
-    const showwarning = (message) => mostrarToast(message, 'warning');
+    const showWarning = (message) => mostrarToast(message, 'advertencia');
 
     //funcion para ocultar manualmente
     const hideToast = () => {
@@ -40,7 +40,7 @@ export const ToastProvider = ({ children }) => {
             showError,
             showSuccess,
             showInfo,
-            showwarning,
+            showWarning,
             hideToast,
             toast,
 
