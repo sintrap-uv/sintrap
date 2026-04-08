@@ -72,11 +72,7 @@ export default function LoginScreen() {
       activo: true
     })
 
-<<<<<<< HEAD
     // Fix duplicate key
-=======
-    // ✅ Fix duplicate key
->>>>>>> 9ad13944e9085c60904a3e3bbcf278bf09068ef5
     if (profileError && !profileError.message.includes("duplicate")) {
       alert("Error creando perfil: " + profileError.message)
       return
