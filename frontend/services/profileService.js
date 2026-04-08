@@ -3,7 +3,7 @@ import {supabase} from './supabase';
 export const createProfile = async (profile) => {
     const {data, error} = await supabase
     .from('profiles')
-    .insert(profile)
+    .upsert(profile, { onConflict: 'id' })
     .select()
     .single();
     return {data, error};

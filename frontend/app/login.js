@@ -15,6 +15,7 @@ export default function Login() {
  
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
  
   const handleLogin = async () => {
@@ -61,11 +62,15 @@ export default function Login() {
           <FontAwesome name="lock" size={20} color="#444"/>
           <TextInput
             placeholder="Contraseña"
-            secureTextEntry
+             secureTextEntry={!showPassword}
             style={styles.input}
             value={password}
             onChangeText={setPassword}
           />
+
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+            <FontAwesome name={showPassword ? "eye-slash" : "eye"} size={18} color="#888" />
+          </TouchableOpacity>
         </View>
  
         {/* Botón login */}

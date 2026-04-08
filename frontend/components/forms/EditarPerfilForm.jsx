@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,11 +12,16 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { Ionicons, FontAwesome } from "@expo/vector-icons";
+import { Ionicons, FontAwesome, Entypo } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { subirAvatar } from "../../services/uploadService";
 import theme from "../../constants/theme";
 import Header from "../../components/Header";
+import * as Location from "expo-location";
+import {
+  actualizarUbicacionUsuario,
+  obtenerUbicacionUsuario,
+} from "../../services/locationService";
 
 const T = theme.lightMode; // cambia a theme.darkMode para modo oscuro
 
@@ -38,11 +43,45 @@ export default function EditarPerfilForm({
     genero: perfilInicial?.genero ?? null,
     avatar_url: perfilInicial?.avatar_url ?? null,
     edad: perfilInicial?.edad ? String(perfilInicial.edad) : "",
+    direccion: perfilInicial?.direccion ?? "",
   });
 
   const [errores, setErrores] = useState({});
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
+  const [guardandoUbicacion, setGuardandoUbicacion] = useState(false);
+  const [ubicacion, setUbicacion] = useState({
+    latitude: null,
+    longitude: null,
+    direccion: "",
+  });
+
+  useEffect(() => {
+    const cargarDatosUbicacion = async () => {
+      if (!userId) return;
+
+      try {
+        const resultado = await obtenerUbicacionUsuario(userId);
+
+        // resultado.data es null si el usuario nunca guardó la ubicacion
+        if (resultado.success && resultado.data) {
+          const { latitude, longitude, direccion } = resultado.data;
+
+          // Llena el estado de unicación con lat/lng del formulario 
+          setUbicacion({ latitude, longitude, direccion: direccion ?? ""});
+
+          // Tambien pre-llenar el campo dirección del formulario
+          if (direccion) actualizarCampo("direccion", direccion);
+        }
+        // Si data es null -> usuario sin ubicación, no se hace nad
+        // El componente muestra "Sin ubicacion guardada"
+      } catch (error) {
+        console.error("Error carggando ubicacion previa: ", error);
+      }
+    };
+
+    cargarDatosUbicacion();
+  }, [userId]);
 
   const actualizarCampo = (campo, valor) => {
     setForm((prev) => ({ ...prev, [campo]: valor }));
@@ -109,7 +148,60 @@ export default function EditarPerfilForm({
     }
   };
 
-  return (
+  const reportarUbicacionActual = async () => {
+    setGuardandoUbicacion(true);
+
+    try {
+      // Pedir permiso al sistema operativo
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permiso requerido",
+          "Activa el permiso de ubicación en ajustes para usar esta función.",
+        );
+        return;
+      }
+
+      // Obtner coordenadas del GPS
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = location.coords;
+
+      // Geocdificación inversa . Convierte coords a texto legible
+      // Devuelve un array; tomados el primer resultado [0]
+      const [lugar] = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude,
+      });
+      const direccionTexto = lugar
+        ? `${lugar.street ?? ""} ${lugar.streetNumber ?? ""}, ${lugar.city ?? ""}`.trim()
+        : "Ubicación obtenida";
+
+      // Actualizar el useState - el usuario ve lar coords en pantalla
+      setUbicacion({ latitude, longitude, direccion: direccionTexto });
+      // Sincronizar el campo "direccion" del formulario principal
+      actualizarCampo("direccion", direccionTexto);
+
+      // Guardar en supbase
+      const resultado = await actualizarUbicacionUsuario(
+        userId,
+        latitude,
+        longitude,
+        direccionTexto,
+      );
+
+      if (!resultado.success) throw new Error(resultado.error);
+
+      Alert.alert("Ubicacion guardada", `${direccionTexto}`);
+    } catch (e) {
+      Alert.alert("Error de ubicación", e.message);
+    } finally {
+      setGuardandoUbicacion(false);
+    }
+  };
+
+    return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -119,7 +211,7 @@ export default function EditarPerfilForm({
         subtitulo={"Modifica los datos personales"}
         mode="light"
         iconoDerecha={
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => onGuardado?.()}>
             <Ionicons name="arrow-back-outline" size={26} color="#fff" />
           </TouchableOpacity>
         }
@@ -166,8 +258,8 @@ export default function EditarPerfilForm({
 
         <CampoTexto
           label="Número de cédula"
-          icono="card-outline"
-          IconLib={Ionicons}
+          icono="address-card"
+          IconLib={FontAwesome}
           valor={form.cedula}
           onChange={(v) => actualizarCampo("cedula", v)}
           error={errores.cedula}
@@ -226,6 +318,80 @@ export default function EditarPerfilForm({
             ))}
           </View>
         </View>
+
+        {/* ── SECCIÓN UBICACIÓN ────────────────────────────────── */}
+        <Text style={styles.sectionTitle}>Ubicación</Text>
+
+        {/* Chip de estado — muestra la ubicación guardada o avisa que no hay */}
+        <View style={styles.ubicacionChip}>
+          <View style={styles.ubicacionChipIcono}>
+            <Ionicons
+              name={ubicacion.latitude ? "location" : "location-outline"}
+              size={16}
+            color={ubicacion.latitude ? T.icon.active : T.text.secondary}
+            />
+        </View>
+        <View style={{ flex: 1 }}>
+          {ubicacion.latitude ? (
+            <>
+            <Text style={styles.ubicacionChipTexto}>
+              {ubicacion.direccion || "Ubicación guardada"}
+            </Text>
+            <Text style={styles.ubicacionChipSub}>
+              {ubicacion.latitude.toFixed(5)}, {ubicacion.longitude.toFixed(5)}
+            </Text>
+          </>
+       ) : (
+        <Text style={styles.ubicacionChipVacio}>
+          Sin ubicación guardada
+        </Text>
+      )}
+    </View>
+  </View>
+
+  {/* Botón GPS */}
+  <TouchableOpacity
+    style={[
+            styles.botonUbicacion,
+            guardandoUbicacion && styles.botonDeshabilitado,
+    ]}
+    onPress={reportarUbicacionActual}
+    disabled={guardandoUbicacion}
+    activeOpacity={0.85}
+  >
+    {guardandoUbicacion ? (
+      <ActivityIndicator color={T.Button.primary.background} size="small" />
+    ) : (
+      <>
+        <Ionicons
+          name="locate-outline"
+          size={18}
+          color={T.Button.primary.background}
+        />
+        <Text style={styles.botonUbicacionTexto}>
+          {ubicacion.latitude ? "Actualizar ubicación" : "Obtener ubicación actual"}
+        </Text>
+      </>
+    )}
+  </TouchableOpacity>
+
+  {/* Campo dirección editable — se llena con GPS pero el usuario puede cambiarlo */}
+  <CampoTexto
+    label="Dirección"
+    icono="location-outline"
+    IconLib={Ionicons}
+    valor={form.direccion}
+    onChange={(v) => {
+      actualizarCampo("direccion", v);
+      // Si el usuario edita manualmente, limpia las coords del chip
+      // para que no muestre coordenadas desincronizadas con el texto
+      setUbicacion((prev) => ({ ...prev, direccion: v }));
+    }}
+    error={errores.direccion}
+    placeholder="Calle 20 # 49-21"
+    autoCapitalize="words"
+  />
+  {/* ── FIN SECCIÓN UBICACIÓN ────────────────────────────── */}
 
         {guardado && (
           <View style={styles.mensajeExito}>
@@ -418,4 +584,55 @@ const styles = StyleSheet.create({
   },
   botonDeshabilitado: { opacity: 0.7 },
   botonTexto: { color: T.Button.primary.Text, fontSize: 16, fontWeight: "600" },
+
+  ubicacionChip: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 10,
+  backgroundColor: T.cards.background,
+  borderWidth: 1.5,
+  borderColor: T.cards.border,
+  borderRadius: 12,
+  padding: 12,
+  marginBottom: 12,
+},
+ubicacionChipIcono: {
+  width: 32,
+  height: 32,
+  borderRadius: 16,
+  backgroundColor: T.background,
+  alignItems: "center",
+  justifyContent: "center",
+},
+ubicacionChipTexto: {
+  fontSize: 14,
+  fontWeight: "500",
+  color: T.text.primary,
+},
+ubicacionChipSub: {
+  fontSize: 11,
+  color: T.text.secondary,
+  marginTop: 2,
+},
+ubicacionChipVacio: {
+  fontSize: 13,
+  color: T.text.secondary,
+  fontStyle: "italic",
+},
+botonUbicacion: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  borderWidth: 1.5,
+  borderColor: T.Button.primary.background,
+  borderRadius: T.Button.primary.borderRadius,
+  height: 48,
+  marginBottom: 16,
+},
+botonUbicacionTexto: {
+  color: T.Button.primary.background,
+  fontSize: 15,
+  fontWeight: "500",
+},
 });

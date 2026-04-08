@@ -9,7 +9,12 @@
     "web": "expo start --web"
   },
   "dependencies": {
+<<<<<<< HEAD
     "@react-native-async-storage/async-storage": "1.21.0",
+=======
+    "@react-native-async-storage/async-storage": "^3.0.1",
+    "@react-native-community/datetimepicker": "8.6.0",
+>>>>>>> 9ad13944e9085c60904a3e3bbcf278bf09068ef5
     "@react-navigation/bottom-tabs": "^7.15.5",
     "@react-navigation/native": "^7.1.33",
     "@supabase/supabase-js": "^2.98.0",
@@ -31,8 +36,8 @@
     "react-native-reanimated": "4.2.1",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.23.0",
-    "react-native-web": "^0.21.2",
-    "react-native-svg": "^15.15.3"
+    "react-native-svg": "^15.15.3",
+    "react-native-web": "^0.21.2"
   },
   "private": true
 }
