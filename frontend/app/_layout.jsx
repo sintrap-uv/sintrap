@@ -33,7 +33,7 @@ export default function RootLayout() {
 
     const iniciar = async () => {
       try {
-        console.log("🔍 Verificando sesión...");
+        console.log("Verificando sesión...");
         const storedSession = await getStoredSession();
         
         if (storedSession?.user) {

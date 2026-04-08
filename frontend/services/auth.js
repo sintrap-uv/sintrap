@@ -28,10 +28,18 @@ export const signUp = async (email, password) => {
 
 // Inicio de sesión
 export const signIn = async (email, password) => {
+  console.log("Inicio de sesión para:", email);
   const {data, error} = await supabase.auth.signInWithPassword({
     email,
     password
   })
+
+  if (error) {
+    console.log("Error:", error.message);
+    return { data, error };
+  }
+
+  console.log("Inicio de sesión exitoso:", email);
 
   // Guardar sesión si el signIn fue exitoso y tiene tokens completos
   if (!error && data?.session) {
@@ -72,4 +80,5 @@ export const resetPassword = async (email) => {
     })
     return {data, error}
 }
+
 
