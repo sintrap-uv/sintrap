@@ -52,7 +52,7 @@ export const ubicacionColaboradores = async () => {
             return false;
         });
 
-        console.log(`📍 Colaboradores con coordenadas válidas: ${conUbicacion.length}`);
+        console.log(`Colaboradores con coordenadas válidas: ${conUbicacion.length}`);
         return conUbicacion;
         
     } catch (error) {

@@ -25,6 +25,7 @@ import { supabase } from "../services/supabase";
 
 import { ObtenerDireccionUsuario } from "../services/geocalizacion";
 import CajaDireccion from "../components/ModalDireccion";
+import configuracionBuses from "./(admin)/configurar-buses.";
 
 
 
@@ -159,7 +160,7 @@ export default function Home() {
       crear: () => <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />,
       buses: () => <TabPendiente nombre="Buses" icono="bus" />,
       graficas: () => <TabPendiente nombre="Estadísticas" icono="bar-chart-outline" />,
-      crear_Ruta: () => <MapaColaboradores />,
+      crear_Ruta: () => <configuracionBuses/>,
       crear_Conductor: () => <ConductoresScreen />,
       crear_Bus: () => <RegistrarVehiculo />,
       // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
