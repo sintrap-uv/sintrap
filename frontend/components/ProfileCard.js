@@ -243,7 +243,6 @@ const ProfileCard = ({
             const { signOut } = require("../services/auth");
             const { error } = await signOut();
             if (!error) {
-              console.log("Redirigiendo a login...");
               router.replace("/login");
           }
         }}

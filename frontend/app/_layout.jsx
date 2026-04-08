@@ -33,11 +33,9 @@ export default function RootLayout() {
 
     const iniciar = async () => {
       try {
-        console.log("Verificando sesión...");
         const storedSession = await getStoredSession();
         
         if (storedSession?.user) {
-          console.log("Sesión encontrada para:", storedSession.user.email);
           // Restaurar sesión en Supabase
           await supabase.auth.setSession({
             access_token: storedSession.access_token,
@@ -57,7 +55,6 @@ export default function RootLayout() {
             router.replace("/login");
           }
         } else {
-          console.log("Sin sesión");
           setVerificando(false);
           router.replace("/login");
         }
