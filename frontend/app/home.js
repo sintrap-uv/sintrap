@@ -19,7 +19,8 @@ import { getCurrentUser } from "../services/auth";
 import EditarPerfilForm from "../components/forms/EditarPerfilForm";
 import ProfileCard from "../components/ProfileCard";          // ← agregado
 import ConductoresScreen from "./(admin)/conductores";
-import RegistrarVehiculo from "./(admin)/registrar-vehiculo";
+import VehiculosScreen from "./(admin)/vehiculos"; //para mostar los buses
+import RegistrarVehiculo from "./(admin)/registrar-vehiculo"; 
 import { supabase } from "../services/supabase";
 
 export default function Home() {
@@ -100,7 +101,9 @@ export default function Home() {
       inicio: () => < TabPendiente nombre="Inicio" icono="home"/>,
       rutas: () => <TabPendiente nombre="Gestión de rutas" icono="map-outline" />,
       crear: () => <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />,
-      buses: () => <TabPendiente nombre="Buses" icono="bus" />,
+      //buses: () => <TabPendiente nombre="Buses" icono="bus" />,
+      buses: () => < VehiculosScreen />, //tab para mostar los buses listados
+
       graficas: () => <TabPendiente nombre="Estadísticas" icono="bar-chart-outline" />,
       crear_Ruta: () => <TabPendiente nombre='listado de rutas' />,
       crear_Conductor:() => <ConductoresScreen />,
