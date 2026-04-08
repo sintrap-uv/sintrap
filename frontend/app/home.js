@@ -13,7 +13,7 @@ import { BottomNavBar } from "../components/BottomNavBar";
 import BotonesFlotantes from "../components/BotonesFlotantes";
 import Header from "../components/Header";
 import { getProfile } from "../services/profileService";
-import { getCurrentUser } from "../services/auth";
+import { getCurrentUser, signOut } from "../services/auth";
 
 // ── Importa aquí los componentes de cada tab ──────────────────
 import EditarPerfilForm from "../components/forms/EditarPerfilForm";
@@ -93,7 +93,7 @@ export default function Home() {
     }
   };
 
-  // ✅ Actualiza el perfil en tiempo real con merge
+  //Actualiza el perfil en tiempo real con merge
   const handleGuardado = (actualizado) => {
     if (actualizado) {
       setPerfil((prev) => ({ ...prev, ...actualizado }));
@@ -102,7 +102,7 @@ export default function Home() {
     }
   };
 
-  const handleLogout = async () => {
+    const handleLogout = async () => {
     await supabase.auth.signOut();
   };
 
@@ -124,7 +124,7 @@ export default function Home() {
       crear_Ruta: () => <TabPendiente nombre="listado de rutas" />,
       crear_Conductor: () => <ConductoresScreen />,
       crear_Bus: () => <RegistrarVehiculo />,
-      // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
+      //Perfil → ProfileCard que abre EditarPerfilForm internamente
       perfil: () => (
         <ProfileCard
           name={perfil?.nombre ?? ""}
@@ -157,7 +157,7 @@ export default function Home() {
         <TabPendiente nombre="Reportar incidente" icono="warning-outline" />
       ),
       bus: () => <TabPendiente nombre="Buses" icono="bus" />,
-      // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
+      //Perfil → ProfileCard que abre EditarPerfilForm internamente
       perfil: () => (
         <ProfileCard
           name={perfil?.nombre ?? ""}
@@ -270,6 +270,7 @@ export default function Home() {
           }}
         />
       )}
+
       <BottomNavBar
         rol={perfil?.rol ?? "usuario"}
         initialTab="inicio"
@@ -360,4 +361,3 @@ const styles = StyleSheet.create({
   },
   centrado: { flex: 1, backgroundColor: "#fff", justifyContent: "center" },
 });
-
