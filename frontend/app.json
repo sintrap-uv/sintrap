@@ -27,7 +27,9 @@
       },
       "permissions": [
         "ACCES_COARSE_LOCATION",
-        "ACCES_FINE_LOCATION"
+        "ACCES_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -43,6 +45,13 @@
         }
       ],
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "58cffcde-54d9-4af2-b161-f1879a83453d"
+      }
+    },
+    "owner": "sintrap"
   }
 }
