@@ -1,252 +1,278 @@
-import React, { useState } from "react"
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator
-} from "react-native"
-import { useRouter } from "expo-router"
-import { FontAwesome, MaterialIcons } from "@expo/vector-icons"
-import { resetPassword, verifyResetCode } from "../../services/auth"
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { supabase } from "../../services/supabase";
+import theme from "../../constants/theme";
 
-export default function ForgotPassword({ navigation }) {
+const t = theme.lightMode;
 
-  const [email, setEmail] = useState("")
-  const [token, settoken] = useState("")
-  const [paso, setPaso] = useState("correo")
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
+export default function ResetPassword({ onDone }) {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [tieneSession, setTieneSession] = useState(false)
+  const [verificando, setVerificando] = useState(true)
 
-  // Enviar código OTP al correo
-  const handleEnviartoken = async () => {
-    if (!email) {
-      alert("Ingresa tu correo electrónico.")
-      return
+  const router = useRouter();
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession()
+      setTieneSession(!!data.session)
+      setVerificando(false)
+    }
+    checkSession()
+  }, [])
+
+  const handleUpdatePassword = async () => {
+    if (!password || !confirmPassword) {
+      alert("Por favor completa todos los campos.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      alert("Las contraseñas no coinciden.");
+      return;
+    }
+    if (password.length < 6) {
+      alert("La contraseña debe tener al menos 6 caracteres.");
+      return;
     }
 
-    setLoading(true)
-    const { error } = await resetPassword(email)
-    setLoading(false)
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setLoading(false);
 
     if (error) {
-      alert("Error: " + error.message)
+      alert("Error: " + error.message);
     } else {
-      setPaso("token")
-    }
-  }
+      alert("¡Contraseña actualizada correctamente!");
 
-  // verificar OTP
-  const handleVerificartoken = async () => {
-    if (token.length < 8) {
-      alert("Ingresa el código de 8 dígitos.")
-      return
+      if (tieneSession) {
+        // Vino desde el perfil → vuelve atrás
+        onDone?.()
+      } else {
+        // Vino desde recuperación → va al login
+        await supabase.auth.signOut()
+        router.replace("/login")
+      }
     }
+  };
 
-    setLoading(true)
-    const { error } = await verifyResetCode(email, token)
-    setLoading(false)
-
-    if (error) {
-      alert("Código incorrecto o expirado.")
-    } else {
-      router.push("/resetPassword")
-    }
+  if (verificando) {
+    return (
+      <View style={styles.loadingWrapper}>
+        <ActivityIndicator size="large" color="#16A34A" />
+      </View>
+    )
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.wrapper}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-      {/* Icono */}
-      <View style={styles.iconContainer}>
-        <FontAwesome name="map-marker" size={60} color="#444" />
-        <FontAwesome name="bus" size={24} color="#fff" style={styles.busIcon} />
-      </View>
+        <LinearGradient
+          colors={t.Headers?.gradientColors ?? ["#16A34A", "#22C55E"]}
+          style={styles.header}
+        >
+          <View style={styles.busIcon}>
+            <Ionicons name="bus" size={28} color="#fff" />
+          </View>
+          <Text style={styles.headerTitle}>Bienvenido a{"\n"}Sintrap</Text>
+        </LinearGradient>
 
-      <Text style={styles.title}>Recuperar contraseña</Text>
-
-      {/* Card */}
-      <View style={styles.card}>
-
-        {paso === "correo" ? (
-          <>
-            <View style={styles.inputContainer}>
-              <MaterialIcons name="email" size={20} color="#444" />
-              <TextInput
-                placeholder="Correo electrónico"
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>
+            {tieneSession ? "Cambiar contraseña" : "Nueva contraseña"}
+          </Text>
+          <Text style={styles.cardSubtitle}>
+            {tieneSession
+              ? "Ingresa tu nueva contraseña para actualizar tu cuenta."
+              : "Crea una nueva contraseña para recuperar tu cuenta."
+            }
+          </Text>
+          <View style={styles.inputWrapper}>
+            <Ionicons name="lock-closed-outline" size={18} color="#9CA3AF" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Nueva contraseña"
+              placeholderTextColor="#9CA3AF"
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} activeOpacity={0.7}>
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={20}
+                color="#9CA3AF"
               />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleEnviartoken}
-              disabled={loading}
-            >
-              {loading
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.buttonText}>Enviar código</Text>
-              }
             </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <Text style={styles.tokenInfo}>
-              Ingresa el código que enviamos a{"\n"}
-              <Text style={styles.tokenEmail}>{email}</Text>
-            </Text>
-
-            <View style={styles.inputContainer}>
-              <MaterialIcons name="lock" size={20} color="#444" />
-              <TextInput
-                placeholder="Código de 8 dígitos"
-                style={[styles.input, styles.inputtoken]}
-                value={token}
-                onChangeText={settoken}
-                keyboardType="number-pad"
-                maxLength={8}
+          </View>
+          <View style={styles.inputWrapper}>
+            <Ionicons name="lock-closed-outline" size={18} color="#9CA3AF" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Confirmar contraseña"
+              placeholderTextColor="#9CA3AF"
+              secureTextEntry={!showConfirm}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} activeOpacity={0.7}>
+              <Ionicons
+                name={showConfirm ? "eye-off-outline" : "eye-outline"}
+                size={20}
+                color="#9CA3AF"
               />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleVerificartoken}
-              disabled={loading}
-            >
-              {loading
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.buttonText}>Verificar</Text>
-              }
             </TouchableOpacity>
+          </View>
 
-            <TouchableOpacity
-              onPress={handleEnviartoken}
-              style={styles.reenviarBtn}
-              disabled={loading}
-            >
-              <Text style={styles.reenviarTexto}>¿No llegó? Reenviar código</Text>
-            </TouchableOpacity>
-          </>
+          {/* Botón */}
+          <TouchableOpacity
+            style={[styles.btn, loading && styles.btnDisabled]}
+            onPress={handleUpdatePassword}
+            activeOpacity={0.8}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.btnText}>Actualizar contraseña</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Volver — solo si vino desde el perfil */}
+        {tieneSession && (
+          <TouchableOpacity onPress={onDone} activeOpacity={0.7} style={styles.volverLink}>
+            <Text style={styles.volverLinkText}>Volver al perfil</Text>
+          </TouchableOpacity>
         )}
 
-        <TouchableOpacity onPress={() => router.push("/login")}>
-          <Text style={styles.back}>Volver al login</Text>
-        </TouchableOpacity>
-
-      </View>
-    </View>
-  )
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
 }
 
 const styles = StyleSheet.create({
-
-  container: {
+  wrapper: {
     flex: 1,
-    backgroundColor: "#d9d9d9",
+    backgroundColor: "#F1F5F9",
+  },
+  loadingWrapper: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F1F5F9",
+  },
+  scroll: {
+    flexGrow: 1,
+  },
+  header: {
+    height: 200,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  busIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(0,0,0,0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
-
-  iconContainer: {
-    alignItems: "center",
-    marginBottom: 10,
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#fff",
+    textAlign: "center",
+    lineHeight: 28,
   },
-
-  busIcon: {
-    position: "absolute",
-    top: 18,
-  },
-
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-
   card: {
-    width: "85%",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 25,
-    padding: 25,
-    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    marginHorizontal: 24,
+    marginTop: -24,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 5,
   },
-
-  inputContainer: {
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#111827",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 18,
+  },
+  inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#eee",
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    marginBottom: 20,
-    width: "100%",
-    height: 45,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === "ios" ? 13 : 10,
+    marginBottom: 14,
+    backgroundColor: "#FAFAFA",
   },
-
+  inputIcon: {
+    marginRight: 8,
+  },
   input: {
-    marginLeft: 10,
     flex: 1,
     fontSize: 15,
-    color: "#111",
+    color: "#111827",
   },
-
-  inputtoken: {
-    letterSpacing: 4,
-    fontSize: 18,
-  },
-
-  button: {
-    backgroundColor: "#0d5b0d",
-    paddingVertical: 12,
-    paddingHorizontal: 40,
-    borderRadius: 25,
-    minWidth: 160,
+  btn: {
+    backgroundColor: "#16A34A",
+    borderRadius: 10,
+    paddingVertical: 14,
     alignItems: "center",
+    marginTop: 6,
   },
-
-  buttonDisabled: {
+  btnDisabled: {
     opacity: 0.6,
   },
-
-  buttonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
+  btnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
   },
-
-  tokenInfo: {
+  volverLink: {
+    alignItems: "center",
+    paddingVertical: 28,
+  },
+  volverLinkText: {
     fontSize: 14,
-    color: "#444",
-    textAlign: "center",
-    marginBottom: 16,
-    lineHeight: 20,
+    color: "#6B7280",
   },
-
-  tokenEmail: {
-    fontWeight: "bold",
-    color: "#111",
-  },
-
-  reenviarBtn: {
-    marginTop: 12,
-    marginBottom: 4,
-  },
-
-  reenviarTexto: {
-    color: "#2563EB",
-    fontWeight: "500",
-    fontSize: 14,
-  },
-
-  back: {
-    marginTop: 15,
-    color: "#8B0000",
-    fontWeight: "bold",
-  },
-
-})
+});

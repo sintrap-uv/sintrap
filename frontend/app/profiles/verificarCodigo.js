@@ -25,7 +25,7 @@ export default function VerificarCodigo({ email, onVerificado, onVolver }) {
     const { error } = await supabase.auth.verifyOtp({
       email,
       token: codigo,
-      type: "email", // tipo OTP de email
+      type: "email",
     });
     setLoading(false);
 
