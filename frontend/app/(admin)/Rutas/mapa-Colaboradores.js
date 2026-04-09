@@ -562,7 +562,11 @@ const MapaColaboradores = () => {
 
                                 <View style={{ flexDirection: 'row', gap: 12 }}>
                                     <TouchableOpacity onPress={() => setPanelVisible(false)}>
-                                        <Text style={[styles.cerrarPanel, { color: T.text.secondary }]}>🔼 Ocultar</Text>
+                                        <Ionicons style={styles.cerrarPanel} name="caret-up-outline">
+                                                <Text style={[styles.cerrarPanel, { color: T.text.secondary }]}> Ocultar</Text>
+                                            </Ionicons>
+
+                                        
                                     </TouchableOpacity>
                                     <TouchableOpacity onPress={() => setModoEdicion(false)}>
                                         <Text style={[styles.cerrarPanel, { color: T.icon.error }]}>✕</Text>
@@ -651,7 +655,7 @@ const MapaColaboradores = () => {
                                         showError('Error al guardar la ruta');
                                     }
                                 }}>
-                                <Text style={[styles.textoGuardar, { color: T.Button.primary.Text }]}>💾 Guardar Ruta</Text>
+                                <Text style={[styles.textoGuardar, { color: T.Button.primary.Text }]}>Guardar Ruta</Text>
                             </TouchableOpacity>
                         </View>
                     )}
