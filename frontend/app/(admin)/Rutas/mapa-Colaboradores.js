@@ -5,8 +5,9 @@ import { ubicacionColaboradores } from "../../../services/colaboradores";
 import { agruparPorCercania } from "../../../services/zonas";
 import theme from "../../../constants/theme";
 import { guardarRutaCompleta } from "../../../services/rutaServices";
-import * as Location from 'expo-location';
 import { useToast } from "../../../context/ToastContext";
+import { obtenerUbicacionBuses } from "../../../services/empresaServices";
+import { Ionicons } from "@expo/vector-icons";
 
 const MapaColaboradores = () => {
 
@@ -20,7 +21,7 @@ const MapaColaboradores = () => {
     const [empresaUbicacion, setEmpresaUbicacion] = useState(null);
     const [calculandoRuta, setCalculandoRuta] = useState(false);
     const [webViewListo, setWebViewListo] = useState(false);
-
+    const [panelVisible, setPanelVisible] = useState(true);
     const { showSuccess, showError, showWarning, showInfo } = useToast();
     const webViewRef = useRef(null);
     const modoEdicionRef = useRef(false);
@@ -31,7 +32,8 @@ const MapaColaboradores = () => {
         setColaboradores(datos);
         const valores = agruparPorCercania(datos, 0.3);
         setGrupos(valores);
-        setEmpresaUbicacion({ lat: 4.0606445663604855, lon: -76.26544561353076 });
+        const ubicacionBuses = await obtenerUbicacionBuses();
+        setEmpresaUbicacion(ubicacionBuses)
         setCargando(false);
     }
 
@@ -75,7 +77,7 @@ const MapaColaboradores = () => {
 
     const marcadorEmpresa = empresaUbicacion ?
         `L.marker([${empresaUbicacion.lat}, ${empresaUbicacion.lon}])
-        .bindPopup('🏢 EMPRESA - Punto de inicio')
+        .bindPopup('Ubicacion De donde salen los Bus - Punto de inicio')
         .addTo(map);` : '';
 
     const marcadorVerdeJS = `
@@ -184,7 +186,12 @@ const MapaColaboradores = () => {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        #map { width: 100%; height: 100vh; }
+       html, body, #map {
+          width: 100%;
+          height: 100%;
+          margin: 0;
+          padding: 0;
+        }
         .punto-marcador {
             background: #22C55E;
             border: 2px solid white;
@@ -215,7 +222,7 @@ const MapaColaboradores = () => {
         mensaje: mensaje
     }));
     }
-    log('mapa de kevin');
+    log('mapa');
 
     var map = L.map('map').setView([${centroInicial}], 15);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -228,8 +235,8 @@ const MapaColaboradores = () => {
     ${marcadorVerdeJS}
     ${dibujarLineaJS}
     
-    var puntoAnteriorLat = ${empresaUbicacion?.lat ?? 4.0863};
-    var puntoAnteriorLon = ${empresaUbicacion?.lon ?? -76.195};
+    var puntoAnteriorLat = ${empresaUbicacion?.lat};
+    var puntoAnteriorLon = ${empresaUbicacion?.lon};
     var editando = false;
     var procesandoClick = false;
     
@@ -313,8 +320,8 @@ const MapaColaboradores = () => {
         }));
         
         if (puntosGuardados.length === 0) {
-            puntoAnteriorLat = ${empresaUbicacion?.lat ?? 4.0863};
-            puntoAnteriorLon = ${empresaUbicacion?.lon ?? -76.195};
+            puntoAnteriorLat = ${empresaUbicacion?.lat};
+            puntoAnteriorLon = ${empresaUbicacion?.lon};
             log('Primer punto - usando empresa como origen');
         }
         
@@ -453,7 +460,7 @@ const MapaColaboradores = () => {
             lon: p.lon,
             id: p.id
         }));
-        console.log("🗑️ Eliminando punto, nuevos puntos:", nuevosPuntos.length);
+        console.log("Eliminando punto, nuevos puntos:", nuevosPuntos.length);
         webViewRef.current?.postMessage(JSON.stringify({
             tipo: 'actualizarLinea',
             puntos: puntosParaWebView
@@ -534,11 +541,11 @@ const MapaColaboradores = () => {
                                             lon: mensaje.lon
                                         };
                                         setPuntosRuta(prev => [...prev, nuevoPunto]);
-                                        console.log("➕ Punto agregado:", nuevoPunto);
+                                        console.log("Punto agregado:", nuevoPunto);
                                         showSuccess('Punto agregado correctamente');
                                     }
                                 } catch (e) {
-                                    console.log("📨 Mensaje no JSON:", data);
+                                    console.log(" Mensaje no JSON:", data);
                                 }
                             }}
                         />
@@ -549,16 +556,21 @@ const MapaColaboradores = () => {
                             </View>
                         )}
                     </View>
-
-                    {modoEdicion && (
+                    {/*Modo edicion activado */}
+                    {modoEdicion && panelVisible &&(
                         <View style={[styles.panelCrearRuta, { backgroundColor: T.cards.background, borderTopColor: T.cards.border }]}>
                             <View style={styles.panelHeader}>
-                                <Text style={[styles.panelTitulo, { color: T.text.primary }]}>✏️ Modo edición activado</Text>
-                                <TouchableOpacity onPress={() => setModoEdicion(false)}>
-                                    <Text style={[styles.cerrarPanel, { color: T.icon.error }]}>✕</Text>
-                                </TouchableOpacity>
-                            </View>
+                                <Text style={[styles.panelTitulo, { color: T.text.primary }]}>Modo edición activado</Text>
 
+                                <View style={{ flexDirection: 'row', gap: 12 }}>
+                                    <TouchableOpacity onPress={() => setPanelVisible(false)}>
+                                        <Text style={[styles.cerrarPanel, { color: T.text.secondary }]}>🔼 Ocultar</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => setModoEdicion(false)}>
+                                        <Text style={[styles.cerrarPanel, { color: T.icon.error }]}>✕</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
                             <View style={styles.inputContainer}>
                                 <TextInput
                                     style={[styles.input, {
@@ -585,6 +597,7 @@ const MapaColaboradores = () => {
                                 />
                             </View>
 
+                            {/*aca vamos a ver los puntos que vamos tocando */}
                             <View>
                                 <Text style={{ color: T.text.primary, marginBottom: 8, fontWeight: 'bold' }}>
                                     Puntos seleccionados: {puntosRuta.length}
@@ -596,7 +609,8 @@ const MapaColaboradores = () => {
                                                 {indice + 1}. {punto.direccion || `${punto.lat.toFixed(5)}, ${punto.lon.toFixed(5)}`}
                                             </Text>
                                             <TouchableOpacity onPress={() => eliminarPunto(punto.id)}>
-                                                <Text style={styles.iconoBasura}>🗑️</Text>
+                                                <Ionicons name="trash-outline" style={styles.iconoBasura} />
+
                                             </TouchableOpacity>
                                         </View>
                                     ))}
@@ -612,10 +626,10 @@ const MapaColaboradores = () => {
                                         webViewRef.current?.postMessage(JSON.stringify({ tipo: 'limpiarTodo' }));
                                         showInfo('Todos los puntos han sido eliminados');
                                     }}>
-                                    <Text style={styles.textoLimpiar}>🗑️ Limpiar todos los puntos</Text>
+                                    <Text style={styles.textoLimpiar}> Limpiar todos los puntos</Text>
                                 </TouchableOpacity>
                             </View>
-
+                            {/*Boton de guardar*/}
                             <TouchableOpacity
                                 style={[styles.botonGuardar, { backgroundColor: T.Button.primary.background }]}
                                 onPress={async () => {
@@ -628,7 +642,8 @@ const MapaColaboradores = () => {
                                         return;
                                     }
                                     try {
-                                        await guardarRutaCompleta(nombreRuta, numeroRuta, puntosRuta, empresaUbicacion);
+                                        console.log(puntosRuta);
+                                        await guardarRutaCompleta(nombreRuta, numeroRuta, puntosRuta);
                                         showSuccess(`Ruta "${nombreRuta}" guardada exitosamente`);
                                         setModoEdicion(false);
                                         setNombreRuta("");
@@ -642,9 +657,21 @@ const MapaColaboradores = () => {
                             </TouchableOpacity>
                         </View>
                     )}
+                    {modoEdicion && !panelVisible && (
+                        <TouchableOpacity
+                            style={styles.botonMostrarPanel}
+                            onPress={() => setPanelVisible(true)}
+                        >
+                            <Text style={styles.textoMostrarPanel}> Mostrar panel</Text>
+                        </TouchableOpacity>
+
+                    )
+
+                    }
                 </View>
-            )}
-        </View>
+            )
+            }
+        </View >
     );
 };
 
@@ -789,6 +816,26 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginTop: 10,
         fontWeight: 'bold',
+    },
+    botonMostrarPanel: {
+        position: 'absolute',
+        bottom: 20,
+        right: 20,
+        backgroundColor: theme.lightMode.Button.primary.background,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 30,
+        zIndex: 1000,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+        elevation: 5,
+    },
+    textoMostrarPanel: {
+        color: theme.lightMode.Button.primary.Text,
+        fontWeight: 'bold',
+        fontSize: 14,
     },
 });
 

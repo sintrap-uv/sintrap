@@ -20,12 +20,14 @@ import EditarPerfilForm from "../components/forms/EditarPerfilForm";
 import ProfileCard from "../components/ProfileCard";          // ← agregado
 import ConductoresScreen from "./(admin)/conductores";
 import RegistrarVehiculo from "./(admin)/registrar-vehiculo";
-import MapaColaboradores from "./(admin)/Rutas/mapa-Colaboradores";
+import Bienvenida from "./(admin)/bienvenida-empresa";
 import { supabase } from "../services/supabase";
-
+import MapaColaboradores from "./(admin)/Rutas/mapa-Colaboradores";
+import ConfiguracionBuses from "./(admin)/configurar-buses";
 import { ObtenerDireccionUsuario } from "../services/geocalizacion";
 import CajaDireccion from "../components/ModalDireccion";
-import configuracionBuses from "./(admin)/configurar-buses.";
+
+
 
 
 
@@ -64,6 +66,8 @@ export default function Home() {
       crear_Conductor: { titulo: 'Crear Conductor', subtitulo: 'Registro de personal' },
       crear_Ruta: { titulo: 'Crear Ruta', subtitulo: 'Registra tu ruta' },
       graficas: { titulo: "Estadisticas", subtitulo: "Actividad del sistema" },
+      mapa_colaboradores: { titulo: 'Mapa de colaboradores', subtitulo: 'Visualiza los grupos' },
+      configurar_buses: { titulo: 'Configurar buses', subtitulo: 'Punto de salida' },
     },
     conductor: {
       inicio: { titulo: "Panel conductor" },
@@ -160,7 +164,11 @@ export default function Home() {
       crear: () => <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />,
       buses: () => <TabPendiente nombre="Buses" icono="bus" />,
       graficas: () => <TabPendiente nombre="Estadísticas" icono="bar-chart-outline" />,
-      crear_Ruta: () => <configuracionBuses/>,
+      crear_Ruta: () => (<Bienvenida onNavegar={(tab) => setTabActivo(tab)} />
+      ),
+      mapa_colaboradores: () => <MapaColaboradores />,
+      configurar_buses: () => <ConfiguracionBuses onNavegar={(tab) => setTabActivo(tab)} />,
+
       crear_Conductor: () => <ConductoresScreen />,
       crear_Bus: () => <RegistrarVehiculo />,
       // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente

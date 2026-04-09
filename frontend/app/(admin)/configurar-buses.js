@@ -1,17 +1,14 @@
 import { useState } from "react"
-import { useRouter } from "expo-router";
 import theme from "../../constants/theme";
 import { useToast } from "../../context/ToastContext";
 import MapaSimple from "../../components/Mapa";
 import { ubicacionBuses } from "../../services/empresaServices";
 import { obtenerCordenadas } from "../../services/geocalizacion";
-import { ActivityIndicator, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, TextInput, TouchableOpacity, View , Text} from "react-native";
 import { StyleSheet } from "react-native";
 
 
-export default function configuracionBuses() {
-
-    const router = useRouter();
+export default function ConfiguracionBuses({onNavegar}) {
 
     const [ubicacion, setUbicacion] = useState(null);
     const [direccion, setDireccion] = useState("");
@@ -66,7 +63,7 @@ export default function configuracionBuses() {
 
         if (resultado.success) {
             showSuccess("Datos guardados");
-            router.replace('/(admin)/Rutas/mapa-Colaboradores');
+            onNavegar('mapa_colaboradores');
 
         }
         else {
@@ -81,7 +78,11 @@ export default function configuracionBuses() {
                 <MapaSimple onSeleccionado={manejarSeleccionMapa} />
             </View>
             <View style={styles.infoContainer}>
-                <Text style={styles.infoTexto}> {ubicacion.lat.toFixed(5)}, {ubicacion.lon.toFixed(5)}</Text>
+                <Text style={styles.infoTexto}>
+                    {ubicacion
+                        ? ` ${ubicacion.lat.toFixed(5)}, ${ubicacion.lon.toFixed(5)}`
+                        : "Toca el mapa o busca una dirección"}
+                </Text>
                 <View style={styles.infoContainer}>
                     <TextInput
                         style={styles.input}
