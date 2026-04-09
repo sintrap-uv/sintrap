@@ -478,27 +478,7 @@ const MapaColaboradores = () => {
                 </View>
             ) : (
                 <View style={styles.mapaContenedor}>
-                    <View style={[styles.headerInfo, { backgroundColor: T.cards.background, borderBottomColor: T.cards.border }]}>
-                        <Text style={[styles.gruposTexto, { color: T.text.primary }]}>
-                            Grupos encontrados:
-                            <Text style={{ color: T.text.routName, fontWeight: 'bold' }}> {grupos.length}</Text>
-                        </Text>
-                        <View style={styles.botonesContainer}>
-                            <TouchableOpacity
-                                style={[styles.botonCrearRuta, { backgroundColor: T.Button.primary.background }]}
-                                onPress={() => {
-                                    setModoEdicion(true);
-                                    showInfo('Modo edición activado - Toca el mapa para agregar puntos');
-                                }}>
-                                <Text style={[styles.textoBotonCrear, { color: T.Button.primary.Text }]}>Crear ruta</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.botonRutaOptima, { backgroundColor: T.Button.secondary.background, borderColor: T.Button.secondary.border }]}
-                                onPress={handleRutaOptima}>
-                                <Text style={[styles.textoBotonCrear, { color: T.Button.secondary.text }]}>Ruta óptima</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
+
 
                     <View style={styles.mapaWrapper}>
                         <WebView
@@ -549,6 +529,24 @@ const MapaColaboradores = () => {
                                 }
                             }}
                         />
+                          {/* Botones flotantes sobre el mapa */}
+                        <View style={styles.botonesFlotantes}>
+                            <View style={styles.botonesContainer}>
+                                <TouchableOpacity
+                                    style={[styles.botonFlotanteCrear, { backgroundColor: T.Button.primary.background }]}
+                                    onPress={() => {
+                                        setModoEdicion(true);
+                                        showInfo('Modo edición activado - Toca el mapa para agregar puntos');
+                                    }}>
+                                    <Text style={{ color: T.Button.primary.Text, fontWeight: 'bold' }}>Crear ruta</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.botonFlotanteOptima, { backgroundColor: T.Button.secondary.background, borderWidth: 1, borderColor: T.Button.secondary.border }]}
+                                    onPress={handleRutaOptima}>
+                                    <Text style={{ color: T.Button.secondary.text }}>Ruta óptima</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
                         {calculandoRuta && (
                             <View style={styles.loadingOverlay}>
                                 <ActivityIndicator size="large" color="#22C55E" />
@@ -557,7 +555,7 @@ const MapaColaboradores = () => {
                         )}
                     </View>
                     {/*Modo edicion activado */}
-                    {modoEdicion && panelVisible &&(
+                    {modoEdicion && panelVisible && (
                         <View style={[styles.panelCrearRuta, { backgroundColor: T.cards.background, borderTopColor: T.cards.border }]}>
                             <View style={styles.panelHeader}>
                                 <Text style={[styles.panelTitulo, { color: T.text.primary }]}>Modo edición activado</Text>
@@ -836,6 +834,36 @@ const styles = StyleSheet.create({
         color: theme.lightMode.Button.primary.Text,
         fontWeight: 'bold',
         fontSize: 14,
+    },
+    botonesFlotantes: {
+        position: 'absolute',
+        top: 16,
+        left: 16,
+        right: 16,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 12,
+        zIndex: 1000,
+    },
+    botonFlotanteCrear: {
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 30,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+        elevation: 5,
+    },
+    botonFlotanteOptima: {
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 30,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+        elevation: 5,
     },
 });
 
