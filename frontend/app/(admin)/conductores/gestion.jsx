@@ -105,7 +105,7 @@ export default function GestionConductorScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/* ✅ Header — titulo/subtitulo directo, sin HEADER_CONFIGS ni perfil */}
+      {/*Header — titulo/subtitulo directo, sin HEADER_CONFIGS ni perfil */}
       <Header
         titulo={esNuevo ? "Nuevo conductor" : "Editar conductor"}
         subtitulo={esNuevo ? "Completa los datos para registrar" : "Modifica los datos del conductor"}

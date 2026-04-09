@@ -11,14 +11,18 @@
  *   - Si no hay sesión, redirige al login.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { Slot, useRouter } from "expo-router";
 import { supabase } from "../services/supabase";
 import { getProfile } from "../services/profileService";
+<<<<<<< HEAD
 import NotificacionToast from "../components/ToastNotificacion";
 import { ToastProvider } from "../context/ToastContext";
 import { useToast } from "../context/ToastContext";
+=======
+import { getStoredSession } from "../services/authStorageService";
+>>>>>>> origin/master
 import theme from "../constants/theme";
 
 const T = theme.lightMode;
@@ -42,8 +46,10 @@ function AppConToast() {
 export default function RootLayout() {
   const router = useRouter();
   const [verificando, setVerificando] = useState(true);
+  const ejecutado = useRef(false);
 
   useEffect(() => {
+<<<<<<< HEAD
     verificarSesion();
 
     const {
@@ -53,10 +59,47 @@ export default function RootLayout() {
         await redirigirSegunRol(sesion.user.id);
       }
       if (evento === "SIGNED_OUT") {
+=======
+    // Solo ejecutar una vez
+    if (ejecutado.current) return;
+    ejecutado.current = true;
+
+    const iniciar = async () => {
+      try {
+        const storedSession = await getStoredSession();
+        
+        if (storedSession?.user) {
+          // Restaurar sesión en Supabase
+          await supabase.auth.setSession({
+            access_token: storedSession.access_token,
+            refresh_token: storedSession.refresh_token,
+          });
+          
+          // Obtener perfil
+          const { data: perfil } = await getProfile(storedSession.user.id);
+          
+          // Quitar el loading
+          setVerificando(false);
+          
+          // Redirigir
+          if (perfil?.rol) {
+            router.replace("/home");
+          } else {
+            router.replace("/login");
+          }
+        } else {
+          setVerificando(false);
+          router.replace("/login");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        setVerificando(false);
+>>>>>>> origin/master
         router.replace("/login");
       }
-    });
+    };
 
+<<<<<<< HEAD
     return () => subscription.unsubscribe();
   }, []);
 
@@ -105,6 +148,11 @@ export default function RootLayout() {
     }
   };
 
+=======
+    iniciar();
+  }, []);
+
+>>>>>>> origin/master
   if (verificando) {
     return (
       <View
@@ -120,9 +168,13 @@ export default function RootLayout() {
     );
   }
 
+<<<<<<< HEAD
   return (
     <ToastProvider>
       <AppConToast />
     </ToastProvider>
   );
+=======
+  return <Slot />;
+>>>>>>> origin/master
 }

@@ -5,7 +5,8 @@ import { supabase } from "../../services/supabase";
 import { getProfile } from "../../services/profileService";
 import ProfileCard from "../../components/ProfileCard";
 import theme from "../../constants/theme";
- 
+import { signOut } from "../../services/auth";
+
 export default function ProfileScreen() {
   const router = useRouter();
  

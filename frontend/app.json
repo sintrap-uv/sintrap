@@ -25,7 +25,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["ACCES_COARSE_LOCATION", "ACCES_FINE_LOCATION"]
+      "permissions": [
+        "ACCES_COARSE_LOCATION",
+        "ACCES_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -38,7 +41,8 @@
         {
           "locationWhenInUsePermission": "Permite a Sintrap acceder a tu ubicacion para establcer tu punto de recogida."
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }
