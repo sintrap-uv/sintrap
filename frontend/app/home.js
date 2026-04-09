@@ -336,17 +336,15 @@ export default function Home() {
           iconoDerecha={
             perfil?.rol === "administrador" || perfil?.rol === "conductor" ? (
               <TouchableOpacity onPress={() => setTabActivo("perfil")}>
-                <Ionicons
-                  name="settings-outline"
-                  size={28}
-                  color="#fff"
-                />
-
+                <Ionicons name="settings-outline" size={28} color="#FFFFFF" />
               </TouchableOpacity>
             ) : null}
-            showBack={tabActivo === "mapa_colaboradores"}
-            onBack={()=>setTabActivo('rutas')}
-
+            showBack={tabActivo === "mapa_colaboradores" || tabActivo === "configurar_buses" } 
+            onBack={()=>{
+              if(tabActivo === 'configurar_buses') setTabActivo('inicio')
+              else if(tabActivo === "mapa_colaboradores") setTabActivo("rutas");
+              else setTabActivo('inicio')}
+            }
         />
       )}
 
@@ -376,16 +374,7 @@ export default function Home() {
   );
 }
 
-function obtenerSubtitulo(tab) {
-  const subtitulos = {
-    bus: "Tu información personal",
-    rutas: "Tu ruta asignada",
-    agregar: "Reportar un incidente",
-    perfil: "Tu información personal",
-    favoritos: "Tus rutas favoritas",
-  };
-  return subtitulos[tab] ?? "";
-}
+
 
 function TabPendiente({ nombre, icono }) {
   return (
