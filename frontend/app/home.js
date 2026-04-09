@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { BottomNavBar } from "../components/BottomNavBar";
 import BotonesFlotantes from "../components/BotonesFlotantes";
 import Header from "../components/Header";
@@ -23,6 +22,7 @@ import RegistrarVehiculo from "./(admin)/registrar-vehiculo";
 import VehiculosScreen from "./(admin)/vehiculos"
 import MisBusesScreen from "./(conductor)/mis-buses";
 import Bienvenida from "./(admin)/bienvenida-empresa";
+
 import DashboardAdmin from "./(admin)/DashboardAdmin";
 import DashboardUsuario from "./profiles/DashboardUsuario";
 import DashboardConductor from "./(conductor)/DashboardConductor"
@@ -338,13 +338,15 @@ export default function Home() {
               <TouchableOpacity onPress={() => setTabActivo("perfil")}>
                 <Ionicons
                   name="settings-outline"
-                  size={36}
+                  size={28}
                   color="#fff"
                 />
 
               </TouchableOpacity>
-            ) : null
-          }
+            ) : null}
+            showBack={tabActivo === "mapa_colaboradores"}
+            onBack={()=>setTabActivo('rutas')}
+
         />
       )}
 

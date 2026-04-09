@@ -529,7 +529,7 @@ const MapaColaboradores = () => {
                                 }
                             }}
                         />
-                          {/* Botones flotantes sobre el mapa */}
+                        {/* Botones flotantes sobre el mapa */}
                         <View style={styles.botonesFlotantes}>
                             <View style={styles.botonesContainer}>
                                 <TouchableOpacity
@@ -563,10 +563,10 @@ const MapaColaboradores = () => {
                                 <View style={{ flexDirection: 'row', gap: 12 }}>
                                     <TouchableOpacity onPress={() => setPanelVisible(false)}>
                                         <Ionicons style={styles.cerrarPanel} name="caret-up-outline">
-                                                <Text style={[styles.cerrarPanel, { color: T.text.secondary }]}> Ocultar</Text>
-                                            </Ionicons>
+                                            <Text style={[styles.cerrarPanel, { color: T.text.secondary }]}> Ocultar</Text>
+                                        </Ionicons>
 
-                                        
+
                                     </TouchableOpacity>
                                     <TouchableOpacity onPress={() => setModoEdicion(false)}>
                                         <Text style={[styles.cerrarPanel, { color: T.icon.error }]}>✕</Text>
@@ -607,9 +607,11 @@ const MapaColaboradores = () => {
                                 <ScrollView style={{ maxHeight: 140 }}>
                                     {puntosRuta.map((punto, indice) => (
                                         <View key={punto.id} style={styles.puntoItem}>
-                                            <Text style={{ color: T.text.secondary, fontSize: 12 }}>
-                                                {indice + 1}. {punto.direccion || `${punto.lat.toFixed(5)}, ${punto.lon.toFixed(5)}`}
-                                            </Text>
+                                            <Ionicons style={styles.iconoUbicacion}name="pin-outline">
+                                                <Text style={{ color: T.text.secondary, fontSize: 12 }}>
+                                                    {indice + 1}. {punto.direccion || `${punto.lat.toFixed(5)}, ${punto.lon.toFixed(5)}`}
+                                                </Text>
+                                            </Ionicons>
                                             <TouchableOpacity onPress={() => eliminarPunto(punto.id)}>
                                                 <Ionicons name="trash-outline" style={styles.iconoBasura} />
 
@@ -801,6 +803,10 @@ const styles = StyleSheet.create({
     iconoBasura: {
         color: 'red',
         fontSize: 16,
+    },
+    iconoUbicacion: {
+        color:'red',
+        fontSize : 16
     },
     loadingOverlay: {
         position: 'absolute',
