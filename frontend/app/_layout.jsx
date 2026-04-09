@@ -16,13 +16,12 @@ import { View, ActivityIndicator } from "react-native";
 import { Slot, useRouter } from "expo-router";
 import { supabase } from "../services/supabase";
 import { getProfile } from "../services/profileService";
-<<<<<<< HEAD
+
 import NotificacionToast from "../components/ToastNotificacion";
 import { ToastProvider } from "../context/ToastContext";
 import { useToast } from "../context/ToastContext";
-=======
+
 import { getStoredSession } from "../services/authStorageService";
->>>>>>> origin/master
 import theme from "../constants/theme";
 
 const T = theme.lightMode;
@@ -49,17 +48,7 @@ export default function RootLayout() {
   const ejecutado = useRef(false);
 
   useEffect(() => {
-<<<<<<< HEAD
-    verificarSesion();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (evento, sesion) => {
-      if (evento === "SIGNED_IN" && sesion?.user) {
-        await redirigirSegunRol(sesion.user.id);
-      }
-      if (evento === "SIGNED_OUT") {
-=======
     // Solo ejecutar una vez
     if (ejecutado.current) return;
     ejecutado.current = true;
@@ -94,65 +83,15 @@ export default function RootLayout() {
       } catch (error) {
         console.error("Error:", error);
         setVerificando(false);
->>>>>>> origin/master
+
         router.replace("/login");
       }
     };
 
-<<<<<<< HEAD
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const verificarSesion = async () => {
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.user) {
-        await redirigirSegunRol(session.user.id);
-      } else {
-        router.replace("/login");
-      }
-    } catch (e) {
-      console.error("Error verificando sesión:", e.message);
-      router.replace("/login");
-    } finally {
-      setVerificando(false);
-    }
-  };
-
-  const redirigirSegunRol = async (userId) => {
-    try {
-      const { data: perfil, error } = await getProfile(userId);
-      if (error || !perfil) {
-        router.replace("/login");
-        return;
-      }
-
-      switch (perfil.rol) {
-        case "conductor":
-          router.replace("/home");
-          break;
-        case "usuario":
-          router.replace("/home");
-          break;
-        case "administrador":
-          router.replace("/home");
-          break;
-        default:
-          router.replace("/login");
-      }
-    } catch (e) {
-      console.error("Error obteniendo rol:", e.message);
-      router.replace("/login");
-    }
-  };
-
-=======
     iniciar();
   }, []);
 
->>>>>>> origin/master
+
   if (verificando) {
     return (
       <View
@@ -168,13 +107,11 @@ export default function RootLayout() {
     );
   }
 
-<<<<<<< HEAD
+
   return (
     <ToastProvider>
       <AppConToast />
     </ToastProvider>
   );
-=======
-  return <Slot />;
->>>>>>> origin/master
+
 }
