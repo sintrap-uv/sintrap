@@ -8,6 +8,7 @@ on:
 
 env:
   NODE_VERSION: "24"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 defaults:
   run:
@@ -37,14 +38,15 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      # --output para descargar el APK al servidor de GITHUB
       - name: Build Android APK
-        run: eas build --platform android --profile preview --wait
+        run: eas build --platform android --profile preview --wait --output=./build-sintrap.apk
 
       - name: Upload APK to artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: android-build
-          path: |
-            **/*.apk
-            retention-days: 30
+          # Se apunta al archivo exapto que descargamos
+          path: frontend/build-sintrap.apk
+          retention-days: 30
