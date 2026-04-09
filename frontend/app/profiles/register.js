@@ -9,9 +9,9 @@ import {
   StyleSheet
 } from "react-native"
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons"
-import { useRouter } from "expo-router"
+import { useRouter } from "expo-router" 
 
-export default function LoginScreen() {
+export default function Register() {
 
   const [name,            setName]            = useState("")
   const [email,           setEmail]           = useState("")

@@ -71,12 +71,21 @@ export const getCurrentUser = () => {
 // Restablecer contraseña
 
 export const resetPassword = async (email) => {
-    const {data, error} = await supabase.auth.resetPasswordForEmail(email, {
-        options: {
-            redirectTo: "exp://localhost:19000/reset-password"
-        }
-    })
-    return {data, error}
+  const { data, error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false }
+  })
+  return { data, error }
 }
 
 
+// Verificar código OTP para restablecer contraseña
+
+export const verifyResetCode = async (email, token) => {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: "email"
+  })
+  return { data, error }
+}
