@@ -24,7 +24,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm Install
+        run: npm install
 
       - name: Setup Expo CLI
         uses: expo/expo-github-action@8
@@ -33,11 +33,11 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android APK
-        run: eas build --platform andorid --profile preview --wait
+        run: eas build --platform android --profile preview --wait
 
       - name: Upload APK to artifacts
         if: success()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: android-build
           path: |
