@@ -14,6 +14,7 @@ import theme from "../constants/theme";
 import EditarPerfilForm from "./forms/EditarPerfilForm";
 import ResetPassword from "../app/profiles/resetPassword";
 import Header from "./Header";
+import { useRouter } from "expo-router";
 
 const t = theme.lightMode;
 
@@ -49,6 +50,7 @@ const ProfileCard = ({
   serviceActive = true,
 }) => {
 
+  const router = useRouter();
   const [mostrarEditar, setMostrarEditar] = useState(false);
   const [mostrarResetPassword, setMostrarResetPassword] = useState(false);
  
@@ -254,8 +256,14 @@ const ProfileCard = ({
         <MenuItem
           icon={<MaterialCommunityIcons name="logout" size={22} color={t.icon.error} />}
           label="Cerrar sesión"
-          onPress={onLogout}
-          labelStyle={{ color: t.icon.error }}
+          onPress={async () => {
+            const { signOut } = require("../services/auth");
+            const { error } = await signOut();
+            if (!error) {
+              router.replace("/login");
+          }
+        }}
+        labelStyle={{ color: t.icon.error }}
         />
       </View>
 

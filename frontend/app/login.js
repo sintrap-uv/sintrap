@@ -10,7 +10,8 @@ import {
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import { signIn } from "../services/auth"
-
+import { clearSession } from "../services/authStorageService"
+ 
 export default function Login() {
  
   const [email, setEmail] = useState("")
@@ -18,17 +19,17 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
  
-  const handleLogin = async () => {
- 
-    const { data, error } = await signIn(email, password)
- 
-    if (error) {
-      alert("Error al iniciar sesión: " + error.message)
-    } else {
-      alert("Inicio de sesión exitoso: " + data.user.email)
-    }
- 
+ const handleLogin = async () => {
+  const { data, error } = await signIn(email, password)
+
+  if (error) {
+    alert("Error al iniciar sesión: " + error.message)
+  } else {
+    alert("Inicio de sesión exitoso: " + data.user.email)
+    //Redirigir manualmente al home después del login
+    router.replace("/home");
   }
+}
  
   return (
     <View style={styles.container}>
