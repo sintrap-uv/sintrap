@@ -58,6 +58,7 @@ const theme = {
     //MODO CLARO
 
     lightMode : {
+        tipografia,
         //Fondo general de todas las pantallas 
         background: "#F8FAFC",
 

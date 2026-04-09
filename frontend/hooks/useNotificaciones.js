@@ -4,7 +4,7 @@ import {
   getNotificaciones,
   marcarNotificacionLeida,
   marcarTodasLeidas as marcarTodasLeidasService,
-} from "../services/notificaciones"
+} from "../services/notificacionesServices"
 // Hook para manejar notificaciones en tiempo real. Carga las notificaciones del usuario y se suscribe a nuevos eventos para actualizar la lista automáticamente.
 export function useNotificaciones(usuarioId) {
   const [notificaciones, setNotificaciones] = useState([])
