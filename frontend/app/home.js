@@ -22,6 +22,7 @@ import ConductoresScreen from "./(admin)/conductores";
 import VehiculosScreen from "./(admin)/vehiculos"; //para mostar los buses
 import RegistrarVehiculo from "./(admin)/registrar-vehiculo"; 
 import { supabase } from "../services/supabase";
+import MisBusesScreen from "./(conductor)/mis-buses";
 
 export default function Home() {
   const [tabActivo, setTabActivo] = useState("inicio");
@@ -144,7 +145,8 @@ conductor: {
   ),
     rutas: () => <TabPendiente nombre="Mi Ruta" icono="navigate-outline" />,
       agregar: () => <TabPendiente nombre="Reportar incidente" icono="warning-outline" />,
-        bus: () => <TabPendiente nombre="Buses" icono="bus" />,
+       // bus: () => <TabPendiente nombre="Buses" icono="bus" />,
+        bus: () => <MisBusesScreen />,
           // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
           perfil: () => (
             <ProfileCard

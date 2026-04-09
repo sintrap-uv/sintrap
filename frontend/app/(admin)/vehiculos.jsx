@@ -1,12 +1,11 @@
  /**
  * vehiculos.jsx
- * Pantalla de gestión de vehículos — SINTRAP
+  
  * Ruta: app/(admin)/vehiculos.jsx
  *
- * Columnas usadas: id, placa, seguro (bool), conductor_id (uuid → profiles), activo (bool)
- * NUNCA se toca la columna "capacidad".
+ 
  */
-
+//import {Ionicons} from "expo/vector-icons";
 import { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -23,6 +22,7 @@ import {
 } from "react-native";
 import { supabase } from "../../services/supabase";
 import theme from "../../constants/theme";
+import {Ionicons} from "@expo/vector-icons";
 
 // ─── ALIAS DEL TEMA ───────────────────────────────────────────────────────────
 const T = theme.lightMode;
@@ -194,60 +194,54 @@ export default function VehiculosScreen() {
     }
   }
 
+
   // ── RENDER TARJETA ───────────────────────────────────────────────────────
-  function renderVehiculo({ item: v }) {
-    const nombreConductor = v.profiles?.nombre ?? "Sin conductor";
-    return (
-      <View style={s.card}>
-        {/* Cabecera de la tarjeta */}
-        <View style={s.cardHeader}>
-          <View style={s.cardHeaderLeft}>
-            {/* Badge estado */}
-            <View style={[s.badge, v.activo ? s.badgeActivo : s.badgeInactivo]}>
-              <Text style={[s.badgeText, { color: v.activo ? "#16A34A" : T.text.secondary }]}>
-                {v.activo ? "Activo" : "Inactivo"}
-              </Text>
-            </View>
-          </View>
-
-          {/* Botones acción */}
-          <View style={s.cardActions}>
-            <TouchableOpacity
-              style={s.btnIconEdit}
-              onPress={() => abrirEdicion(v)}
-              activeOpacity={0.7}
-            >
-              <Text style={s.btnIconEditText}>✏</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={s.btnIconDel}
-              onPress={() => pedirConfirmacion(v)}
-              activeOpacity={0.7}
-            >
-              <Text style={s.btnIconDelText}>🗑</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Placa */}
-        <Text style={s.placa}>{v.placa}</Text>
-
-        {/* Info */}
-        <View style={s.cardInfo}>
-          <View style={s.infoRow}>
-            <Text style={s.infoIcon}>👤</Text>
-            <Text style={s.infoValue}>{nombreConductor}</Text>
-          </View>
-          <View style={s.infoRow}>
-            <Text style={s.infoIcon}>🛡</Text>
-            <Text style={[s.infoValue, { color: v.seguro ? "#16A34A" : T.icon.error }]}>
-              {v.seguro ? "Seguro vigente" : "Sin seguro"}
+function renderVehiculo({ item: v }) {
+  const nombreConductor = v.profiles?.nombre ?? "Sin conductor";
+  return (
+    <View style={s.card}>
+      {/* Cabecera de la tarjeta */}
+      <View style={s.cardHeader}>
+        <View style={s.cardHeaderLeft}>
+          <View style={[s.badge, v.activo ? s.badgeActivo : s.badgeInactivo]}>
+            <Text style={[s.badgeText, { color: v.activo ? "#16A34A" : T.text.secondary }]}>
+              {v.activo ? "Activo" : "Inactivo"}
             </Text>
           </View>
         </View>
+
+        {/* Botones acción */}
+        <View style={s.cardActions}>
+          <TouchableOpacity onPress={() => abrirEdicion(v)} activeOpacity={0.7}>
+            <Ionicons name="create-outline" size={22} color={T.text.secondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => pedirConfirmacion(v)} activeOpacity={0.7}>
+            <Ionicons name="trash-outline" size={22} color={T.icon.error} />
+          </TouchableOpacity>
+        </View>
       </View>
-    );
-  }
+
+      {/* Placa */}
+      <Text style={s.placa}>{v.placa}</Text>
+
+      {/* Info */}
+      <View style={s.cardInfo}>
+        <View style={s.infoRow}>
+          <Ionicons name="person-outline" size={14} color={T.icon.default} />
+          <Text style={s.infoValue}>{nombreConductor}</Text>
+        </View>
+        <View style={s.infoRow}>
+          <Ionicons name="shield-checkmark-outline" size={14} color={v.seguro ? "#16A34A" : T.icon.error} />
+          <Text style={[s.infoValue, { color: v.seguro ? "#16A34A" : T.icon.error }]}>
+            {v.seguro ? "Seguro vigente" : "Sin seguro"}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+   
 
   // ── RENDER PRINCIPAL ─────────────────────────────────────────────────────
   return (
