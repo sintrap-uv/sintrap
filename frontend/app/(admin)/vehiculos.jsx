@@ -35,6 +35,9 @@ export default function VehiculosScreen() {
   const [refreshing,      setRefreshing]      = useState(false);
   const [globalError,     setGlobalError]     = useState(null);
   const [busqueda,        setBusqueda]        = useState("");
+  const [tieneDependencias, setTieneDependencias] = useState(false)
+  const [infoDependencia, setInfoDependencia] = useState(null) // { conductor, fecha}
+
 
   // Modal edición
   const [modalVisible,    setModalVisible]    = useState(false);
@@ -165,36 +168,87 @@ export default function VehiculosScreen() {
   }
 
   // ── DELETE ───────────────────────────────────────────────────────────────
-  function pedirConfirmacion(v) {
-    setParaEliminar(v);
-    setConfirmVisible(true);
+   async function pedirConfirmacion(v) {
+  setParaEliminar(v);
+
+  try {
+    // 1. Verificar si tiene turno EN CURSO
+    const { data: turnosActivos, error } = await supabase
+      .from("turnos")
+      .select("id, fecha, conductor_id, estado, profiles(nombre)")
+      .eq("vehiculo_id", v.id)
+      .eq("estado", "en_curso")
+      .limit(1);
+
+    if (error) throw error;
+
+    if (turnosActivos?.length > 0) {
+      const turno = turnosActivos[0];
+      setTieneDependencias("bloqueado");
+      setInfoDependencia({
+        conductor: turno.profiles?.nombre ?? "Conductor desconocido",
+        fecha: turno.fecha,
+      });
+    } else {
+      // 2. Verificar si tiene cualquier otro turno histórico
+      const { count } = await supabase
+        .from("turnos")
+        .select("*", { count: "exact", head: true })
+        .eq("vehiculo_id", v.id);
+
+      setTieneDependencias(count > 0 ? "historial" : "ninguna");
+      setInfoDependencia(null);
+    }
+  } catch (err) {
+    setTieneDependencias("ninguna");
+    setInfoDependencia(null);
   }
 
-  async function handleEliminar() {
-    if (!paraEliminar) return;
-    setEliminando(true);
+  setConfirmVisible(true);
+}
 
-    const prev = vehiculos;
-    setVehiculos((list) => list.filter((v) => v.id !== paraEliminar.id));
+   async function handleEliminar() {
+  if (!paraEliminar) return;
+
+  // Si está en turno activo, solo cerrar el modal
+  if (tieneDependencias === "bloqueado") {
     setConfirmVisible(false);
+    return;
+  }
 
-    try {
+  setEliminando(true);
+  try {
+    if (tieneDependencias === "historial") {
+      // Solo desactivar
+      const { error } = await supabase
+        .from("vehiculos")
+        .update({ activo: false })
+        .eq("id", paraEliminar.id);
+
+      if (error) throw error;
+      setVehiculos((list) =>
+        list.map((v) =>
+          v.id === paraEliminar.id ? { ...v, activo: false } : v
+        )
+      );
+    } else {
+      // Eliminar definitivamente
       const { error } = await supabase
         .from("vehiculos")
         .delete()
         .eq("id", paraEliminar.id);
 
       if (error) throw error;
-    } catch (err) {
-      setGlobalError(`No se pudo eliminar: ${err.message}`);
-      setVehiculos(prev);
-    } finally {
-      setEliminando(false);
-      setParaEliminar(null);
+      setVehiculos((list) => list.filter((v) => v.id !== paraEliminar.id));
     }
+  } catch (err) {
+    setGlobalError(`Error: ${err.message}`);
+  } finally {
+    setEliminando(false);
+    setConfirmVisible(false);
+    setParaEliminar(null);
   }
-
-
+}
   // ── RENDER TARJETA ───────────────────────────────────────────────────────
 function renderVehiculo({ item: v }) {
   const nombreConductor = v.profiles?.nombre ?? "Sin conductor";
@@ -433,36 +487,89 @@ function renderVehiculo({ item: v }) {
               </TouchableOpacity>
             </View>
 
-            <View style={s.confirmBody}>
-              <Text style={s.confirmIcon}>🗑️</Text>
-              <Text style={s.confirmText}>
-                ¿Eliminar el vehículo{" "}
-                <Text style={{ color: T.Headers.innerColor, fontWeight: "700" }}>
-                  {paraEliminar?.placa}
-                </Text>
-                ?{"\n"}Esta acción no se puede deshacer.
-              </Text>
-            </View>
+             <View style={s.confirmBody}>
+  <Text style={{ fontSize: 36 }}>
+    {tieneDependencias === "bloqueado" ? "🚫" :
+     tieneDependencias === "historial" ? "⚠️" : "🗑️"}
+  </Text>
 
-            <View style={s.modalFoot}>
-              <TouchableOpacity
-                style={s.btnCancel}
-                onPress={() => setConfirmVisible(false)}
-                disabled={eliminando}
-              >
-                <Text style={s.btnCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.btnSave, { backgroundColor: T.icon.error }]}
-                onPress={handleEliminar}
-                disabled={eliminando}
-              >
-                {eliminando
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={s.btnSaveText}>Sí, eliminar</Text>
-                }
-              </TouchableOpacity>
-            </View>
+  {tieneDependencias === "bloqueado" ? (
+    // Turno activo — bloquear completamente
+    <>
+      <Text style={[s.confirmText, { fontWeight: "700", color: T.icon.error }]}>
+        No se puede eliminar
+      </Text>
+      <Text style={s.confirmText}>
+        El vehículo{" "}
+        <Text style={{ color: T.Headers.innerColor, fontWeight: "700" }}>
+          {paraEliminar?.placa}
+        </Text>
+        {" "}tiene un turno activo{"\n"}
+        Conductor:{" "}
+        <Text style={{ fontWeight: "700", color: T.text.primary }}>
+          {infoDependencia?.conductor}
+        </Text>
+        {"\n"}
+        Fecha:{" "}
+        <Text style={{ fontWeight: "700", color: T.text.primary }}>
+          {infoDependencia?.fecha}
+        </Text>
+      </Text>
+    </>
+  ) : tieneDependencias === "historial" ? (
+    // Tiene historial — solo desactivar
+    <>
+      <Text style={[s.confirmText, { fontWeight: "700", color: T.icon.alert }]}>
+        No se puede eliminar
+      </Text>
+      <Text style={s.confirmText}>
+        El vehículo{" "}
+        <Text style={{ color: T.Headers.innerColor, fontWeight: "700" }}>
+          {paraEliminar?.placa}
+        </Text>
+        {" "}tiene historial de turnos.{"\n"}
+        Se desactivará en lugar de eliminarse.
+      </Text>
+    </>
+  ) : (
+    // Sin dependencias — eliminar normal
+    <Text style={s.confirmText}>
+      ¿Eliminar el vehículo{" "}
+      <Text style={{ color: T.Headers.innerColor, fontWeight: "700" }}>
+        {paraEliminar?.placa}
+      </Text>
+      ?{"\n"}
+    </Text>
+  )}
+</View>
+
+<View style={s.modalFoot}>
+  <TouchableOpacity
+    style={s.btnCancel}
+    onPress={() => setConfirmVisible(false)}
+    disabled={eliminando}
+  >
+    <Text style={s.btnCancelText}>
+      {tieneDependencias === "bloqueado" ? "Entendido" : "Cancelar"}
+    </Text>
+  </TouchableOpacity>
+
+  {/* Solo mostrar botón de acción si no está bloqueado */}
+  {tieneDependencias !== "bloqueado" && (
+    <TouchableOpacity
+      style={[s.btnSave, { backgroundColor: tieneDependencias === "historial" ? T.icon.alert : T.icon.error }]}
+      onPress={handleEliminar}
+      disabled={eliminando}
+    >
+      {eliminando
+        ? <ActivityIndicator color="#fff" size="small" />
+        : <Text style={s.btnSaveText}>
+            {tieneDependencias === "historial" ? "Desactivar" : "Sí, eliminar"}
+          </Text>
+      }
+    </TouchableOpacity>
+  )}
+</View>
           </View>
         </View>
       </Modal>

@@ -12,7 +12,9 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import theme from "../constants/theme";
 import EditarPerfilForm from "./forms/EditarPerfilForm";
-import Header from "./Header"; // ← usa el Header del proyecto
+import ResetPassword from "../app/profiles/resetPassword";
+import Header from "./Header";
+import { useRouter } from "expo-router";
 
 const t = theme.lightMode;
 
@@ -48,8 +50,10 @@ const ProfileCard = ({
   serviceActive = true,
 }) => {
 
+  const router = useRouter();
   const [mostrarEditar, setMostrarEditar] = useState(false);
-
+  const [mostrarResetPassword, setMostrarResetPassword] = useState(false);
+ 
   const roleConfig = {
     usuario: {
       label: isActive ? "Usuario activo" : "Usuario inactivo",
@@ -90,13 +94,28 @@ const ProfileCard = ({
           userId={userId}
           onGuardado={(actualizado) => {
             onGuardado?.(actualizado);
-            setMostrarEditar(false);
+            setMostrarEditar(false);  
           }}
         />
       </View>
     );
   }
+ if (mostrarResetPassword) {
+    return (
+      <View style={{ flex: 1 }}>
+        <TouchableOpacity
+          style={styles.volverBtn}
+          onPress={() => setMostrarResetPassword(false)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back-outline" size={22} color={t.text.primary} />
+          <Text style={styles.volverTexto}>Volver al perfil</Text>
+        </TouchableOpacity>
 
+        <ResetPassword onDone={() => setMostrarResetPassword(false)} />
+      </View>
+    );
+  }
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
@@ -231,14 +250,20 @@ const ProfileCard = ({
         <MenuItem
           icon={<Ionicons name="lock-closed-outline" size={22} color={t.icon.active} />}
           label="Cambiar contraseña"
-          onPress={onChangePassword}
+          onPress={()=> setMostrarResetPassword(true)}
         />
         <Divider />
         <MenuItem
           icon={<MaterialCommunityIcons name="logout" size={22} color={t.icon.error} />}
           label="Cerrar sesión"
-          onPress={onLogout}
-          labelStyle={{ color: t.icon.error }}
+          onPress={async () => {
+            const { signOut } = require("../services/auth");
+            const { error } = await signOut();
+            if (!error) {
+              router.replace("/login");
+          }
+        }}
+        labelStyle={{ color: t.icon.error }}
         />
       </View>
 

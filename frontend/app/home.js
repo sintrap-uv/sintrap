@@ -10,19 +10,31 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BottomNavBar } from "../components/BottomNavBar";
-import BotonesFlotantes from "../components/BotonesFlotantes"
+import BotonesFlotantes from "../components/BotonesFlotantes";
 import Header from "../components/Header";
 import { getProfile } from "../services/profileService";
-import { getCurrentUser } from "../services/auth";
+import { getCurrentUser, signOut } from "../services/auth";
 
 // ── Importa aquí los componentes de cada tab ──────────────────
 import EditarPerfilForm from "../components/forms/EditarPerfilForm";
-import ProfileCard from "../components/ProfileCard";          // ← agregado
+import ProfileCard from "../components/ProfileCard"; // ← agregado
 import ConductoresScreen from "./(admin)/conductores";
-import VehiculosScreen from "./(admin)/vehiculos"; //para mostar los buses
-import RegistrarVehiculo from "./(admin)/registrar-vehiculo"; 
-import { supabase } from "../services/supabase";
+import RegistrarVehiculo from "./(admin)/registrar-vehiculo";
+import VehiculosScreen from "./(admin)/vehiculos"
 import MisBusesScreen from "./(conductor)/mis-buses";
+import Bienvenida from "./(admin)/bienvenida-empresa";
+import DashboardAdmin from "./(admin)/DashboardAdmin";
+import DashboardUsuario from "./profiles/DashboardUsuario";
+import DashboardConductor from "./(conductor)/DashboardConductor"
+import { supabase } from "../services/supabase";
+import MapaColaboradores from "./(admin)/Rutas/mapa-Colaboradores";
+import ConfiguracionBuses from "./(admin)/configurar-buses";
+import { ObtenerDireccionUsuario } from "../services/geocalizacion";
+import CajaDireccion from "../components/ModalDireccion";
+
+
+
+
 
 export default function Home() {
   const [tabActivo, setTabActivo] = useState("inicio");
@@ -33,34 +45,94 @@ export default function Home() {
   const [cargando, setCargando] = useState(true);
   const [serviceActive, setServiceActive] = useState(true);
 
+  const [mostrarModal, setMostarModal] = useState(true)
+
+  const [colaboradores, setColaboradores] = useState([]);
+  const [grupos, setGrupos] = useState([]);
+  const [cargandoPrueba, setCargandoPrueba] = useState(false);
+
   useEffect(() => {
     cargarPerfil();
   }, []);
 
   const HEADER_CONFIGS = {
     usuario: {
-      inicio: { titulo: `Hola ${perfil?.nombre ?? 'Usuario'}`, subtitulo: '¿a donde vamos hoy?' },
+      inicio: {
+        titulo: `Hola ${perfil?.nombre ?? "Usuario"}`,
+        subtitulo: "¿a donde vamos hoy?",
+      },
       favoritos: { titulo: "Mis Favoritos" },
       rutas: { titulo: "Rutas" },
       perfil: { titulo: "Mi Perfil" },
     },
     administrador: {
-      inicio: { titulo: "Panel Administrativo", subtitulo: "Gestion rutas y buses" },
-      rutas: { titulo: "Gestion de rutas", subtitulo: "Administrar las rutas del sistema" },
+      inicio: {
+        titulo: "Panel Administrativo",
+        subtitulo: "Gestion rutas y buses",
+      },
+      rutas: {
+        titulo: "Gestion de rutas",
+        subtitulo: "Administrar las rutas del sistema",
+      },
       crear: { titulo: "Crear Ruta", subtitulo: "Gestion de rutas" },
       buses: { titulo: "Buses", subtitulo: "Gestion de buses" },
-      crear_Bus: { titulo: 'Crear bus', subtitulo: 'Registro de unidad' },
-      crear_Conductor: { titulo: 'Crear Conductor', subtitulo: 'Registro de personal' },
-      crear_Ruta: { titulo: 'Crear Ruta', subtitulo: 'Registra tu ruta' },
+      crear_Bus: { titulo: "Crear bus", subtitulo: "Registro de unidad" },
+      crear_Conductor: {
+        titulo: "Crear Conductor",
+        subtitulo: "Registro de personal",
+      },
+      crear_Ruta: { titulo: "Crear Ruta", subtitulo: "Registra tu ruta" },
       graficas: { titulo: "Estadisticas", subtitulo: "Actividad del sistema" },
+      mapa_colaboradores: { titulo: 'Mapa de colaboradores', subtitulo: 'Visualiza los grupos' },
+      configurar_buses: { titulo: 'Configurar buses', subtitulo: 'Punto de salida' },
     },
     conductor: {
       inicio: { titulo: "Panel conductor" },
       rutas: { titulo: "Gestion de rutas" },
       crear: { titulo: "Crear Ruta" },
       buses: { titulo: "Buses" },
+    },
+  };
+
+  const probarAgrupacion = async () => {
+    setCargandoPrueba(true);
+
+    try {
+      // 1. Obtener colaboradores
+      console.log("📡 Obteniendo colaboradores...");
+      const data = await ubicacionColaboradores();
+      setColaboradores(data);
+      console.log(`✅ Encontrados ${data.length} colaboradores con ubicación`);
+
+      // 2. Mostrar algunos ejemplos
+      if (data.length > 0) {
+        console.log("📋 Ejemplo de colaborador:");
+        console.log(`   Nombre: ${data[0].nombre}`);
+        console.log(`   Dirección: ${data[0].ubicacion_usuario?.[0]?.direccion}`);
+        console.log(`   Coordenadas: ${data[0].ubicacion_usuario?.[0]?.latidud}, ${data[0].ubicacion_usuario?.[0]?.longitud}`);
+      }
+
+      // 3. Agrupar por cercanía
+      console.log("🔄 Agrupando por cercanía...");
+      const clusters = agruparPorCercania(data, 0.3);
+      setGrupos(clusters);
+
+      // 4. Mostrar resultados
+      console.log(`✅ Se crearon ${clusters.length} grupos`);
+      clusters.forEach((grupo, index) => {
+        console.log(`📦 Grupo ${index + 1}: ${grupo.cantidad} personas`);
+        grupo.colaboradores.forEach(col => {
+          console.log(`   - ${col.nombre}`);
+        });
+      });
+
+    } catch (error) {
+      console.error("❌ Error:", error);
+    } finally {
+      setCargandoPrueba(false);
     }
   };
+
 
   const cargarPerfil = async () => {
     try {
@@ -74,6 +146,12 @@ export default function Home() {
       const { data: perfilData } = await getProfile(user.id);
       if (perfilData) setPerfil(perfilData);
 
+      const ubicacionData = await ObtenerDireccionUsuario(user.id);
+      const tienedireccion = !!ubicacionData?.direccion;
+      setMostarModal(!tienedireccion)
+
+
+
     } catch (e) {
       console.error('Error cargando perfil:', e.message);
     } finally {
@@ -81,7 +159,7 @@ export default function Home() {
     }
   };
 
-  // ✅ Actualiza el perfil en tiempo real con merge
+  //Actualiza el perfil en tiempo real con merge
   const handleGuardado = (actualizado) => {
     if (actualizado) {
       setPerfil((prev) => ({ ...prev, ...actualizado }));
@@ -90,175 +168,210 @@ export default function Home() {
     }
   };
 
-  const handleLogout = async () => {
+    const handleLogout = async () => {
     await supabase.auth.signOut();
   };
 
   // ── Contenido por ROL + TAB ──────────────────────────────────
   const CONTENIDO = {
-
     // ── ADMINISTRADOR ──
     administrador: {
-      inicio: () => < TabPendiente nombre="Inicio" icono="home"/>,
-      rutas: () => <TabPendiente nombre="Gestión de rutas" icono="map-outline" />,
-      crear: () => <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />,
-      //buses: () => <TabPendiente nombre="Buses" icono="bus" />,
-      buses: () => < VehiculosScreen />, //tab para mostar los buses listados
+ 
+      // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
 
-      graficas: () => <TabPendiente nombre="Estadísticas" icono="bar-chart-outline" />,
-      crear_Ruta: () => <TabPendiente nombre='listado de rutas' />,
-      crear_Conductor:() => <ConductoresScreen />,
-      crear_Bus:() => <RegistrarVehiculo />,
-        // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
-        perfil:   () => (
-          <ProfileCard
-            name={perfil?.nombre ?? ""}
-            email={userEmail}
-            avatarUri={perfil?.avatar_url ?? null}
-            role={perfil?.rol ?? "administrador"}
-            isActive={perfil?.activo ?? true}
-            loading={false}
-            perfilInicial={perfil}
-            userId={userId}
-            onGuardado={handleGuardado}
-            onTripHistory={() => console.log("Historial")}
-            onNotifications={() => console.log("Notificaciones")}
-            onSettings={() => console.log("Configuración")}
-            onChangePassword={() => console.log("Cambiar contraseña")}
-            onLogout={handleLogout}
-            onManageUsers={() => console.log("Gestión usuarios")}
-            onReports={() => console.log("Reportes")}
-            onManageRoutes={() => console.log("Gestión rutas")}
-          />
-        ),
+      inicio: () => <DashboardAdmin />,
+      rutas: () => (
+        <TabPendiente nombre="Gestión de rutas" icono="map-outline" />
+      ),
+      crear: () => (
+        <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />
+      ),
+      buses: () => <VehiculosScreen />, //para mostrar los buses
+      graficas: () => (
+        <TabPendiente nombre="Estadísticas" icono="bar-chart-outline" />
+      ),
+       crear_Ruta: () => (<Bienvenida onNavegar={(tab) => setTabActivo(tab)} />
+      ),
+      mapa_colaboradores: () => <MapaColaboradores />,
+      configurar_buses: () => <ConfiguracionBuses onNavegar={(tab) => setTabActivo(tab)} />,
+      crear_Conductor: () => <ConductoresScreen />,
+      crear_Bus: () => <RegistrarVehiculo />,
+      
+
+      perfil: () => (
+        <ProfileCard
+          name={perfil?.nombre ?? ""}
+          email={userEmail}
+          avatarUri={perfil?.avatar_url ?? null}
+          role={perfil?.rol ?? "administrador"}
+          isActive={perfil?.activo ?? true}
+          loading={false}
+          perfilInicial={perfil}
+          userId={userId}
+          onGuardado={handleGuardado}
+          onTripHistory={() => console.log("Historial")}
+          onNotifications={() => console.log("Notificaciones")}
+          onSettings={() => console.log("Configuración")}
+          onChangePassword={() => console.log("Cambiar contraseña")}
+          onLogout={handleLogout}
+          onManageUsers={() => console.log("Gestión usuarios")}
+          onReports={() => console.log("Reportes")}
+          onManageRoutes={() => console.log("Gestión rutas")}
+        />
+      ),
     },
 
-// ── CONDUCTOR ──
-conductor: {
-  inicio: () => (
-    <LinearGradient colors={["#2D6A2D", "#A8D5A2", "#e8f5e9"]} style={styles.gradient}>
-      <TouchableOpacity style={styles.alertBtn}>
-        <Ionicons name="notifications" size={16} color="#fff" style={{ marginRight: 8 }} />
-        <Text style={styles.alertText}>Avisarme cuando el bus este cerca</Text>
-      </TouchableOpacity>
-    </LinearGradient>
-  ),
-    rutas: () => <TabPendiente nombre="Mi Ruta" icono="navigate-outline" />,
-      agregar: () => <TabPendiente nombre="Reportar incidente" icono="warning-outline" />,
-       // bus: () => <TabPendiente nombre="Buses" icono="bus" />,
-        bus: () => <MisBusesScreen />,
-          // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
-          perfil: () => (
-            <ProfileCard
-              name={perfil?.nombre ?? ""}
-              email={userEmail}
-              avatarUri={perfil?.avatar_url ?? null}
-              role={perfil?.rol ?? "conductor"}
-              isActive={perfil?.activo ?? true}
-              loading={false}
-              perfilInicial={perfil}
-              userId={userId}
-              onGuardado={handleGuardado}
-              onTripHistory={() => console.log("Historial")}
-              onNotifications={() => console.log("Notificaciones")}
-              onSettings={() => console.log("Configuración")}
-              onChangePassword={() => console.log("Cambiar contraseña")}
-              onLogout={handleLogout}
-              onMyVehicle={() => console.log("Mi vehículo")}
-              onAssignedRoutes={() => console.log("Rutas asignadas")}
-              serviceActive={serviceActive}
-              onToggleService={() => setServiceActive((prev) => !prev)}
-            />
-          ),
+    // ── CONDUCTOR ──
+    conductor: {
+
+      inicio: () => <DashboardConductor />,
+      rutas: () => <TabPendiente nombre="Mi Ruta" icono="navigate-outline" />,
+
+      agregar: () => (
+        <TabPendiente nombre="Reportar incidente" icono="warning-outline" />
+      ),
+      bus: () => <MisBusesScreen />,
+      //Perfil → ProfileCard que abre EditarPerfilForm internamente
+
+      perfil: () => (
+        <ProfileCard
+          name={perfil?.nombre ?? ""}
+          email={userEmail}
+          avatarUri={perfil?.avatar_url ?? null}
+          role={perfil?.rol ?? "conductor"}
+          isActive={perfil?.activo ?? true}
+          loading={false}
+          perfilInicial={perfil}
+          userId={userId}
+          onGuardado={handleGuardado}
+          onTripHistory={() => console.log("Historial")}
+          onNotifications={() => console.log("Notificaciones")}
+          onSettings={() => console.log("Configuración")}
+          onChangePassword={() => console.log("Cambiar contraseña")}
+          onLogout={handleLogout}
+          onMyVehicle={() => console.log("Mi vehículo")}
+          onAssignedRoutes={() => console.log("Rutas asignadas")}
+          serviceActive={serviceActive}
+          onToggleService={() => setServiceActive((prev) => !prev)}
+        />
+      ),
     },
 
-// ── USUARIO ──
-usuario: {
-  inicio: () => (
-    <LinearGradient colors={["#2D6A2D", "#A8D5A2", "#e8f5e9"]} style={styles.gradient}>
-      <TouchableOpacity style={styles.alertBtn}>
-        <Ionicons name="notifications" size={16} color="#fff" style={{ marginRight: 8 }} />
-        <Text style={styles.alertText}>Avisarme cuando el bus este cerca</Text>
-      </TouchableOpacity>
-    </LinearGradient>
-  ),
-    favoritos: () => <TabPendiente nombre="Favoritos" icono="heart-outline" />,
+    // ── USUARIO ──
+    usuario: {
+
+      inicio: () => <DashboardUsuario />,
+      favoritos: () => (
+        <TabPendiente nombre="Favoritos" icono="heart-outline" />
+      ),
       rutas: () => <TabPendiente nombre="Rutas" icono="location-outline" />,
-        // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
-        perfil: () => (
-          <ProfileCard
-            name={perfil?.nombre ?? ""}
-            email={userEmail}
-            avatarUri={perfil?.avatar_url ?? null}
-            role={perfil?.rol ?? "usuario"}
-            isActive={perfil?.activo ?? true}
-            loading={false}
-            perfilInicial={perfil}
-            userId={userId}
-            onGuardado={handleGuardado}
-            onTripHistory={() => console.log("Historial")}
-            onNotifications={() => console.log("Notificaciones")}
-            onSettings={() => console.log("Configuración")}
-            onChangePassword={() => console.log("Cambiar contraseña")}
-            onLogout={handleLogout}
-          />
-        ),
+      // Perfil → ProfileCard que abre EditarPerfilForm internamente
+
+      perfil: () => (
+        <ProfileCard
+          name={perfil?.nombre ?? ""}
+          email={userEmail}
+          avatarUri={perfil?.avatar_url ?? null}
+          role={perfil?.rol ?? "usuario"}
+          isActive={perfil?.activo ?? true}
+          loading={false}
+          perfilInicial={perfil}
+          userId={userId}
+          onGuardado={handleGuardado}
+          onTripHistory={() => console.log("Historial")}
+          onNotifications={() => console.log("Notificaciones")}
+          onSettings={() => console.log("Configuración")}
+          onChangePassword={() => console.log("Cambiar contraseña")}
+          onLogout={handleLogout}
+        />
+      ),
     },
   };
 
-const renderContenido = () => {
-  const rol = perfil?.rol ?? "usuario";
-  const tabsDelRol = CONTENIDO[rol] ?? CONTENIDO.usuario;
-  const componente = tabsDelRol[tabActivo];
-  return componente
-    ? componente()
-    : <TabPendiente nombre={tabActivo} icono="construct-outline" />;
-};
+  const renderContenido = () => {
+    const rol = perfil?.rol ?? "usuario";
+    const tabsDelRol = CONTENIDO[rol] ?? CONTENIDO.usuario;
+    const componente = tabsDelRol[tabActivo];
 
-if (cargando) {
+    return componente ? (
+      componente()
+    ) : (
+      <TabPendiente nombre={tabActivo} icono="construct-outline" />
+    );
+  };
+
+
+  if (cargando) {
+    return (
+      <View style={styles.centrado}>
+        <ActivityIndicator size="large" color="#1B5E20" />
+      </View>
+    );
+  }
+
+  if (mostrarModal && perfil?.rol === 'usuario') {
+    return (
+      <CajaDireccion
+        id={userId}
+        onGuardado={() => setMostarModal(false)}
+      />
+    );
+  }
+
+
   return (
-    <View style={styles.centrado}>
-      <ActivityIndicator size="large" color="#1B5E20" />
+    <View style={styles.container}>
+      {/* ── Header fijo (siempre visible) ──────────────────── */}
+
+      {tabActivo !== "perfil" && tabActivo !== "inicio" && (
+        <Header
+          titulo={
+            HEADER_CONFIGS[perfil?.rol ?? "usuario"][tabActivo]?.titulo ??
+            "Inicio"
+          }
+          subtitulo={
+            HEADER_CONFIGS[perfil?.rol ?? "usuario"][tabActivo]?.subtitulo ?? ""
+          }
+          mode="light"
+          iconoDerecha={
+            perfil?.rol === "administrador" || perfil?.rol === "conductor" ? (
+              <TouchableOpacity onPress={() => setTabActivo("perfil")}>
+                <Ionicons
+                  name="settings-outline"
+                  size={36}
+                  color="#fff"
+                />
+
+              </TouchableOpacity>
+            ) : null
+          }
+        />
+      )}
+
+      {/* ── Área de contenido (cambia según el tab) ─────────── */}
+      <View style={styles.contenido}>{renderContenido()}</View>
+
+
+
+
+      {/* ── Navbar fijo abajo ───────────────────────────────── */}
+      {tabActivo === 'crear' && (
+        <BotonesFlotantes onAccion={(key) => {
+          if (key === 'bus') setTabActivo('crear_Bus');
+          if (key === 'conductor') setTabActivo('crear_Conductor');
+          if (key === 'ruta') setTabActivo('crear_Ruta');
+        }} />
+      )}
+      {tabActivo !== 'crear_Ruta' && (
+        <BottomNavBar
+          rol={perfil?.rol ?? 'usuario'}
+          initialTab="inicio"
+          onTabPress={(key) => setTabActivo(key)}
+        />
+      )}
+
     </View>
   );
-}
-
-return (
-  <View style={styles.container}>
-    {/* ── Header fijo (siempre visible) ──────────────────── */}
-    {tabActivo !== 'perfil' && (
-      <Header
-        titulo={HEADER_CONFIGS[perfil?.rol ?? 'usuario'][tabActivo]?.titulo ?? "Inicio"}
-        subtitulo={HEADER_CONFIGS[perfil?.rol ?? 'usuario'][tabActivo]?.subtitulo ?? ""}
-        mode="light"
-        iconoDerecha={
-          perfil?.rol === 'administrador' || perfil?.rol === 'conductor' ? (
-            <TouchableOpacity onPress={() => setTabActivo('perfil')}>
-              <Ionicons name="person-circle-outline" size={36} color="#fff" style={{ marginTop: -25 }} />
-            </TouchableOpacity>
-          ) : null
-        }
-      />
-    )}
-
-    {/* ── Área de contenido (cambia según el tab) ─────────── */}
-    <View style={styles.contenido}>{renderContenido()}</View>
-
-    {/* ── Navbar fijo abajo ───────────────────────────────── */}
-    {tabActivo === 'crear' && (
-      <BotonesFlotantes onAccion={(key) => {
-        if (key === 'bus') setTabActivo('crear_Bus');
-        if (key === 'conductor') setTabActivo('crear_Conductor');
-        if (key === 'ruta') setTabActivo('crear_Ruta');
-      }} />
-    )}
-    <BottomNavBar
-      rol={perfil?.rol ?? 'usuario'}
-      initialTab="inicio"
-      onTabPress={(key) => setTabActivo(key)}
-    />
-  </View>
-);
 }
 
 function obtenerSubtitulo(tab) {
