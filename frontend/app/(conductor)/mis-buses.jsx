@@ -110,7 +110,7 @@ export default function MisBusesScreen() {
   </View>
 </View>
 
-{/* Capacidad — agrega esto aquí */}
+{/* Capacidad  */}
 <View style={s.infoRow}>
   <View style={[s.iconCircle, { backgroundColor: "#F5F3FF" }]}>
     <Ionicons name="people-outline" size={18} color="#8B5CF6" />
