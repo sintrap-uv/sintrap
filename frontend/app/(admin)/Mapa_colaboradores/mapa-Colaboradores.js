@@ -53,6 +53,9 @@ const MapaColaboradores = () => {
                 <WebView
                     ref={webViewRef}
                     source={{ html: htmlMapa }}
+                    javaScriptEnabled={true}
+                    domStorageEnabled={true}
+                    originWhitelist={['*']}
                     onLoad={() => {
                         setTimeout(() => {
                             webViewRef.current?.postMessage(JSON.stringify({
@@ -63,7 +66,6 @@ const MapaColaboradores = () => {
                     }}
                     onMessage={onMensajeMapa}
                 />
-
                 <View style={styles.botonesFlotantes}>
                     <View style={styles.botonesContainer}>
                         <TouchableOpacity

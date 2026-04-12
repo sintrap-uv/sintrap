@@ -57,15 +57,12 @@ export const useMapaColaboradores = () => {
     };
 
     const eliminarPunto = (id) => {
+        console.log('ELIMINANDO ID:', typeof id, id); // ← agrega esto
         const nuevosPuntos = puntosRuta.filter(p => p.id !== id);
         setPuntosRuta(nuevosPuntos);
-        enviarAlMapa({
-            tipo: 'actualizarLinea',
-            puntos: nuevosPuntos.map(p => ({ lat: p.lat, lon: p.lon, id: p.id }))
-        });
+        enviarAlMapa({ tipo: 'eliminarPunto', id: id });
         showInfo('Punto eliminado');
     };
-
     const limpiarPuntos = () => {
         if (!puntosRuta.length) { showInfo('No hay puntos para limpiar'); return; }
         setPuntosRuta([]);
@@ -95,8 +92,8 @@ export const useMapaColaboradores = () => {
             if (mensaje.tipo === 'error') { showError(mensaje.mensaje); return; }
             if (mensaje.tipo === 'trazoExitoso') return;
             if (modoEdicionRef.current && mensaje.id && mensaje.lat && mensaje.lon) {
+                console.log('TIPO DE ID:', typeof mensaje.id, 'VALOR:', mensaje.id); // ← agrega esto
                 setPuntosRuta(prev => [...prev, { id: mensaje.id, lat: mensaje.lat, lon: mensaje.lon }]);
-                showSuccess('Punto agregado correctamente');
             }
         } catch { /* mensaje no JSON */ }
     };
