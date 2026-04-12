@@ -56,7 +56,7 @@ export default function MisBusesScreen() {
           fecha_inicio,
           fecha_vencimiento,
           tipo_vehiculo_id,
-          tipo_vehiculo ( id, nombre )
+          tipo_vehiculo ( id, nombre, capacidad_max )
         `)
         .eq("conductor_id", userId)
         .order("placa", { ascending: true });
@@ -97,18 +97,31 @@ export default function MisBusesScreen() {
 
         <View style={s.divider} />
 
-        {/* Tipo de vehículo */}
-        <View style={s.infoRow}>
-          <View style={[s.iconCircle, { backgroundColor: "#EFF6FF" }]}>
-            <Ionicons name="car-outline" size={18} color="#3B82F6" />
-          </View>
-          <View>
-            <Text style={s.infoLabel}>Tipo de vehículo</Text>
-            <Text style={s.infoValue}>
-              {bus.tipo_vehiculo?.nombre ?? "Sin tipo asignado"}
-            </Text>
-          </View>
-        </View>
+         {/* Tipo de vehículo */}
+<View style={s.infoRow}>
+  <View style={[s.iconCircle, { backgroundColor: "#EFF6FF" }]}>
+    <Ionicons name="car-outline" size={18} color="#3B82F6" />
+  </View>
+  <View>
+    <Text style={s.infoLabel}>Tipo de vehículo</Text>
+    <Text style={s.infoValue}>
+      {bus.tipo_vehiculo?.nombre ?? "Sin tipo asignado"}
+    </Text>
+  </View>
+</View>
+
+{/* Capacidad — agrega esto aquí */}
+<View style={s.infoRow}>
+  <View style={[s.iconCircle, { backgroundColor: "#F5F3FF" }]}>
+    <Ionicons name="people-outline" size={18} color="#8B5CF6" />
+  </View>
+  <View>
+    <Text style={s.infoLabel}>Capacidad máxima</Text>
+    <Text style={s.infoValue}>
+      {bus.tipo_vehiculo?.capacidad_max ?? "—"} pasajeros
+    </Text>
+  </View>
+</View>
 
         {/* Seguro */}
         <View style={s.infoRow}>

@@ -224,8 +224,8 @@ export default function VehiculosScreen() {
         const turno = turnosActivos[0];
         setTieneDependencias("bloqueado");
         setInfoDependencia({
-          conductor: turno.profiles?.nombre ?? "Conductor desconocido",
-          fecha: turno.fecha,
+          conductor: turno?.profiles?.nombre ?? "Conductor desconocido",
+          fecha: turno?.fecha ?? "sin fecha"
         });
       } else {
         const { count } = await supabase
