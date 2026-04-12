@@ -27,7 +27,7 @@ import DashboardAdmin from "./(admin)/DashboardAdmin";
 import DashboardUsuario from "./profiles/DashboardUsuario";
 import DashboardConductor from "./(conductor)/DashboardConductor"
 import { supabase } from "../services/supabase";
-import MapaColaboradores from "./(admin)/Rutas/mapa-Colaboradores";
+import MapaColaboradores from "./(admin)/Mapa_colaboradores/mapa-Colaboradores";
 import ConfiguracionBuses from "./(admin)/configurar-buses";
 import { ObtenerDireccionUsuario } from "../services/geocalizacion";
 import CajaDireccion from "../components/ModalDireccion";
