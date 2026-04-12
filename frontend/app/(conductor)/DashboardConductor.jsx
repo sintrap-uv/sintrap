@@ -402,7 +402,7 @@ export default function DashboardConductor() {
 
           <TouchableOpacity
             style={styles.accionCard}
-            onPress={() => console.log("Reporte: Aun no esta implementado")}
+            onPress={() => router.push("/(conductor)/EnviarNotificacion")}
             activeOpacity={0.8}
           >
             <View style={[styles.accionIcono, { backgroundColor: "#FEE2E2" }]}>

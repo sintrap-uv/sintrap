@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, ActivityIndicator,
-} from "react-native";
+} from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
-import { enviarNotificacionConductor } from "../../services/notificacionesServices";
-import { getProfile } from "../../services/profileService";
-import { getCurrentUser } from "../../services/auth";
-import theme from "../../constants/theme";
+import { LinearGradient } from "expo-linear-gradient"
+import { useRouter } from "expo-router"
+import { supabase } from "../../services/supabase"
+import { getCurrentUser } from "../../services/auth"
+import { getProfile } from "../../services/profileService"
+import theme from "../../constants/theme"
 
 const t = theme.lightMode
 
@@ -20,52 +20,64 @@ const TIPOS = [
   { key: "alerta_suspension",  label: "Incidente en Ruta", icono: "warning-outline",     color: "#EF4444" },
 ]
 
-export default function EnviarNotificacion() {
+export default function EnviarAviso() {
   const router = useRouter()
-  const [user, setUser] = useState(null)
   const [perfil, setPerfil] = useState(null)
-  const [tipoSeleccionado, setTipoSeleccionado] = useState(TIPOS[0]) // ← era {use} destructuring incorrecto
+  const [tipoSeleccionado, setTipoSeleccionado] = useState(TIPOS[0])
   const [mensaje, setMensaje] = useState("")
-  const [loading, setLoading] = useState(false)               // ← era {loading} destructuring incorrecto
-  const [urgente, setUrgente] = useState(false)               // ← faltaba este estado
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const getUser = async () => {
+    const cargar = async () => {
       const { data } = await getCurrentUser()
       const usuario = data?.user
-      setUser(usuario)
-
       if (usuario?.id) {
         const { data: perfilData } = await getProfile(usuario.id)
         setPerfil(perfilData)
       }
     }
-    getUser()
+    cargar()
   }, [])
 
   const handleEnviar = async () => {
     if (!mensaje.trim()) {
-      alert("El mensaje no puede estar vacío")
+      alert("Escribe un mensaje antes de enviar.")
       return
     }
 
     setLoading(true)
-    const { error } = await enviarNotificacionConductor({
-      conductorId: user?.id,
-      conductorNombre: perfil?.nombre ?? "Conductor",
-      cedula: perfil?.cedula ?? "—",
-      telefono: perfil?.telefono ?? "—",
-      tipo: tipoSeleccionado.tipo ?? tipoSeleccionado.key,
+    const { data: usuarios, error: errorUsuarios } = await supabase
+      .from("profiles")
+      .select("id")
+
+    if (errorUsuarios || !usuarios?.length) {
+      alert("Error obteniendo usuarios: " + errorUsuarios?.message)
+      setLoading(false)
+      return
+    }
+    const notificaciones = usuarios.map((u) => ({
+      usuario_id: u.id,
+      tipo: tipoSeleccionado.key,
       titulo: tipoSeleccionado.label,
       mensaje: mensaje.trim(),
-      urgente,
-    })
+      metadata: {
+        enviado_por: perfil?.nombre ?? "Administrador",
+        rol_emisor: "administrador",
+      },
+      leida: false,
+      fecha: new Date().toISOString(),
+    }))
+
+    const { error } = await supabase
+      .from("notificaciones")
+      .insert(notificaciones)
+
     setLoading(false)
 
     if (error) {
-      alert("Error al enviar la notificación: " + error.message)
+      alert("Error al enviar: " + error.message)
     } else {
-      alert("Notificación enviada exitosamente")
+      alert(`Aviso enviado a ${usuarios.length} usuarios.`)
       setMensaje("")
       router.back()
     }
@@ -82,15 +94,15 @@ export default function EnviarNotificacion() {
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View>
-          <Text style={styles.headerTitulo}>Enviar notificación</Text>
-          <Text style={styles.headerSub}>Al administrador</Text>
+          <Text style={styles.headerTitulo}>Crear aviso</Text>
+          <Text style={styles.headerSub}>Se enviará a todos los usuarios</Text>
         </View>
       </LinearGradient>
 
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
         {/* Selector de tipo */}
-        <Text style={styles.seccionLabel}>Tipo de notificación</Text>
+        <Text style={styles.seccionLabel}>Tipo de aviso</Text>
         <View style={styles.tiposGrid}>
           {TIPOS.map((tipo) => {
             const seleccionado = tipoSeleccionado.key === tipo.key
@@ -125,7 +137,7 @@ export default function EnviarNotificacion() {
         <View style={styles.mensajeWrapper}>
           <TextInput
             style={styles.mensajeInput}
-            placeholder="Describe la situación..."
+            placeholder="Describe la situación para los usuarios..."
             placeholderTextColor="#9CA3AF"
             value={mensaje}
             onChangeText={setMensaje}
@@ -138,34 +150,22 @@ export default function EnviarNotificacion() {
         {/* Vista previa */}
         <Text style={styles.seccionLabel}>Vista previa</Text>
         <View style={styles.preview}>
-          <View style={styles.previewHeader}>
-            <View style={styles.avatarCircle}>
-              <Ionicons name="person" size={20} color="#6B7280" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.previewNombre}>
-                {perfil?.nombre ?? "Tu nombre"}  {/* ← era "profiles" (variable no existe) */}
-              </Text>
-              <Text style={styles.previewDato}>{perfil?.cedula ?? "Cédula"}</Text>
-              <Text style={styles.previewDato}>{perfil?.telefono ?? "Teléfono"}</Text>
-            </View>
-            {urgente && (
-              <View style={styles.urgenteBadge}>
-                <Text style={styles.urgenteTexto}>Urgente</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.previewMensaje}>
+          <View style={styles.previewTipoRow}>
             <Ionicons
               name={tipoSeleccionado.icono}
-              size={16}
+              size={18}
               color={tipoSeleccionado.color}
-              style={{ marginRight: 8 }}
             />
-            <Text style={styles.previewMensajeTexto}>
-              {mensaje.trim() || "Tu mensaje aparecerá aquí..."}
+            <Text style={[styles.previewTipo, { color: tipoSeleccionado.color }]}>
+              {tipoSeleccionado.label}
             </Text>
           </View>
+          <Text style={styles.previewMensaje}>
+            {mensaje.trim() || "Tu mensaje aparecerá aquí..."}
+          </Text>
+          <Text style={styles.previewEmisor}>
+            Enviado por: {perfil?.nombre ?? "Administrador"}
+          </Text>
         </View>
 
         {/* Botón enviar */}
@@ -178,8 +178,8 @@ export default function EnviarNotificacion() {
           {loading
             ? <ActivityIndicator color="#fff" />
             : <>
-                <Ionicons name="send-outline" size={18} color="#fff" />
-                <Text style={styles.btnEnviarTexto}>Enviar al administrador</Text>
+                <Ionicons name="megaphone-outline" size={18} color="#fff" />
+                <Text style={styles.btnEnviarTexto}>Enviar a todos los usuarios</Text>
               </>
           }
         </TouchableOpacity>
@@ -240,38 +240,20 @@ const styles = StyleSheet.create({
   preview: {
     backgroundColor: "#fff",
     borderRadius: 14,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: "#E5E7EB",
+    gap: 8,
   },
-  previewHeader: {
+  previewTipoRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 10,
-    gap: 10,
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
   },
-  avatarCircle: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: "#F3F4F6",
-    alignItems: "center", justifyContent: "center",
-  },
-  previewNombre: { fontSize: 14, fontWeight: "700", color: "#111827" },
-  previewDato: { fontSize: 12, color: "#6B7280", marginTop: 1 },
-  urgenteBadge: {
-    backgroundColor: "#EF4444",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  urgenteTexto: { color: "#fff", fontSize: 12, fontWeight: "700" },
-  previewMensaje: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: "#F3F4F6",
-    borderRadius: 10,
-    padding: 10,
-  },
-  previewMensajeTexto: { flex: 1, fontSize: 13, color: "#374151", lineHeight: 18 },
+  previewTipo: { fontSize: 14, fontWeight: "700" },
+  previewMensaje: { fontSize: 13, color: "#374151", lineHeight: 18 },
+  previewEmisor: { fontSize: 11, color: "#9CA3AF", marginTop: 4 },
   btnEnviar: {
     flexDirection: "row",
     alignItems: "center",

@@ -12,15 +12,13 @@ import theme from "../../constants/theme"
 
 const t = theme.lightMode
 
-export default function NotificacionesAdmin({ usuarioId }) {
+export default function NotificacionesAdmin({ usuarioId, onVolver }) {
   const router = useRouter()
   const { notificaciones, loading, marcarLeida } = useNotificaciones(usuarioId)
   const [busqueda, setBusqueda] = useState("")
 
   const handleAprobar = async (notif) => {
     await marcarLeida(notif.id)
-    // Aquí puedes agregar lógica adicional según el tipo
-    // ej: actualizar estado del conductor en BD
   }
 
   const handleRechazar = async (notif) => {
@@ -45,15 +43,15 @@ export default function NotificacionesAdmin({ usuarioId }) {
         </View>
         <View style={styles.conductorInfo}>
           <Text style={styles.conductorNombre}>
-            {item.metadata?.conductor_nombre ?? "Conductor"}
+            {item.usuario_id?.nombre ?? "Conductor"}
           </Text>
           <Text style={styles.conductorDato}>
-            {item.metadata?.cedula ?? "—"}
+            {item.usuario_id?.cedula ?? "—"}
           </Text>
           <View style={styles.telefonoRow}>
             <Ionicons name="call-outline" size={13} color="#6B7280" />
             <Text style={styles.conductorDato}>
-              {" "}{item.metadata?.telefono ?? "—"}
+              {" "}{item.usuario_id?.telefono ?? "—"}
             </Text>
           </View>
         </View>
@@ -93,7 +91,7 @@ export default function NotificacionesAdmin({ usuarioId }) {
         colors={t.Headers?.gradientColors ?? ["#16A34A", "#22C55E"]}
         style={styles.header}
       >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => onVolver()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View>
