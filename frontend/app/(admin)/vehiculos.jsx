@@ -488,10 +488,22 @@ function renderVehiculo({ item: v }) {
             </View>
 
              <View style={s.confirmBody}>
-  <Text style={{ fontSize: 36 }}>
-    {tieneDependencias === "bloqueado" ? "🚫" :
-     tieneDependencias === "historial" ? "⚠️" : "🗑️"}
-  </Text>
+   
+    <Ionicons
+    name= {
+    tieneDependencias === "bloqueado" ? "ban-outline" :
+    tieneDependencias === "historial" ?  "warning-outline" :
+     "trash-outline"
+    }
+    size={36}
+    color={
+      tieneDependencias === "bloqueado" ? T.icon.error :
+      tieneDependencias === "historial" ? T.icon.alert :
+      T.icon.error
+
+    }
+    />
+  
 
   {tieneDependencias === "bloqueado" ? (
     // Turno activo — bloquear completamente
