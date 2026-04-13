@@ -20,6 +20,8 @@ import EditarPerfilForm from "../components/forms/EditarPerfilForm";
 import ProfileCard from "../components/ProfileCard"; // ← agregado
 import ConductoresScreen from "./(admin)/conductores";
 import RegistrarVehiculo from "./(admin)/registrar-vehiculo";
+import VehiculosScreen from "./(admin)/vehiculos"
+import MisBusesScreen from "./(conductor)/mis-buses";
 import Bienvenida from "./(admin)/bienvenida-empresa";
 import DashboardAdmin from "./(admin)/DashboardAdmin";
 import DashboardUsuario from "./profiles/DashboardUsuario";
@@ -184,7 +186,7 @@ export default function Home() {
       crear: () => (
         <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />
       ),
-      buses: () => <TabPendiente nombre="Buses" icono="bus" />,
+      buses: () => <VehiculosScreen />, //para mostrar los buses
       graficas: () => (
         <TabPendiente nombre="Estadísticas" icono="bar-chart-outline" />
       ),
@@ -228,7 +230,7 @@ export default function Home() {
       agregar: () => (
         <TabPendiente nombre="Reportar incidente" icono="warning-outline" />
       ),
-      bus: () => <TabPendiente nombre="Buses" icono="bus" />,
+      bus: () => <MisBusesScreen />,
       //Perfil → ProfileCard que abre EditarPerfilForm internamente
 
       perfil: () => (

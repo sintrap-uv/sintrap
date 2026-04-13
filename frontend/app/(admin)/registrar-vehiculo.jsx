@@ -1,3 +1,12 @@
+ /**
+ * registrar-vehiculo.jsx
+ * Pantalla: Crear nuevo vehículo — SINTRAP
+ * Ruta: app/(admin)/registrar-vehiculo.jsx
+ *
+ * NOTA: No se usa la columna "capacidad".
+ * La capacidad viene de la tabla tipo_vehiculo.
+ */
+
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useState, useEffect } from 'react';
 import {
@@ -8,34 +17,37 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getProfile } from '../../services/profileService';
-import { getCurrentUser } from '../../services/auth';
-import { getAvailableDrivers, registerVehicle } from '../../services/vehicleService';
+import { getAvailableDrivers, registerVehicle, getTiposVehiculo } from '../../services/vehicleService';
 import theme from '../../constants/theme';
 
 const T = theme.lightMode;
 
 export default function RegistrarVehiculo() {
-  const [placa, setPlaca] = useState('');
-  const [capacidad, setCapacidad] = useState('');
-  const [conductorId, setConductorId] = useState(null);
-  const [conductorNombre, setConductorNombre] = useState('');
-  const [conductores, setConductores] = useState([]);
-  const [fecha_Inicio, setFecha_Inicio] = useState('');
+  const [placa,             setPlaca]             = useState('');
+  const [conductorId,       setConductorId]       = useState(null);
+  const [conductorNombre,   setConductorNombre]   = useState('');
+  const [conductores,       setConductores]       = useState([]);
+  const [tiposVehiculo,     setTiposVehiculo]     = useState([]);
+  const [tipoId,            setTipoId]            = useState(null);
+  const [tipoNombre,        setTipoNombre]        = useState('');
+  const [fecha_Inicio,      setFecha_Inicio]      = useState('');
   const [fecha_Vencimiento, setFecha_Vencimiento] = useState('');
-  const [seguro, setSeguro] = useState(false);
-  const [showInicio, setShowInicio] = useState(false);
-  const [showVencimiento, setShowVencimiento] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [cargando, setCargando] = useState(false);
+  const [seguro,            setSeguro]            = useState(false);
+  const [showInicio,        setShowInicio]        = useState(false);
+  const [showVencimiento,   setShowVencimiento]   = useState(false);
+  const [modalConductor,    setModalConductor]    = useState(false);
+  const [modalTipo,         setModalTipo]         = useState(false);
+  const [cargando,          setCargando]          = useState(false);
 
   useEffect(() => {
     const inicializar = async () => {
       try {
-        const user = await getCurrentUser();
-        await getProfile(user.id);
-        const drivers = await getAvailableDrivers();
+        const [drivers, tipos] = await Promise.all([
+          getAvailableDrivers(),
+          getTiposVehiculo(),
+        ]);
         setConductores(drivers);
+        setTiposVehiculo(tipos);
       } catch (error) {
         Alert.alert('Error', 'No se pudo cargar la información');
       }
@@ -52,42 +64,32 @@ export default function RegistrarVehiculo() {
       Alert.alert('Error', 'Debes seleccionar un conductor');
       return false;
     }
+    if (!tipoId) {
+      Alert.alert('Error', 'Debes seleccionar el tipo de vehículo');
+      return false;
+    }
     if (seguro && !fecha_Inicio) {
-      Alert.alert('Error', 'Debes seleccionar una fecha')
+      Alert.alert('Error', 'Debes seleccionar la fecha de inicio del SOAT');
       return false;
     }
     if (seguro && !fecha_Vencimiento) {
-      Alert.alert('Error', 'Debes seleccionar la fecha cuando se vence el SOAT')
-      return false;
-    }
-    if (!capacidad) {
-      Alert.alert('Error', 'Debes seleccionar cuanta gente cabe en el bus')
+      Alert.alert('Error', 'Debes seleccionar la fecha de vencimiento del SOAT');
       return false;
     }
     return true;
   };
 
   const onChangeInicio = (event, selectedDate) => {
-    //ceramos el piker de vencimiento (osea la fecha de vencimiento)
     setShowInicio(false);
-
     if (selectedDate) {
-      //Formato para mandar a supabase
-      const fechaFormateada = selectedDate.toISOString().split('T')[0];
-      setFecha_Inicio(fechaFormateada);
+      setFecha_Inicio(selectedDate.toISOString().split('T')[0]);
     }
-
-
   };
 
   const onChangeVencimiento = (event, selectedDate) => {
-    //ceramos el piker de vencimiento (osea la fecha de vencimiento)
     setShowVencimiento(false);
-
     if (selectedDate) {
-      //Formato para mandar a supabase
-      const fechaFormateada = selectedDate.toISOString().split('T')[0];
-      setFecha_Vencimiento(fechaFormateada);
+      setFecha_Vencimiento(selectedDate.toISOString().split('T')[0]);
     }
   };
 
@@ -96,12 +98,13 @@ export default function RegistrarVehiculo() {
     setCargando(true);
     try {
       await registerVehicle({
-        placa: placa.trim().toUpperCase(),
-        capacidad: capacidad,
-        conductor_id: conductorId,
-        seguro: seguro,
-        fecha_inicio:seguro? fecha_Inicio : null,
+        placa:             placa.trim().toUpperCase(),
+        conductor_id:      conductorId,
+        seguro:            seguro,
+        fecha_inicio:      seguro ? fecha_Inicio      : null,
         fecha_vencimiento: seguro ? fecha_Vencimiento : null,
+        tipo_vehiculo_id:  tipoId,
+        // "capacidad" no se usa aquí
       });
       Alert.alert('¡Éxito!', 'Vehículo registrado correctamente', [
         { text: 'OK', onPress: () => router.replace('/home') }
@@ -116,17 +119,18 @@ export default function RegistrarVehiculo() {
   const seleccionarConductor = (conductor) => {
     setConductorId(conductor.id);
     setConductorNombre(conductor.nombre);
-    setModalVisible(false);
+    setModalConductor(false);
+  };
+
+  const seleccionarTipo = (tipo) => {
+    setTipoId(tipo.id);
+    setTipoNombre(tipo.nombre);
+    setModalTipo(false);
   };
 
   return (
     <View style={styles.screen}>
-
-
-
       <ScrollView contentContainerStyle={styles.scroll}>
-
-        {/* Tarjeta blanca */}
         <View style={styles.card}>
 
           {/* Placa */}
@@ -142,83 +146,65 @@ export default function RegistrarVehiculo() {
             />
           </View>
 
-          {/* Capacidad */}
-          <Text style={styles.label}> Capacidad del vehículo</Text>
-          <View style={styles.inputRow}>
-            <Ionicons name="people-outline" size={18} color={T.icon.default} style={styles.inputIcon} />
-            <TextInput
-              style={styles.textInput}
-              keyboardType="numeric"
-              placeholder="20"
-              placeholderTextColor={T.input.placeholder}
-              value={capacidad}
-              onChangeText={(text) => setCapacidad(text.toUpperCase())}
-            />
-          </View>
+          {/* Tipo de vehículo */}
+          <Text style={styles.label}>Tipo de vehículo</Text>
+          <TouchableOpacity style={styles.inputRow} onPress={() => setModalTipo(true)}>
+            <Ionicons name="car-outline" size={18} color={T.icon.default} style={styles.inputIcon} />
+            <Text style={[styles.textInput, !tipoId && { color: T.input.placeholder }]}>
+              {tipoNombre || 'Seleccionar tipo'}
+            </Text>
+            <Ionicons name="chevron-down-outline" size={16} color={T.text.secondary} />
+          </TouchableOpacity>
 
           {/* Conductor */}
           <Text style={styles.label}>Conductor</Text>
-          <TouchableOpacity style={styles.inputRow} onPress={() => setModalVisible(true)}>
+          <TouchableOpacity style={styles.inputRow} onPress={() => setModalConductor(true)}>
             <Ionicons name="person-outline" size={18} color={T.icon.default} style={styles.inputIcon} />
             <Text style={[styles.textInput, !conductorId && { color: T.input.placeholder }]}>
               {conductorNombre || 'Seleccionar conductor'}
             </Text>
+            <Ionicons name="chevron-down-outline" size={16} color={T.text.secondary} />
           </TouchableOpacity>
 
-          {/*seguro*/}
+          {/* Seguro */}
           <Text style={styles.label}>Seguro</Text>
           <View style={styles.inputRow}>
-            <Ionicons name='shield-outline' size={18} color={T.icon.default} style={styles.inputIcon} />
+            <Ionicons name="shield-outline" size={18} color={T.icon.default} style={styles.inputIcon} />
             <Text style={{ flex: 1, color: T.text.primary }}>¿Tiene SOAT?</Text>
             <Switch
               value={seguro}
-              onValueChange={(valor) => {
-                setSeguro(valor)
-              }}
+              onValueChange={setSeguro}
+              trackColor={{ false: T.cards.border, true: "#BBF7D0" }}
+              thumbColor={seguro ? T.Headers.innerColor : T.text.secondary}
             />
           </View>
 
+          {/* Fechas SOAT */}
           {seguro && (
             <View>
-              {/*fecha de inicio del soat */}
-              <Text style={styles.label}>Inicio del soat</Text>
+              <Text style={styles.label}>Inicio del SOAT</Text>
               <TouchableOpacity style={styles.inputRow} onPress={() => setShowInicio(true)}>
-                <Ionicons name='calendar-outline' size={18} color={T.icon.default} style={styles.inputIcon} />
-                <Text style={styles.textInput}>
+                <Ionicons name="calendar-outline" size={18} color={T.icon.default} style={styles.inputIcon} />
+                <Text style={[styles.textInput, !fecha_Inicio && { color: T.input.placeholder }]}>
                   {fecha_Inicio || 'AA/MM/DD'}
                 </Text>
               </TouchableOpacity>
-              {
-                showInicio && (
-                  <DateTimePicker
-                    value={new Date()}
-                    mode='date'
-                    onChange={onChangeInicio}
-                  />
-                )
-              }
+              {showInicio && (
+                <DateTimePicker value={new Date()} mode="date" onChange={onChangeInicio} />
+              )}
 
-              {/*fechas de vencimiento del soat  */}
-              <Text style={styles.label}>Vencimiento del soat</Text>
+              <Text style={styles.label}>Vencimiento del SOAT</Text>
               <TouchableOpacity style={styles.inputRow} onPress={() => setShowVencimiento(true)}>
-                <Ionicons name='calendar-outline' size={18} color={T.icon.default} style={styles.inputIcon} />
-                <Text style={styles.textInput}>
+                <Ionicons name="calendar-outline" size={18} color={T.icon.default} style={styles.inputIcon} />
+                <Text style={[styles.textInput, !fecha_Vencimiento && { color: T.input.placeholder }]}>
                   {fecha_Vencimiento || 'AA/MM/DD'}
                 </Text>
               </TouchableOpacity>
-
               {showVencimiento && (
-                <DateTimePicker
-                  value={new Date()}
-                  mode="date"
-                  onChange={onChangeVencimiento}
-                />
+                <DateTimePicker value={new Date()} mode="date" onChange={onChangeVencimiento} />
               )}
-
             </View>
           )}
-
-
 
           {/* Botón Guardar */}
           <TouchableOpacity style={styles.btnPrimary} onPress={handleGuardar} disabled={cargando}>
@@ -236,8 +222,8 @@ export default function RegistrarVehiculo() {
         </View>
       </ScrollView>
 
-      {/* Modal conductores */}
-      <Modal visible={modalVisible} transparent animationType="slide">
+      {/* Modal — Seleccionar Conductor */}
+      <Modal visible={modalConductor} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitulo}>Seleccionar Conductor</Text>
@@ -248,13 +234,46 @@ export default function RegistrarVehiculo() {
                 <TouchableOpacity style={styles.modalItem} onPress={() => seleccionarConductor(item)}>
                   <Ionicons name="person-circle-outline" size={26} color={T.icon.active} />
                   <Text style={styles.modalItemText}>{item.nombre}</Text>
+                  {conductorId === item.id && <Ionicons name="checkmark" size={18} color={T.Headers.innerColor} />}
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
                 <Text style={styles.vacio}>No hay conductores disponibles</Text>
               }
             />
-            <TouchableOpacity style={styles.btnSecondary} onPress={() => setModalVisible(false)}>
+            <TouchableOpacity style={styles.btnSecondary} onPress={() => setModalConductor(false)}>
+              <Text style={styles.btnSecondaryText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal — Seleccionar Tipo de Vehículo */}
+      <Modal visible={modalTipo} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitulo}>Tipo de Vehículo</Text>
+            <FlatList
+              data={tiposVehiculo}
+              keyExtractor={(item) => String(item.id)}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.modalItem} onPress={() => seleccionarTipo(item)}>
+                  <Ionicons name="car-outline" size={26} color={T.icon.active} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.modalItemText}>{item.nombre}</Text>
+                    {item.descripcion && (
+                      <Text style={{ fontSize: 12, color: T.text.tertiary }}>{item.descripcion}{item.capacidad_max ? ` . ${item.capacidad_max} pasajeros` : ""}
+                      </Text>
+                    )}
+                  </View>
+                  {tipoId === item.id && <Ionicons name="checkmark" size={18} color={T.Headers.innerColor} />}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <Text style={styles.vacio}>No hay tipos disponibles</Text>
+              }
+            />
+            <TouchableOpacity style={styles.btnSecondary} onPress={() => setModalTipo(false)}>
               <Text style={styles.btnSecondaryText}>Cerrar</Text>
             </TouchableOpacity>
           </View>
@@ -268,52 +287,27 @@ export default function RegistrarVehiculo() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: T.background },
 
-  // Header
-  header: {
-    backgroundColor: T.Button.primary.background,
-    paddingTop: 52,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  backBtn: { padding: 4 },
-  headerTitulo: { fontSize: 22, fontWeight: '800', color: '#fff' },
-  headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
-
-  // Scroll y tarjeta
   scroll: { padding: 20, paddingBottom: 40 },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 6,
+    backgroundColor: '#fff', borderRadius: 20, padding: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08, shadowRadius: 12, elevation: 6,
   },
 
-  // Inputs
-  label: { fontSize: 13, fontWeight: '600', color: T.text.secondary, marginBottom: 6, marginTop: 12 },
+  label:    { fontSize: 13, fontWeight: '600', color: T.text.secondary, marginBottom: 6, marginTop: 12 },
   inputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: T.background, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 4 },
-  inputIcon: { marginRight: 10 },
-  textInput: { flex: 1, fontSize: 15, color: T.text.primary },
+  inputIcon:{ marginRight: 10 },
+  textInput:{ flex: 1, fontSize: 15, color: T.text.primary },
 
-  // Botones
-  btnPrimary: { backgroundColor: T.Button.primary.background, borderRadius: 50, padding: 16, alignItems: 'center', marginTop: 20, marginBottom: 10 },
+  btnPrimary:     { backgroundColor: T.Button.primary.background, borderRadius: 50, padding: 16, alignItems: 'center', marginTop: 20, marginBottom: 10 },
   btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  btnSecondary: { backgroundColor: T.Button.secondary.background, borderWidth: 1, borderColor: T.Button.secondary.border, borderRadius: 50, padding: 16, alignItems: 'center' },
+  btnSecondary:     { backgroundColor: T.Button.secondary.background, borderWidth: 1, borderColor: T.Button.secondary.border, borderRadius: 50, padding: 16, alignItems: 'center' },
   btnSecondaryText: { color: T.Button.secondary.text, fontWeight: '600', fontSize: 15 },
 
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '60%' },
-  modalTitulo: { fontSize: 18, fontWeight: 'bold', color: T.text.primary, marginBottom: 16 },
-  modalItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: T.cards.border },
-  modalItemText: { fontSize: 16, color: T.text.primary },
-  vacio: { textAlign: 'center', color: T.text.tertiary, padding: 24 },
+  modalTitulo:    { fontSize: 18, fontWeight: 'bold', color: T.text.primary, marginBottom: 16 },
+  modalItem:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: T.cards.border },
+  modalItemText:  { fontSize: 16, color: T.text.primary },
+  vacio:          { textAlign: 'center', color: T.text.tertiary, padding: 24 },
 });
