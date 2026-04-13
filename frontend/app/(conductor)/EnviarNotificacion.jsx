@@ -14,20 +14,20 @@ import theme from "../../constants/theme";
 const t = theme.lightMode
 
 const TIPOS = [
-  { key: "alerta_general",  label: "Retraso en Bus",    icono: "time-outline",        color: "#F59E0B" },
-  { key: "sistema_inicio",         label: "Inicio de Turno",   icono: "play-circle-outline", color: "#16A34A" },
-  { key: "sistema_fin",         label: "Fin de Turno",      icono: "stop-circle-outline", color: "#6B7280" },
-  { key: "alerta_suspension",  label: "Incidente en Ruta", icono: "warning-outline",     color: "#EF4444" },
+  { key: "alerta_retraso",    label: "Retraso en Bus",    icono: "time-outline",        color: "#F59E0B", tipo: "alerta_general" },
+  { key: "sistema_inicio",    label: "Inicio de Turno",   icono: "play-circle-outline", color: "#16A34A", tipo: "sistema"        },
+  { key: "sistema_fin",       label: "Fin de Turno",      icono: "stop-circle-outline", color: "#6B7280", tipo: "sistema"        },
+  { key: "alerta_incidente",  label: "Incidente en Ruta", icono: "warning-outline",     color: "#EF4444", tipo: "alerta_general" },
 ]
 
 export default function EnviarNotificacion() {
   const router = useRouter()
   const [user, setUser] = useState(null)
   const [perfil, setPerfil] = useState(null)
-  const [tipoSeleccionado, setTipoSeleccionado] = useState(TIPOS[0]) // ← era {use} destructuring incorrecto
+  const [tipoSeleccionado, setTipoSeleccionado] = useState(TIPOS[0])
   const [mensaje, setMensaje] = useState("")
-  const [loading, setLoading] = useState(false)               // ← era {loading} destructuring incorrecto
-  const [urgente, setUrgente] = useState(false)               // ← faltaba este estado
+  const [loading, setLoading] = useState(false)           
+  const [urgente, setUrgente] = useState(false)              
 
   useEffect(() => {
     const getUser = async () => {
@@ -48,13 +48,17 @@ export default function EnviarNotificacion() {
       alert("El mensaje no puede estar vacío")
       return
     }
+    if (!user?.id) {
+      alert("No se pudo obtener el usuario. Intenta cerrar y abrir la app.")
+      return
+    }
 
     setLoading(true)
     const { error } = await enviarNotificacionConductor({
       conductorId: user?.id,
       conductorNombre: perfil?.nombre ?? "Conductor",
       cedula: perfil?.cedula ?? "—",
-      telefono: perfil?.telefono ?? "—",
+      celular: perfil?.celular ?? "—",
       tipo: tipoSeleccionado.tipo ?? tipoSeleccionado.key,
       titulo: tipoSeleccionado.label,
       mensaje: mensaje.trim(),
@@ -144,10 +148,10 @@ export default function EnviarNotificacion() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.previewNombre}>
-                {perfil?.nombre ?? "Tu nombre"}  {/* ← era "profiles" (variable no existe) */}
+                {perfil?.nombre ?? "Tu nombre"}
               </Text>
               <Text style={styles.previewDato}>{perfil?.cedula ?? "Cédula"}</Text>
-              <Text style={styles.previewDato}>{perfil?.telefono ?? "Teléfono"}</Text>
+              <Text style={styles.previewDato}>{perfil?.celular ?? "Celular"}</Text>
             </View>
             {urgente && (
               <View style={styles.urgenteBadge}>

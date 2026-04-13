@@ -84,51 +84,51 @@ export const getVehiculoConRuta = async (vehiculoId) => {
 }
 
 // Obtener administradores para notificar
-export const getAdmins = async () => {
+export const getAdministradores = async () => {
   const {data, error} = await supabase
-  .from("profiles"
-  .select("id")
+  .from("profiles")
+  .select("id, nombre, rol")
   .eq("rol", "administrador")
-  )
+
+  return {data, error}
 }
 
 
-export  const insertarNotificacionAdmin = async ({
-  conductorId, 
-  conductorNonbre,
-  cedula, 
-  telefono, 
-  tipo, 
-  titulo, 
+export const enviarNotificacionConductor = async ({
+  conductorId,
+  conductorNombre,
+  cedula,
+  celular,
+  tipo,
+  titulo,
   mensaje,
 }) => {
-  const {data: admins, error: errorAdmins} = await getAdmins()
+  const { data: admins, error: errorAdmins } = await getAdministradores()
   if (errorAdmins || !admins?.length) {
-    return {error: errorAdmins ?? new Error("No hay administradores para notificar") }
+    return { error: errorAdmins ?? new Error("No hay administradores") }
   }
 
   const notificaciones = admins.map((admin) => ({
     usuario_id: admin.id,
     tipo,
     titulo,
-    mensaje, 
-    metadata:{
+    mensaje,
+    metadata: {
       conductor_id: conductorId,
-      conductor_nombre: conductorNonbre,
+      conductor_nombre: conductorNombre,
       cedula,
-      telefono,
+      celular,
     },
     leida: false,
     fecha: new Date().toISOString(),
   }))
-  
+
   const { data, error } = await supabase
     .from("notificaciones")
     .insert(notificaciones)
-  
-  return { data, error }
 
-  }
+  return { data, error }
+}
 
 
 

@@ -43,15 +43,15 @@ export default function NotificacionesAdmin({ usuarioId, onVolver }) {
         </View>
         <View style={styles.conductorInfo}>
           <Text style={styles.conductorNombre}>
-            {item.usuario_id?.nombre ?? "Conductor"}
+            {item.metadata?.conductor_nombre ?? "Conductor"}
           </Text>
           <Text style={styles.conductorDato}>
-            {item.usuario_id?.cedula ?? "—"}
+            {item.metadata?.cedula ?? "—"}
           </Text>
           <View style={styles.telefonoRow}>
             <Ionicons name="call-outline" size={13} color="#6B7280" />
             <Text style={styles.conductorDato}>
-              {" "}{item.usuario_id?.telefono ?? "—"}
+              {" "}{item.metadata?.celular ?? "—"}
             </Text>
           </View>
         </View>
