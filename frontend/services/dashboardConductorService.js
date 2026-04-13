@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+ import { supabase } from "./supabase";
 
 /**
  * Carga todos los datos del dashboard del conductor en paralelo.
@@ -18,8 +18,8 @@ export async function getDashboardConductor(conductorId) {
           rutas ( id, numero_ruta, nombre, color )
         ),
         vehiculos (
-          id, placa, capacidad,
-          tipo_vehiculo:tipo_vehiculo_id ( nombre )
+          id, placa, 
+          tipo_vehiculo:tipo_vehiculo_id ( nombre, capacidad_max )
         )
       `)
       .eq("conductor_id", conductorId)
@@ -128,7 +128,7 @@ export async function getDashboardConductor(conductorId) {
           ? {
               id:       vehiculo.id,
               placa:    vehiculo.placa,
-              capacidad: vehiculo.capacidad,
+              capacidad: vehiculo.tipo_vehiculo?.capacidad_max ?? 0,
               tipo:     vehiculo.tipo_vehiculo?.nombre ?? "Buseta",
             }
           : null,
