@@ -15,7 +15,7 @@ export async function getAvailableDrivers() {
 export async function getTiposVehiculo() {
   const { data, error } = await supabase
     .from('tipo_vehiculo')
-    .select('id, nombre, descripcion')
+    .select('id, nombre, descripcion, capacidad_max')
     .order('nombre', { ascending: true });
 
   if (error) throw error;

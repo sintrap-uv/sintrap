@@ -262,7 +262,8 @@ export default function RegistrarVehiculo() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.modalItemText}>{item.nombre}</Text>
                     {item.descripcion && (
-                      <Text style={{ fontSize: 12, color: T.text.tertiary }}>{item.descripcion}</Text>
+                      <Text style={{ fontSize: 12, color: T.text.tertiary }}>{item.descripcion}{item.capacidad_max ? ` . ${item.capacidad_max} pasajeros` : ""}
+                      </Text>
                     )}
                   </View>
                   {tipoId === item.id && <Ionicons name="checkmark" size={18} color={T.Headers.innerColor} />}
