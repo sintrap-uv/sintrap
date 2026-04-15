@@ -9,7 +9,7 @@ import {
 } from "react-native"
 
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons"
-import { resetPassword, verifyOtp } from "../../services/auth"
+import { resetPassword, verifyResetCode } from "../../services/auth"
 import { useRouter } from "expo-router"
 
 export default function ForgotPassword() {
@@ -46,13 +46,13 @@ export default function ForgotPassword() {
     }
 
     setLoading(true)
-    const { error } = await verifyOtp(email, codigo)
+    const { error } = await verifyResetCode(email, codigo)
     setLoading(false)
 
     if (error) {
       alert("Código incorrecto o expirado.")
     } else {
-      navigation.navigate("ResetPassword")
+      router.push("/profiles/forgotPassword")
     }
   }
 
