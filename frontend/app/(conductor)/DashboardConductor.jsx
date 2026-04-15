@@ -159,7 +159,10 @@ export default function DashboardConductor() {
       if (resultado.success) {
         if (!resultado.data) setSinTurno(true);
         else { setDatos(resultado.data); setSinTurno(false); }
+      } else {
+        setSinTurno(true);
       }
+
     } catch (e) {
       console.error("Error dashboard conductor:", e.message);
     } finally {
@@ -284,6 +287,14 @@ export default function DashboardConductor() {
           <Text style={styles.sinTurnoSub}>
             No tienes ningún turno programado para el día de hoy. Contacta al administrador si crees que es un error.
           </Text>
+          <TouchableOpacity
+          style={styles.btnReportar}
+          onPress={() => router.push("/(conductor)/EnviarNotificacion")}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="alert-circle-outline" size={20} color="#fff" />
+          <Text style={styles.btnReportarTexto}>Reportar al administrador</Text>
+        </TouchableOpacity>
         </View>
       </View>
     );
@@ -402,7 +413,7 @@ export default function DashboardConductor() {
 
           <TouchableOpacity
             style={styles.accionCard}
-            onPress={() => console.log("Reporte: Aun no esta implementado")}
+            onPress={() => router.push("/(conductor)/EnviarNotificacion")}
             activeOpacity={0.8}
           >
             <View style={[styles.accionIcono, { backgroundColor: "#FEE2E2" }]}>
@@ -620,4 +631,23 @@ const styles = StyleSheet.create({
   historialEstado: { width: 34, height: 34, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   historialFecha:  { fontSize: 13, fontWeight: "600", color: T.text.primary },
   historialDetalle:{ fontSize: 11, color: T.text.secondary, marginTop: 2 },
+
+  // Botón reportar sin turno. 
+  btnReportar: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 8,
+  backgroundColor: "#EF4444",
+  paddingHorizontal: 20,
+  paddingVertical: 12,
+  borderRadius: 12,
+  marginTop: 16,
+},
+btnReportarTexto: {
+  color: "#fff",
+  fontSize: 14,
+  fontWeight: "600",
+},
+
+
 });
