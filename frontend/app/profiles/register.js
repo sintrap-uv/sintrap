@@ -79,6 +79,7 @@ export default function Register() {
     }
 
     alert("Registro exitoso")
+    router.push("/login")
   
   }
 

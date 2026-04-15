@@ -16,8 +16,8 @@ export default function VerificarCodigo({ email, onVerificado, onVolver }) {
   const [loading, setLoading] = useState(false);
 
   const handleVerificar = async () => {
-    if (codigo.length < 6) {
-      alert("Ingresa el código de 6 dígitos.");
+    if (codigo.length < 8) {
+      alert("Ingresa el código de 8 dígitos.");
       return;
     }
 
