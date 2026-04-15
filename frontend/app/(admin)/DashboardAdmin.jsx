@@ -280,7 +280,7 @@ export default function DashboardAdmin() {
         mode="light"
         iconoDerecha={
           <TouchableOpacity onPress={() => setMostrarPerfil(true)}>
-            <Ionicons name="settings-outline" size={36} color="#fff" />
+            <Ionicons name="settings-outline" size={28} color="#fff" />
           </TouchableOpacity>
         }
       />
