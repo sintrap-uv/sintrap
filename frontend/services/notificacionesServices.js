@@ -82,3 +82,53 @@ export const getVehiculoConRuta = async (vehiculoId) => {
 
   return { data, error }
 }
+
+// Obtener administradores para notificar
+export const getAdministradores = async () => {
+  const {data, error} = await supabase
+  .from("profiles")
+  .select("id, nombre, rol")
+  .eq("rol", "administrador")
+
+  return {data, error}
+}
+
+
+export const enviarNotificacionConductor = async ({
+  conductorId,
+  conductorNombre,
+  cedula,
+  celular,
+  tipo,
+  titulo,
+  mensaje,
+}) => {
+  const { data: admins, error: errorAdmins } = await getAdministradores()
+  if (errorAdmins || !admins?.length) {
+    return { error: errorAdmins ?? new Error("No hay administradores") }
+  }
+
+  const notificaciones = admins.map((admin) => ({
+    usuario_id: admin.id,
+    tipo,
+    titulo,
+    mensaje,
+    metadata: {
+      conductor_id: conductorId,
+      conductor_nombre: conductorNombre,
+      cedula,
+      celular,
+    },
+    leida: false,
+    fecha: new Date().toISOString(),
+  }))
+
+  const { data, error } = await supabase
+    .from("notificaciones")
+    .insert(notificaciones)
+
+  return { data, error }
+}
+
+
+

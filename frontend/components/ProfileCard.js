@@ -13,6 +13,8 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import theme from "../constants/theme";
 import EditarPerfilForm from "./forms/EditarPerfilForm";
 import ResetPassword from "../app/profiles/resetPassword";
+import NotificacionesAdmin from "../app/(notificaciones)/NotificacionesAdmin";
+import NotificacionesUsuario from "../app/(notificaciones)/NotificacionesUsuarios";
 import Header from "./Header";
 import { useRouter } from "expo-router";
 
@@ -53,6 +55,7 @@ const ProfileCard = ({
   const router = useRouter();
   const [mostrarEditar, setMostrarEditar] = useState(false);
   const [mostrarResetPassword, setMostrarResetPassword] = useState(false);
+  const [mostraNotificaaciones, setMostrarNotificaciones] = useState(false);
  
   const roleConfig = {
     usuario: {
@@ -116,6 +119,30 @@ const ProfileCard = ({
       </View>
     );
   }
+  if (mostraNotificaaciones) {
+    return (
+      <View style={{ flex: 1 }}>
+        <TouchableOpacity
+          style={styles.volverBtn}
+          onPress={() => setMostrarNotificaciones(false)}
+          activeOpacity={0.7}
+        >
+        </TouchableOpacity>
+
+        {role === "administrador" 
+        ? <NotificacionesAdmin 
+          usuarioId={userId} 
+          onVolver={() => setMostrarNotificaciones(false)}
+           /> 
+        : <NotificacionesUsuario  
+          usuarioId={userId} 
+          onVolver={() => setMostrarNotificaciones(false)}
+          /> }
+      </View>
+    );
+  }
+
+  
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
@@ -224,7 +251,7 @@ const ProfileCard = ({
         <MenuItem
           icon={<Ionicons name="notifications-outline" size={22} color={t.icon.alert} />}
           label="Notificaciones"
-          onPress={onNotifications}
+          onPress={() => setMostrarNotificaciones(true)}
         />
       </View>
 
