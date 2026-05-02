@@ -5,11 +5,12 @@ import {
   Text,
   Dimensions,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import { BarChart } from "react-native-chart-kit";
 import theme from "../../constants/theme";
 
-const { width } = Dimensions.get("window");
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const T = theme.lightMode;
 
 export default function GraficaOcupacionVehiculos({ datos, cargando }) {
@@ -28,6 +29,9 @@ export default function GraficaOcupacionVehiculos({ datos, cargando }) {
       </View>
     );
   }
+
+  // Calcualar un ancho dinamico: 60 px para cada barra, minimo el ancho de la pantalla
+  const chartWidth = Math.max(datos.length * 60, SCREEN_WIDTH - 40);
 
   const chartData = {
     labels: datos.slice(0, 8).map((v) => v.placa),
@@ -50,26 +54,32 @@ export default function GraficaOcupacionVehiculos({ datos, cargando }) {
         Ocupación de Vehículos
       </Text>
 
-      <BarChart
-        data={chartData}
-        width={width - 40}
-        height={220}
-        yAxisLabel="%"
-        yAxisSuffix=""
-        chartConfig={{
-          backgroundColor: T.cards.background,
-          backgroundGradientFrom: T.cards.background,
-          backgroundGradientTo: T.cards.background,
-          color: () => "#10b981",
-          strokeWidth: 2,
-          barPercentage: 0.7,
-          useShadowColorFromDataset: false,
-          labelColor: (opacity = 1) => T.text.tertiary,
-        }}
-        withVerticalLabels={true}
-        withHorizontalLabels={true}
-        withOuterLines={true}
-      />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <BarChart
+          data={chartData}
+          width={chartWidth}
+          height={220}
+          yAxisLabel="%"
+          yAxisSuffix=""
+          chartConfig={{
+            backgroundColor: T.cards.background,
+            backgroundGradientFrom: T.cards.background,
+            backgroundGradientTo: T.cards.background,
+            color: () => "#10b981",
+            strokeWidth: 2,
+            barPercentage: 0.6,
+            propsForLabels: {
+              fontSize: 10,
+            },
+            labelColor: (opacity = 1) => T.text.tertiary,
+          }}
+          verticalLabelRotation={30}
+          style={{
+            marginVertical: 8,
+            borderRadius: 16,
+          }}
+        />
+      </ScrollView>
 
       <View style={styles.tablaDetalles}>
         <View style={[styles.filaTabla, styles.headerTabla]}>

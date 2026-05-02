@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   botonActivo: {
-    elevation: 2,
+    elevation: 0,
   },
   botonInactivo: {
     borderWidth: 1,
