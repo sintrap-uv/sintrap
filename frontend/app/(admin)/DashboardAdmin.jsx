@@ -22,6 +22,7 @@ import {
   tiempoRelativo,
 } from "../../services/dashboardAdminService";
 
+
 const T = theme.lightMode;
 
 // ─── Configuración de tarjetas de métricas
@@ -424,11 +425,20 @@ export default function DashboardAdmin() {
                     ? `${ruta.porcentaje}% ocupado · ${ruta.capacidad - ruta.asignados} cupos disponibles`
                     : "Sin vehículo asignado"}
                 </Text>
+                
+                {/* BOTÓN ASIGNAR RECURSOS */}
+                <TouchableOpacity 
+                  style={styles.asignarRecursosBtn}
+                  onPress={() => router.push(`/(admin)/asignar-recursos?id=${ruta.id}`)}
+                >
+                  <Ionicons name="calendar-outline" size={16} color="#fff" />
+                  <Text style={styles.asignarRecursosBtnText}>Asignar recursos</Text>
+                </TouchableOpacity>
               </View>
             ))
           )}
         </View>
-
+        
         {/* ACTIVIDAD RECIENTE */}
         <View style={styles.seccion}>
           <Text style={styles.tituloSeccion}>Actividad reciente</Text>
@@ -699,4 +709,22 @@ const styles = StyleSheet.create({
   // Vacío
   vacio: { alignItems: "center", padding: 20 },
   vacioTexto: { fontSize: 13, color: T.text.secondary },
+
+  asignarRecursosBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: T.Button.primary.background,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  asignarRecursosBtnText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
+  },
 });
+
