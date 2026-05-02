@@ -22,6 +22,7 @@ import RegistrarVehiculo from "./(admin)/registrar-vehiculo";
 import VehiculosScreen from "./(admin)/vehiculos"
 import MisBusesScreen from "./(conductor)/mis-buses";
 import Bienvenida from "./(admin)/bienvenida-empresa";
+import EstadisticasScreen from "./(admin)/estadisticas";
 
 import DashboardAdmin from "./(admin)/DashboardAdmin";
 import DashboardUsuario from "./profiles/DashboardUsuario";
@@ -187,9 +188,8 @@ export default function Home() {
         <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />
       ),
       buses: () => <VehiculosScreen />, //para mostrar los buses
-      graficas: () => (
-        <TabPendiente nombre="Estadísticas" icono="bar-chart-outline" />
-      ),
+      graficas: () => <EstadisticasScreen />,
+
        crear_Ruta: () => (<Bienvenida onNavegar={(tab) => setTabActivo(tab)} />
       ),
       mapa_colaboradores: () => <MapaColaboradores />,
