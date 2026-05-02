@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+ import { supabase } from "./supabase";
 
 /**
  * Obtiene toda la información del dashboard del usuario.
@@ -42,10 +42,15 @@ export async function getDashboardUsuario(userId) {
         .eq("ruta_id", rutaId)
         .order("orden"),
 
-      // Sin join a ubicacion_conductor — eso lo trae la RPC
+      // Vehículo con tipo y conductor completo
+      // NOTA: no se usa la columna "capacidad" — viene de tipo_vehiculo
       supabase
         .from("vehiculos")
-        .select("id, placa, capacidad, tipo_vehiculo:tipo_vehiculo_id ( nombre )")
+        .select(`
+          id, placa, activo,
+          tipo_vehiculo:tipo_vehiculo_id ( id, nombre, capacidad_max ),
+          conductor:conductor_id ( id, nombre, cedula, celular, avatar_url )
+        `)
         .eq("ruta_id", rutaId)
         .eq("activo", true)
         .limit(1)
@@ -56,8 +61,8 @@ export async function getDashboardUsuario(userId) {
         .select(`
           nombre_turno, hora_inicio, hora_fin,
           turnos (
-            estado, hora_inicio_real,
-            conductor:conductor_id ( nombre, celular )
+            id, estado, hora_inicio_real,
+            conductor:conductor_id ( nombre, celular, cedula, avatar_url )
           )
         `)
         .eq("ruta_id", rutaId)
@@ -75,9 +80,14 @@ export async function getDashboardUsuario(userId) {
     if (eParadas)  throw eParadas;
     if (eHorarios) throw eHorarios;
 
+    // ── Contar usuarios asignados a esta ruta (para asientos disponibles)
+    const { count: usuariosEnRuta } = await supabase
+      .from("usuario_ruta")
+      .select("*", { count: "exact", head: true })
+      .eq("ruta_id", rutaId)
+      .eq("activa", true);
+
     // ── FASE 2: posición del bus via RPC ──────────────────────────────
-    // SECURITY DEFINER garantiza que el usuario puede leer la posición
-    // sin que RLS de ubicacion_conductor interfiera
     const { data: busUbicacion, error: eRpc } = await supabase
       .rpc("get_ubicacion_conductor_ruta", { p_ruta_id: rutaId })
       .maybeSingle();
@@ -95,6 +105,17 @@ export async function getDashboardUsuario(userId) {
         }))
       )
       .find((t) => t.estado === "en_curso") ?? null;
+
+    // ── Capacidad y asientos disponibles ──────────────────────────────
+    const capacidadMax   = vehiculoData?.tipo_vehiculo?.capacidad_max ?? 0;
+    const asientosOcupados  = usuariosEnRuta ?? 0;
+    const asientosDisponibles = Math.max(0, capacidadMax - asientosOcupados);
+
+    // ── Estado del servicio ───────────────────────────────────────────
+    let estadoServicio = "sin_servicio";
+    if (turnoHoy?.estado === "en_curso")    estadoServicio = "en_ruta";
+    else if (turnoHoy?.estado === "programado") estadoServicio = "proximamente";
+    else if (vehiculoData?.activo)          estadoServicio = "disponible";
 
     return {
       success: true,
@@ -118,12 +139,16 @@ export async function getDashboardUsuario(userId) {
         bus: vehiculoData
           ? {
               placa:     vehiculoData.placa,
-              capacidad: vehiculoData.capacidad,
               tipo:      vehiculoData.tipo_vehiculo?.nombre ?? "Buseta",
+              capacidad: capacidadMax,
+              asientosDisponibles,
+              estadoServicio,
               enRuta:    busUbicacion?.en_ruta   ?? false,
               velocidad: Number(busUbicacion?.velocidad ?? 0),
               ubicacion: busUbicacion ?? null,
               ultimaActualizacion: busUbicacion?.updated_at ?? null,
+              // Conductor desde el vehículo
+              conductor: vehiculoData.conductor ?? null,
             }
           : null,
         turnoHoy,
@@ -139,7 +164,6 @@ export async function getDashboardUsuario(userId) {
 
 /**
  * Calcula ETA del bus a la parada del usuario.
- * distancia_metros viene directo de get_ubicacion_conductor_ruta.
  */
 export function calcularETA(distanciaMetros, velocidadKmh = 30) {
   if (!distanciaMetros || distanciaMetros <= 0) return 0;
