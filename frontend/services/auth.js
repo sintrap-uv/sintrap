@@ -85,7 +85,7 @@ export const verifyResetCode = async (email, token) => {
   const { data, error } = await supabase.auth.verifyOtp({
     email,
     token,
-    type: "email"
+    type: "recovery"
   })
   return { data, error }
 }

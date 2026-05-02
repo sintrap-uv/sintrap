@@ -1,227 +1,253 @@
-import { useState } from "react";
+import React, { useState } from "react"
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import { supabase } from "../../services/supabase";
-import theme from "../../constants/theme";
+  ActivityIndicator
+} from "react-native"
 
-const t = theme.lightMode;
+import { FontAwesome, MaterialIcons } from "@expo/vector-icons"
+import { resetPassword, verifyResetCode } from "../../services/auth"
+import { useRouter } from "expo-router"
 
-export default function ResetPassword({ onDone }) {
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [loading, setLoading] = useState(false);
+export default function ForgotPassword() {
+  
+  const router = useRouter()
+  const [email, setEmail] = useState("")
+  const [codigo, setCodigo] = useState("")
+  const [paso, setPaso] = useState("correo") // "correo" | "codigo"
+  const [loading, setLoading] = useState(false)
 
-  const handleUpdatePassword = async () => {
-    if (!password || !confirmPassword) {
-      alert("Por favor completa todos los campos.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      alert("Las contraseñas no coinciden.");
-      return;
-    }
-    if (password.length < 6) {
-      alert("La contraseña debe tener al menos 6 caracteres.");
-      return;
+  // Paso 1 — enviar OTP
+  const handleEnviarCodigo = async () => {
+    if (!email) {
+      alert("Ingresa tu correo electrónico.")
+      return
     }
 
-    setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    setLoading(false);
+    setLoading(true)
+    const { error } = await resetPassword(email)
+    setLoading(false)
 
     if (error) {
-      alert("Error: " + error.message);
+      alert("Error: " + error.message)
     } else {
-      alert("Contraseña actualizada correctamente.");
-      onDone?.();
+      setPaso("codigo")
     }
-  };
+  }
+
+  // Paso 2 — verificar OTP
+  const handleVerificarCodigo = async () => {
+    if (codigo.length < 8) {
+      alert("Ingresa el código de 8 dígitos.")
+      return
+    }
+
+    setLoading(true)
+    const { error } = await verifyResetCode(email, codigo)
+    setLoading(false)
+
+    if (error) {
+      alert("Código incorrecto o expirado.")
+    } else {
+      router.push("/profiles/forgotPassword")
+    }
+  }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.wrapper}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+    <View style={styles.container}>
 
-        {/* Header verde igual al de la app */}
-        <LinearGradient
-          colors={t.Headers?.gradientColors ?? ["#16A34A", "#22C55E"]}
-          style={styles.header}
-        >
-          <View style={styles.busIcon}>
-            <Ionicons name="bus" size={28} color="#fff" />
-          </View>
-          <Text style={styles.headerTitle}>Bienvenido a{"\n"}Sintrap</Text>
-        </LinearGradient>
+      {/* Icono */}
+      <View style={styles.iconContainer}>
+        <FontAwesome name="map-marker" size={60} color="#444" />
+        <FontAwesome name="bus" size={24} color="#fff" style={styles.busIcon} />
+      </View>
 
-        {/* Tarjeta */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Recuperar contraseña</Text>
+      <Text style={styles.title}>Recuperar contraseña</Text>
 
-          {/* Campo nueva contraseña */}
-          <View style={styles.inputWrapper}>
-            <Ionicons name="lock-closed-outline" size={18} color="#9CA3AF" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Nueva contraseña"
-              placeholderTextColor="#9CA3AF"
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={setPassword}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} activeOpacity={0.7}>
-              <Ionicons
-                name={showPassword ? "eye-off-outline" : "eye-outline"}
-                size={20}
-                color="#9CA3AF"
+      {/* Card */}
+      <View style={styles.card}>
+
+        {paso === "correo" ? (
+          <>
+            <View style={styles.inputContainer}>
+              <MaterialIcons name="email" size={20} color="#444" />
+              <TextInput
+                placeholder="Correo electrónico"
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
               />
-            </TouchableOpacity>
-          </View>
+            </View>
 
-          {/* Campo confirmar contraseña */}
-          <View style={styles.inputWrapper}>
-            <Ionicons name="lock-closed-outline" size={18} color="#9CA3AF" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Confirmar contraseña"
-              placeholderTextColor="#9CA3AF"
-              secureTextEntry={!showConfirm}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} activeOpacity={0.7}>
-              <Ionicons
-                name={showConfirm ? "eye-off-outline" : "eye-outline"}
-                size={20}
-                color="#9CA3AF"
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleEnviarCodigo}
+              disabled={loading}
+            >
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.buttonText}>Enviar código</Text>
+              }
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <Text style={styles.codigoInfo}>
+              Ingresa el código que enviamos a{"\n"}
+              <Text style={styles.codigoEmail}>{email}</Text>
+            </Text>
+
+            <View style={styles.inputContainer}>
+              <MaterialIcons name="lock" size={20} color="#444" />
+              <TextInput
+                placeholder="Código de 8 dígitos"
+                style={[styles.input, styles.inputCodigo]}
+                value={codigo}
+                onChangeText={setCodigo}
+                keyboardType="number-pad"
+                maxLength={8}
               />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleVerificarCodigo}
+              disabled={loading}
+            >
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.buttonText}>Verificar</Text>
+              }
             </TouchableOpacity>
-          </View>
 
-          {/* Botón */}
-          <TouchableOpacity
-            style={[styles.btn, loading && styles.btnDisabled]}
-            onPress={handleUpdatePassword}
-            activeOpacity={0.8}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.btnText}>Cambiar contraseña</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              onPress={handleEnviarCodigo}
+              style={styles.reenviarBtn}
+              disabled={loading}
+            >
+              <Text style={styles.reenviarTexto}>¿No llegó? Reenviar código</Text>
+            </TouchableOpacity>
+          </>
+        )}
 
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
+        <TouchableOpacity onPress={() => router.push("/login")}>
+          <Text style={styles.back}>Volver al login</Text>
+        </TouchableOpacity>
+
+      </View>
+    </View>
+  )
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
+
+  container: {
     flex: 1,
-    backgroundColor: "#F1F5F9",
-  },
-  scroll: {
-    flexGrow: 1,
-  },
-  header: {
-    height: 200,
+    backgroundColor: "#d9d9d9",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
   },
+
+  iconContainer: {
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
   busIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "rgba(0,0,0,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
+    position: "absolute",
+    top: 18,
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-    lineHeight: 28,
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    marginHorizontal: 24,
-    marginTop: -24,
-    padding: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#111827",
-    textAlign: "center",
+
+  title: {
+    fontSize: 26,
+    fontWeight: "bold",
     marginBottom: 20,
   },
-  inputWrapper: {
+
+  card: {
+    width: "85%",
+    backgroundColor: "#f5f5f5",
+    borderRadius: 25,
+    padding: 25,
+    alignItems: "center",
+  },
+
+  inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: Platform.OS === "ios" ? 13 : 10,
-    marginBottom: 14,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: "#eee",
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    marginBottom: 20,
+    width: "100%",
+    height: 45,
   },
-  inputIcon: {
-    marginRight: 8,
-  },
+
   input: {
+    marginLeft: 10,
     flex: 1,
     fontSize: 15,
-    color: "#111827",
+    color: "#111",
   },
-  btn: {
-    backgroundColor: "#16A34A",
-    borderRadius: 10,
-    paddingVertical: 14,
+
+  inputCodigo: {
+    letterSpacing: 4,
+    fontSize: 18,
+  },
+
+  button: {
+    backgroundColor: "#0d5b0d",
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 25,
+    minWidth: 160,
     alignItems: "center",
-    marginTop: 6,
   },
-  btnDisabled: {
+
+  buttonDisabled: {
     opacity: 0.6,
   },
-  btnText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "600",
+
+  buttonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
   },
-  volverLink: {
-    alignItems: "center",
-    paddingVertical: 28,
-  },
-  volverLinkText: {
+
+  codigoInfo: {
     fontSize: 14,
-    color: "#6B7280",
+    color: "#444",
+    textAlign: "center",
+    marginBottom: 16,
+    lineHeight: 20,
   },
-});
+
+  codigoEmail: {
+    fontWeight: "bold",
+    color: "#111",
+  },
+
+  reenviarBtn: {
+    marginTop: 12,
+    marginBottom: 4,
+  },
+
+  reenviarTexto: {
+    color: "#2563EB",
+    fontWeight: "500",
+    fontSize: 14,
+  },
+
+  back: {
+    marginTop: 15,
+    color: "#8B0000",
+    fontWeight: "bold",
+  },
+
+})
