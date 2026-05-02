@@ -1,8 +1,7 @@
 import React from 'react';
-import { View, StyleSheet, Text, Dimensions, ActivityIndicator, ScrollView } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator, ScrollView } from 'react-native';
 import theme from '../../constants/theme';
 
-const { width } = Dimensions.get('window');
 const T = theme.lightMode;
 
 export default function GraficaOcupacionRutas({ datos, cargando }) {
@@ -28,43 +27,39 @@ export default function GraficaOcupacionRutas({ datos, cargando }) {
         Ocupación de Rutas
       </Text>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={true}>
         <View>
           <View style={[styles.filaTabla, styles.headerTabla]}>
-            <Text style={[styles.celda, { fontWeight: 'bold', minWidth: 100 }]}>
-              Ruta
-            </Text>
-            <Text style={[styles.celda, { fontWeight: 'bold', minWidth: 70, textAlign: 'center' }]}>
-              Capacidad
-            </Text>
-            <Text style={[styles.celda, { fontWeight: 'bold', minWidth: 70, textAlign: 'center' }]}>
-              Usuarios
-            </Text>
-            <Text style={[styles.celda, { fontWeight: 'bold', minWidth: 60, textAlign: 'right' }]}>
-              %
-            </Text>
+            <Text style={[styles.celda, styles.headerText, { width: 140 }]}>Ruta</Text>
+            <Text style={[styles.celda, styles.headerText, { width: 80, textAlign: 'center' }]}>Capac.</Text>
+            <Text style={[styles.celda, styles.headerText, { width: 80, textAlign: 'center' }]}>Usuar.</Text>
+            <Text style={[styles.celda, styles.headerText, { width: 70, textAlign: 'right' }]}>%</Text>
           </View>
 
           {datos.map((ruta, idx) => (
             <View key={idx} style={styles.filaTabla}>
-              <View style={{ minWidth: 100 }}>
-                <Text style={[styles.celda, { fontWeight: '600' }]}>
+              <View style={{ width: 140, paddingRight: 10 }}>
+                <Text style={[styles.celda, { fontWeight: '600' }]} numberOfLines={1}>
                   Ruta {ruta.numero_ruta}
                 </Text>
-                <Text style={[styles.celda, { fontSize: 10, color: T.text.tertiary }]}>
+                <Text 
+                  style={[styles.celda, { fontSize: 10, color: T.text.tertiary }]} 
+                  numberOfLines={1} 
+                  ellipsizeMode="tail"
+                >
                   {ruta.nombre}
                 </Text>
               </View>
 
-              <Text style={[styles.celda, { minWidth: 70, textAlign: 'center' }]}>
+              <Text style={[styles.celda, { width: 80, textAlign: 'center' }]}>
                 {ruta.capacidad_total}
               </Text>
 
-              <Text style={[styles.celda, { minWidth: 70, textAlign: 'center' }]}>
+              <Text style={[styles.celda, { width: 80, textAlign: 'center' }]}>
                 {ruta.usuarios_asignados}
               </Text>
 
-              <View style={{ minWidth: 60 }}>
+              <View style={{ width: 70 }}>
                 <View style={styles.barraProgreso}>
                   <View
                     style={[
@@ -81,7 +76,7 @@ export default function GraficaOcupacionRutas({ datos, cargando }) {
                     ]}
                   />
                 </View>
-                <Text style={[styles.celda, { textAlign: 'right', marginTop: 2 }]}>
+                <Text style={[styles.celda, { textAlign: 'right', marginTop: 2, fontSize: 11 }]}>
                   {ruta.porcentaje}%
                 </Text>
               </View>
@@ -100,23 +95,32 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   titulo: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "700",
     marginBottom: 12,
   },
   filaTabla: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 0.5,
     borderBottomColor: '#f0f0f0',
   },
   headerTabla: {
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    backgroundColor: 'rgba(34, 197, 94, 0.08)',
     borderBottomWidth: 2,
     borderBottomColor: '#22C55E',
+    borderRadius: 4,
+  },
+  headerText: {
+    fontWeight: 'bold',
+    color: '#1e293b',
   },
   celda: {
     fontSize: 12,
@@ -124,7 +128,7 @@ const styles = StyleSheet.create({
   },
   barraProgreso: {
     height: 6,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#e2e8f0',
     borderRadius: 3,
     overflow: 'hidden',
   },

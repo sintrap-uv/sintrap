@@ -5,11 +5,12 @@ import {
   Text,
   Dimensions,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import { BarChart } from "react-native-chart-kit";
 import theme from "../../constants/theme";
 
-const { width } = Dimensions.get("window");
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const T = theme.lightMode;
 
 export default function GraficaEstadoVehiculos({ datos, cargando }) {
@@ -29,7 +30,10 @@ export default function GraficaEstadoVehiculos({ datos, cargando }) {
         <Text style={{ color: T.text.tertiary }}>No hay vehículos</Text>
       </View>
     );
+
   }
+  // Calcualar un ancho dinamico: 60 px para cada barra, minimo el ancho de la pantalla
+  const chartWidth = Math.max(resumen.length * 60, SCREEN_WIDTH - 40);
 
   const chartData = {
     labels: resumen.map((r) => r.estado_vehiculo.substring(0, 10)),
@@ -51,24 +55,26 @@ export default function GraficaEstadoVehiculos({ datos, cargando }) {
         Estado de Vehículos
       </Text>
 
-      <BarChart
-        data={chartData}
-        width={width - 40}
-        height={220}
-        yAxisLabel=""
-        yAxisSuffix=""
-        chartConfig={{
-          backgroundColor: T.cards.background,
-          backgroundGradientFrom: T.cards.background,
-          backgroundGradientTo: T.cards.background,
-          color: () => "#8b5cf6",
-          strokeWidth: 2,
-          useShadowColorFromDataset: false,
-          labelColor: (opacity = 1) => T.text.tertiary,
-        }}
-        withVerticalLabels={true}
-        withHorizontalLabels={true}
-      />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <BarChart
+          data={chartData}
+          width={chartWidth}
+          height={220}
+          yAxisLabel=""
+          yAxisSuffix=""
+          chartConfig={{
+            backgroundColor: T.cards.background,
+            backgroundGradientFrom: T.cards.background,
+            backgroundGradientTo: T.cards.background,
+            color: () => "#8b5cf6",
+            strokeWidth: 2,
+            useShadowColorFromDataset: false,
+            labelColor: (opacity = 1) => T.text.tertiary,
+          }}
+          withVerticalLabels={true}
+          withHorizontalLabels={true}
+        />
+      </ScrollView>
 
       <View style={styles.tablaResumen}>
         {resumen.map((item, idx) => (
