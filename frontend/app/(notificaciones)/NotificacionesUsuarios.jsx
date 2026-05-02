@@ -17,7 +17,7 @@ const ICONO_TIPO = {
   alerta:      { nombre: "warning-outline", color: "#EF4444" },
 }
 
-export default function NotificacionesUsuario({ usuarioId }) {
+export default function NotificacionesUsuario({ usuarioId, onVolver }) {
   const router = useRouter()
   const { notificaciones, loading, noLeidas, marcarLeida, marcarTodas } =
     useNotificaciones(usuarioId)
@@ -60,7 +60,7 @@ export default function NotificacionesUsuario({ usuarioId }) {
         colors={t.Headers?.gradientColors ?? ["#16A34A", "#22C55E"]}
         style={styles.header}
       >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => onVolver()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>

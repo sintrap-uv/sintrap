@@ -4,17 +4,39 @@ import { useToast } from "../../context/ToastContext";
 import MapaSimple from "../../components/Mapa";
 import { ubicacionBuses } from "../../services/empresaServices";
 import { obtenerCordenadas } from "../../services/geocalizacion";
-import { ActivityIndicator, TextInput, TouchableOpacity, View , Text} from "react-native";
+import { ActivityIndicator, TextInput, TouchableOpacity, View, Text } from "react-native";
+import * as Location from 'expo-location';
 import { StyleSheet } from "react-native";
 
 
-export default function ConfiguracionBuses({onNavegar}) {
+export default function ConfiguracionBuses({ onNavegar }) {
 
     const [ubicacion, setUbicacion] = useState(null);
     const [direccion, setDireccion] = useState("");
     const [buscando, setBuscando] = useState(false);
     const [guardando, setGuardando] = useState(false);
     const { showSuccess, showError, showWarning, showInfo } = useToast();
+
+    const ObtenerUbicacion = async () => {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+
+        if (status !== 'granted') {
+            showError("Necesitamos permiso para acceder a tu ubicación");
+            return;
+        }
+        showInfo("Obteniendo tu ubicación...");
+
+        try {
+            const loc = await Location.getCurrentPositionAsync({});
+            const lat = loc.coords.latitude;
+            const lon = loc.coords.longitude;
+
+            setUbicacion({ lat, lon });
+            showSuccess("¡Ubicación obtenida!");
+        } catch (error) {
+            showError("Error al obtener la ubicación");
+        }
+    }
 
 
     const manejarSeleccionMapa = (coordenadas) => {
@@ -45,10 +67,6 @@ export default function ConfiguracionBuses({onNavegar}) {
 
         }
         setBuscando(false)
-
-    }
-
-    const buscarDireccionManual = () => {
 
     }
 
@@ -83,20 +101,14 @@ export default function ConfiguracionBuses({onNavegar}) {
                         ? ` ${ubicacion.lat.toFixed(5)}, ${ubicacion.lon.toFixed(5)}`
                         : "Toca el mapa o busca una dirección"}
                 </Text>
-                <View style={styles.infoContainer}>
-                    <TextInput
-                        style={styles.input}
-                        value={direccion}
-                        onChangeText={setDireccion}
-                        placeholder="Escribe una dirección (ej: Calle 10 #20-30)" />
-                </View>
-
+            
                 {/* Boton de Buscar*/}
                 <TouchableOpacity
                     style={styles.botonBuscar}
-                    onPress={manejarBuscarDireccion}>
-                    {buscando ? <ActivityIndicator size="small" color={theme.lightMode.Button.secondary.text} style={styles.loadingIndicator} /> : null}
-                    <Text style={[styles.textoBoton, styles.textoBotonSecundario]}>Buscar dirección</Text>
+                    onPress={ObtenerUbicacion}>
+                    <Text style={[styles.textoBoton, styles.textoBotonSecundario]}>
+                        Usar mi ubicación actual
+                    </Text>
                 </TouchableOpacity>
 
                 {/* Boton de confirmar*/}

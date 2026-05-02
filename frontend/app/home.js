@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { BottomNavBar } from "../components/BottomNavBar";
 import BotonesFlotantes from "../components/BotonesFlotantes";
 import Header from "../components/Header";
@@ -23,11 +22,12 @@ import RegistrarVehiculo from "./(admin)/registrar-vehiculo";
 import VehiculosScreen from "./(admin)/vehiculos"
 import MisBusesScreen from "./(conductor)/mis-buses";
 import Bienvenida from "./(admin)/bienvenida-empresa";
+
 import DashboardAdmin from "./(admin)/DashboardAdmin";
 import DashboardUsuario from "./profiles/DashboardUsuario";
 import DashboardConductor from "./(conductor)/DashboardConductor"
 import { supabase } from "../services/supabase";
-import MapaColaboradores from "./(admin)/Rutas/mapa-Colaboradores";
+import MapaColaboradores from "./(admin)/Mapa_colaboradores/mapa-Colaboradores";
 import ConfiguracionBuses from "./(admin)/configurar-buses";
 import { ObtenerDireccionUsuario } from "../services/geocalizacion";
 import CajaDireccion from "../components/ModalDireccion";
@@ -336,15 +336,15 @@ export default function Home() {
           iconoDerecha={
             perfil?.rol === "administrador" || perfil?.rol === "conductor" ? (
               <TouchableOpacity onPress={() => setTabActivo("perfil")}>
-                <Ionicons
-                  name="settings-outline"
-                  size={36}
-                  color="#fff"
-                />
-
+                <Ionicons name="settings-outline" size={28} color="#FFFFFF" />
               </TouchableOpacity>
-            ) : null
-          }
+            ) : null}
+            showBack={tabActivo === "mapa_colaboradores" || tabActivo === "configurar_buses" } 
+            onBack={()=>{
+              if(tabActivo === 'configurar_buses') setTabActivo('inicio')
+              else if(tabActivo === "mapa_colaboradores") setTabActivo("rutas");
+              else setTabActivo('inicio')}
+            }
         />
       )}
 
@@ -374,16 +374,7 @@ export default function Home() {
   );
 }
 
-function obtenerSubtitulo(tab) {
-  const subtitulos = {
-    bus: "Tu información personal",
-    rutas: "Tu ruta asignada",
-    agregar: "Reportar un incidente",
-    perfil: "Tu información personal",
-    favoritos: "Tus rutas favoritas",
-  };
-  return subtitulos[tab] ?? "";
-}
+
 
 function TabPendiente({ nombre, icono }) {
   return (
