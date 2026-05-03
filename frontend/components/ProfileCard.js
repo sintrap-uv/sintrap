@@ -12,7 +12,10 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import theme from "../constants/theme";
 import EditarPerfilForm from "./forms/EditarPerfilForm";
-import Header from "./Header"; // ← usa el Header del proyecto
+import Header from "./Header";
+import ResetPassword from "../app/profiles/resetPassword";
+import NotificacionesAdmin from "../app/(notificaciones)/NotificacionesAdmin";
+import NotificacionesUsuario from "../app/(notificaciones)/NotificacionesUsuarios";
 import { useRouter } from "expo-router";
 
 const t = theme.lightMode;
@@ -51,7 +54,9 @@ const ProfileCard = ({
 
   const router = useRouter();
   const [mostrarEditar, setMostrarEditar] = useState(false);
-
+  const [mostrarResetPassword, setMostrarResetPassword] = useState(false);
+  const [mostraNotificaaciones, setMostrarNotificaciones] = useState(false);
+ 
   const roleConfig = {
     usuario: {
       label: isActive ? "Usuario activo" : "Usuario inactivo",
@@ -92,13 +97,52 @@ const ProfileCard = ({
           userId={userId}
           onGuardado={(actualizado) => {
             onGuardado?.(actualizado);
-            setMostrarEditar(false);
+            setMostrarEditar(false);  
           }}
         />
       </View>
     );
   }
+ if (mostrarResetPassword) {
+    return (
+      <View style={{ flex: 1 }}>
+        <TouchableOpacity
+          style={styles.volverBtn}
+          onPress={() => setMostrarResetPassword(false)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back-outline" size={22} color={t.text.primary} />
+          <Text style={styles.volverTexto}>Volver al perfil</Text>
+        </TouchableOpacity>
 
+        <ResetPassword onDone={() => setMostrarResetPassword(false)} />
+      </View>
+    );
+  }
+  if (mostraNotificaaciones) {
+    return (
+      <View style={{ flex: 1 }}>
+        <TouchableOpacity
+          style={styles.volverBtn}
+          onPress={() => setMostrarNotificaciones(false)}
+          activeOpacity={0.7}
+        >
+        </TouchableOpacity>
+
+        {role === "administrador" 
+        ? <NotificacionesAdmin 
+          usuarioId={userId} 
+          onVolver={() => setMostrarNotificaciones(false)}
+           /> 
+        : <NotificacionesUsuario  
+          usuarioId={userId} 
+          onVolver={() => setMostrarNotificaciones(false)}
+          /> }
+      </View>
+    );
+  }
+
+  
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
@@ -207,7 +251,7 @@ const ProfileCard = ({
         <MenuItem
           icon={<Ionicons name="notifications-outline" size={22} color={t.icon.alert} />}
           label="Notificaciones"
-          onPress={onNotifications}
+          onPress={() => setMostrarNotificaciones(true)}
         />
       </View>
 
@@ -233,7 +277,7 @@ const ProfileCard = ({
         <MenuItem
           icon={<Ionicons name="lock-closed-outline" size={22} color={t.icon.active} />}
           label="Cambiar contraseña"
-          onPress={onChangePassword}
+          onPress={()=> setMostrarResetPassword(true)}
         />
         <Divider />
         <MenuItem

@@ -281,7 +281,7 @@ export default function DashboardAdmin() {
         mode="light"
         iconoDerecha={
           <TouchableOpacity onPress={() => setMostrarPerfil(true)}>
-            <Ionicons name="settings-outline" size={36} color="#fff" />
+            <Ionicons name="settings-outline" size={28} color="#fff" />
           </TouchableOpacity>
         }
       />
@@ -320,7 +320,7 @@ export default function DashboardAdmin() {
           <View style={styles.accionesGrid}>
             <TouchableOpacity
               style={styles.accionBtn}
-              onPress={() => console.log("Agregar la rota del screen")}
+              onPress={() => router.push("/(admin)/EnviarAviso")}
               activeOpacity={0.8}
             >
               <View
@@ -337,7 +337,7 @@ export default function DashboardAdmin() {
 
             <TouchableOpacity
               style={styles.accionBtn}
-              onPress={() => console.log("Agregar ruta del scrern de rutas")}
+              onPress={() => router.push("/(admin)/EnviarAviso")}
               activeOpacity={0.8}
             >
               <View
