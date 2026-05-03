@@ -98,20 +98,18 @@ export const useMapaColaboradores = () => {
         if (!puntosRuta.length) { showWarning('Debes seleccionar al menos un punto'); return; }
         if (!conductorId) { showError("Debes seleccionar un conductor"); return; }
         if (!vehiculoId) { showError("Debes seleccionar un vehículo"); return; }
-        try {
-            await guardarRutaCompleta(nombreRuta, numeroRuta, puntosRuta, conductorId, vehiculoId, horaInicio, horaFin);
-            showSuccess(`Ruta "${nombreRuta}" guardada exitosamente`);
-            setModoEdicion(false);
-            setNombreRuta("");
-            setNumeroRuta("");
-            setPuntosRuta([]);
-            setConductorId(null);
-            setVehiculoId(null);
-            setHoraInicio("06:00");
-            setHoraFin("18:00");
-        } catch {
+         try {
+        await guardarRutaCompleta(nombreRuta, numeroRuta, puntosRuta, conductorId, vehiculoId, horaInicio, horaFin);
+        showSuccess(`Ruta "${nombreRuta}" guardada exitosamente`);
+        // limpiar estados...
+    } catch (error) {
+        // Mensaje específico según el error
+        if (error?.code === '23505') {
+            showError(`Ya existe una ruta con el número ${numeroRuta}`);
+        } else {
             showError('Error al guardar la ruta');
         }
+    }
     };
 
     const onMensajeMapa = (event) => {
