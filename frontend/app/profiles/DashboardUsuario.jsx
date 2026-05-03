@@ -352,6 +352,7 @@ export default function DashboardUsuario() {
               </View>
             </View>
           )}
+          
 
           {bus && (
             <View style={s.heroBusDatos}>
