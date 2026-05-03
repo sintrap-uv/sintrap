@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { existeConfiguracionBuses } from "../../services/empresaServices";
+import { existeConfiguracionBuses } from "../../services/salidaBuses";
 import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { StyleSheet } from "react-native";
 import theme from "../../constants/theme";
