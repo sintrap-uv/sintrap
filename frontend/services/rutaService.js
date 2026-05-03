@@ -205,7 +205,6 @@ export async function getParadasByRuta(rutaId) {
  */
 export async function getAsignacionesRuta(rutaId) {
   try {
-    // Obtener horarios sin relaciones anidadas
     const { data: horarios, error: errorHorarios } = await supabase
       .from('ruta_horarios')
       .select('*')
@@ -213,7 +212,6 @@ export async function getAsignacionesRuta(rutaId) {
     
     if (errorHorarios) throw errorHorarios;
     
-    // Obtener usuarios asignados sin relaciones anidadas
     const { data: usuarios, error: errorUsuarios } = await supabase
       .from('usuario_ruta')
       .select('*')
@@ -221,18 +219,16 @@ export async function getAsignacionesRuta(rutaId) {
     
     if (errorUsuarios) throw errorUsuarios;
     
-    // Obtener turnos por separado
-    const turnosIds = [...new Set(horarios.map(h => h.turno_id).filter(Boolean))];
+    const turnosIds = [...new Set(horarios.map(h => h.tipo_turno_id).filter(Boolean))];
     let turnosMap = new Map();
     if (turnosIds.length > 0) {
       const { data: turnos } = await supabase
-        .from('turnos')
+        .from('tipos_turno')
         .select('*')
         .in('id', turnosIds);
       turnosMap = new Map((turnos || []).map(t => [t.id, t]));
     }
     
-    // Obtener vehículos por separado
     const vehiculosIds = [...new Set(horarios.map(h => h.vehiculo_id).filter(Boolean))];
     let vehiculosMap = new Map();
     if (vehiculosIds.length > 0) {
@@ -243,7 +239,6 @@ export async function getAsignacionesRuta(rutaId) {
       vehiculosMap = new Map((vehiculos || []).map(v => [v.id, v]));
     }
     
-    // Obtener perfiles de usuarios por separado
     const usuariosIds = [...new Set(usuarios.map(u => u.usuario_id).filter(Boolean))];
     let perfilesMap = new Map();
     if (usuariosIds.length > 0) {
@@ -254,10 +249,9 @@ export async function getAsignacionesRuta(rutaId) {
       perfilesMap = new Map((perfiles || []).map(p => [p.id, p]));
     }
     
-    // Combinar los datos
     const horariosConDatos = (horarios || []).map(h => ({
       ...h,
-      turno: turnosMap.get(h.turno_id) || null,
+      turno: turnosMap.get(h.tipo_turno_id) || null,
       vehiculo: vehiculosMap.get(h.vehiculo_id) || null
     }));
     
@@ -284,7 +278,6 @@ export async function getAsignacionesRuta(rutaId) {
  */
 export async function guardarAsignaciones(rutaId, asignaciones) {
   try {
-    // Eliminar asignaciones existentes
     const { error: errorHorarios } = await supabase
       .from('ruta_horarios')
       .delete()
@@ -299,31 +292,66 @@ export async function guardarAsignaciones(rutaId, asignaciones) {
     
     if (errorUsuarios) throw errorUsuarios;
     
-    // Insertar nuevos horarios
     if (asignaciones.vehiculosPorTurno && asignaciones.vehiculosPorTurno.length > 0) {
+      const turnosIds = [...new Set(asignaciones.vehiculosPorTurno.map(item => parseInt(item.turnoId)))];
+      const { data: turnosData } = await supabase
+        .from('tipos_turno')
+        .select('id, hora_inicio, hora_fin')
+        .in('id', turnosIds);
+      
+      const turnosMap = new Map();
+      if (turnosData) {
+        turnosData.forEach(t => {
+          turnosMap.set(t.id, {
+            hora_inicio: t.hora_inicio,
+            hora_fin: t.hora_fin
+          });
+        });
+      }
+      
+      const getEnumValue = (turnoId) => {
+        switch(parseInt(turnoId)) {
+          case 1: return 'manana';
+          case 2: return 'tarde';
+          case 3: return 'noche';
+          default: return '';
+        }
+      };
+      
+      const datosHorarios = asignaciones.vehiculosPorTurno.map(item => {
+        const turnoId = parseInt(item.turnoId);
+        const turnoInfo = turnosMap.get(turnoId);
+        
+        return {
+          ruta_id: rutaId,
+          tipo_turno_id: turnoId,
+          vehiculo_id: item.vehiculoId,
+          fecha: item.fecha,
+          nombre_turno: getEnumValue(item.turnoId),
+          hora_inicio: turnoInfo?.hora_inicio || '00:00:00',
+          hora_fin: turnoInfo?.hora_fin || '00:00:00'
+        };
+      });
+      
       const { error: errorInsertHorarios } = await supabase
         .from('ruta_horarios')
-        .insert(asignaciones.vehiculosPorTurno.map(item => ({
-          ruta_id: rutaId,
-          tipo_turno_id: item.turnoId,
-          vehiculo_id: item.vehiculoId,
-          fecha: item.fecha
-        })));
+        .insert(datosHorarios);
       
       if (errorInsertHorarios) throw errorInsertHorarios;
     }
     
-    // Insertar nuevos usuarios
     if (asignaciones.usuarios && asignaciones.usuarios.length > 0) {
+      const datosUsuarios = asignaciones.usuarios.map(item => ({
+        usuario_id: item.usuarioId,
+        ruta_id: rutaId,
+        parada_origen_id: parseInt(item.paradaOrigenId),
+        parada_destino_id: parseInt(item.paradaDestinoId),
+        estado: 'asignado'
+      }));
+      
       const { error: errorInsertUsuarios } = await supabase
         .from('usuario_ruta')
-        .insert(asignaciones.usuarios.map(item => ({
-          usuario_id: item.usuarioId,
-          ruta_id: rutaId,
-          parada_origen_id: item.paradaOrigenId,
-          parada_destino_id: item.paradaDestinoId,
-          estado: 'asignado'
-        })));
+        .insert(datosUsuarios);
       
       if (errorInsertUsuarios) throw errorInsertUsuarios;
     }

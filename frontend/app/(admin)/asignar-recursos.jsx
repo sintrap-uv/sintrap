@@ -9,7 +9,8 @@ import {
   Alert,
   Modal,
   TextInput,
-  FlatList
+  FlatList,
+  LogBox
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -27,6 +28,7 @@ import {
 } from '../../services/rutaService';
 import theme from '../../constants/theme';
 
+LogBox.ignoreLogs(['Each child in a list should have a unique "key" prop']);
 
 const T = theme.lightMode;
 
@@ -63,6 +65,15 @@ export default function AsignarRecursosScreen() {
     }
   }, [rutaId]);
 
+  useEffect(() => {
+    // Limpiar nulls de turnosSeleccionados cada vez que cambie
+    if (turnosSeleccionados.has(null)) {
+      const nuevosTurnos = new Set(turnosSeleccionados);
+      nuevosTurnos.delete(null);
+      setTurnosSeleccionados(nuevosTurnos);
+    }
+  }, [turnosSeleccionados]);
+
   const cargarDatosIniciales = async () => {
     try {
       setLoading(true);
@@ -76,7 +87,9 @@ export default function AsignarRecursosScreen() {
       ]);
       
       if (rutaRes.success) setRuta(rutaRes.data);
-      if (turnosRes.success) setTurnos(turnosRes.data);
+      if (turnosRes.success) {
+        setTurnos(turnosRes.data);
+      }
       if (usuariosRes.success) setUsuariosDisponibles(usuariosRes.data);
       if (paradasRes.success) setParadas(paradasRes.data);
       
@@ -86,8 +99,9 @@ export default function AsignarRecursosScreen() {
         const vehiculosMap = {};
         const turnosSet = new Set();
         horarios.forEach(h => {
-          vehiculosMap[h.turno_id] = h.vehiculo;
-          turnosSet.add(h.turno_id);
+          const turnoId = h.tipo_turno_id || h.turno_id;
+          vehiculosMap[turnoId] = h.vehiculo;
+          turnosSet.add(turnoId);
           if (h.vehiculo?.capacidad) {
             setCapacidadVehiculo(h.vehiculo.capacidad);
           }
@@ -95,14 +109,16 @@ export default function AsignarRecursosScreen() {
         setVehiculosPorTurno(vehiculosMap);
         setTurnosSeleccionados(turnosSet);
         
-        const usuariosMap = usuarios.map(u => ({
-            id: u.usuario_id || u.id,  // Asegura que no sea undefined
+        const usuariosMap = usuarios
+          .map(u => ({
+            id: u.usuario_id || u.id,
             nombre: u.usuario?.nombre || 'Sin nombre',
             cedula: u.usuario?.cedula || 'N/A',
             parada_origen_id: u.parada_origen_id,
             parada_destino_id: u.parada_destino_id
-        }))
-        .filter(u => u.id != null);
+          }))
+          .filter(u => u.id != null);
+        
         setUsuariosAsignados(usuariosMap);
       }
     } catch (error) {
@@ -113,7 +129,12 @@ export default function AsignarRecursosScreen() {
   };
 
   const handleSeleccionarTurno = async (turnoId) => {
-    const nuevosTurnos = new Set(turnosSeleccionados);
+    // Limpiar nulls existentes
+    let nuevosTurnos = new Set(turnosSeleccionados);
+    if (nuevosTurnos.has(null)) {
+      nuevosTurnos.delete(null);
+    }
+    
     if (nuevosTurnos.has(turnoId)) {
       nuevosTurnos.delete(turnoId);
       const nuevosVehiculos = { ...vehiculosPorTurno };
@@ -122,13 +143,14 @@ export default function AsignarRecursosScreen() {
     } else {
       nuevosTurnos.add(turnoId);
     }
+    
     setTurnosSeleccionados(nuevosTurnos);
   };
 
   const handleAbrirModalVehiculos = async (turno) => {
     if (!turno || !turno.id) {
-    Alert.alert('Error', 'Turno no válido');
-    return;
+      Alert.alert('Error', 'Turno no válido');
+      return;
     }
     setTurnoSeleccionado(turno);
     const res = await getVehiculosDisponibles(fechaOperacion, turno.id, rutaId);
@@ -157,32 +179,28 @@ export default function AsignarRecursosScreen() {
     }
     
     const estado = verificarEstadoVehiculo(vehiculo);
+    
+    const asignarVehiculo = () => {
+      const turnoId = turnoSeleccionado.id;
+      setVehiculosPorTurno(prev => ({
+        ...prev,
+        [turnoId]: vehiculo
+      }));
+      setCapacidadVehiculo(vehiculo.capacidad);
+      setModalVehiculosVisible(false);
+    };
+    
     if (!estado.valido) {
       Alert.alert(
         'Advertencia',
         `El vehículo tiene problemas:\n${estado.advertencias.join('\n')}\n¿Deseas asignarlo de todos modos?`,
         [
           { text: 'Cancelar', style: 'cancel' },
-          { 
-            text: 'Asignar', 
-            onPress: () => {
-              setVehiculosPorTurno({
-                ...vehiculosPorTurno,
-                [turnoSeleccionado.id]: vehiculo
-              });
-              setCapacidadVehiculo(vehiculo.capacidad);
-              setModalVehiculosVisible(false);
-            }
-          }
+          { text: 'Asignar', onPress: asignarVehiculo }
         ]
       );
     } else {
-      setVehiculosPorTurno({
-        ...vehiculosPorTurno,
-        [turnoSeleccionado.id]: vehiculo
-      });
-      setCapacidadVehiculo(vehiculo.capacidad);
-      setModalVehiculosVisible(false);
+      asignarVehiculo();
     }
   };
 
@@ -220,37 +238,52 @@ export default function AsignarRecursosScreen() {
   };
 
   const handleEliminarUsuario = (index) => {
-  if (index >= 0 && usuariosAsignados[index]) {
     const nuevos = [...usuariosAsignados];
     nuevos.splice(index, 1);
     setUsuariosAsignados(nuevos);
-  }
-};
+  };
 
   const handleGuardar = async () => {
-    if (Object.keys(vehiculosPorTurno).length === 0) {
-      Alert.alert('Error', 'Debe asignar al menos un vehículo a un turno');
+    // Filtrar valores null de turnosSeleccionados
+    const turnosValidos = Array.from(turnosSeleccionados).filter(id => id !== null);
+    
+    if (turnosValidos.length === 0) {
+      Alert.alert('Error', 'Debe seleccionar al menos un horario');
       return;
     }
     
-    if (turnosSeleccionados.size === 0) {
-      Alert.alert('Error', 'Debe seleccionar al menos un horario');
+    // Verificar que cada turno válido tenga vehículo
+    const turnosSinVehiculo = turnosValidos.filter(turnoId => {
+      return !vehiculosPorTurno[turnoId];
+    });
+    
+    if (turnosSinVehiculo.length > 0) {
+      const nombresTurnos = turnosSinVehiculo.map(id => {
+        const turno = turnos.find(t => t.id === id);
+        return turno?.nombre || `Turno ${id}`;
+      });
+      Alert.alert('Error', `Los siguientes turnos no tienen vehículo asignado:\n${nombresTurnos.join('\n')}\n\nVe a la pestaña "Vehículos" y asígnalos.`);
       return;
     }
     
     setSaving(true);
     
-    const vehiculosAsignacion = Object.entries(vehiculosPorTurno).map(([turnoId, vehiculo]) => ({
-      turnoId,
-      vehiculoId: vehiculo.id,
-      fecha: fechaOperacion
-    }));
+    // Filtrar también nulls en vehiculosPorTurno
+    const vehiculosAsignacion = Object.entries(vehiculosPorTurno)
+      .filter(([turnoId]) => turnoId !== 'null' && turnoId !== null)
+      .map(([turnoId, vehiculo]) => ({
+        turnoId: parseInt(turnoId),
+        vehiculoId: vehiculo.id,
+        fecha: fechaOperacion
+      }));
     
-    const usuariosAsignacion = usuariosAsignados.map(u => ({
-      usuarioId: u.id,
-      paradaOrigenId: u.parada_origen_id,
-      paradaDestinoId: u.parada_destino_id
-    }));
+    const usuariosAsignacion = usuariosAsignados
+      .filter(u => u && u.id)
+      .map(u => ({
+        usuarioId: u.id,
+        paradaOrigenId: u.parada_origen_id,
+        paradaDestinoId: u.parada_destino_id
+      }));
     
     const result = await guardarAsignaciones(rutaId, {
       vehiculosPorTurno: vehiculosAsignacion,
@@ -264,7 +297,7 @@ export default function AsignarRecursosScreen() {
         { text: 'OK', onPress: () => router.back() }
       ]);
     } else {
-      Alert.alert('Error', 'No se pudieron guardar las asignaciones');
+      Alert.alert('Error', 'No se pudieron guardar las asignaciones: ' + (result.error || 'Error desconocido'));
     }
   };
 
@@ -292,7 +325,7 @@ export default function AsignarRecursosScreen() {
         </View>
       </View>
       
-      <View style={styles.tabBar} removeClippedSubviews={false}>
+      <View style={styles.tabBar}>
         {['vehiculos', 'horarios', 'usuarios'].map((tab) => (
           <TouchableOpacity
             key={tab}
@@ -308,11 +341,7 @@ export default function AsignarRecursosScreen() {
         ))}
       </View>
       
-      <ScrollView 
-        style={styles.content} 
-        showsVerticalScrollIndicator={false}
-        removeClippedSubviews={false}
-        >
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {activeTab === 'vehiculos' && (
           <View>
             <View style={styles.datePickerRow}>
@@ -340,47 +369,49 @@ export default function AsignarRecursosScreen() {
             )}
             
             <Text style={styles.sectionTitle}>Turnos seleccionados</Text>
-            {Array.from(turnosSeleccionados).map(turnoId => {
-              const turno = turnos.find(t => String(t.id) === String(turnoId));
-              const vehiculo = vehiculosPorTurno[turnoId];
-              if (!turno) {
-                return null;
-            }
-              return (
-                <View key={turnoId} style={styles.vehiculoCard}>
-                  <View style={styles.vehiculoHeader}>
-                    <Text style={styles.turnoNombre}>Turno {turno.nombre}</Text>
-                    <Text style={styles.turnoHorario}>
-                      {turno?.hora_inicio} - {turno?.hora_fin}
-                    </Text>
-                  </View>
-                  
-                  {vehiculo ? (
-                    <View style={styles.vehiculoInfo}>
-                      <View>
-                        <Text style={styles.vehiculoPlaca}>{vehiculo.placa}</Text>
-                        <Text style={styles.vehiculoDetalle}>
-                          Tipo: {vehiculo.tipo_vehiculo?.nombre || 'N/A'} | Capacidad: {vehiculo.capacidad}
-                        </Text>
+            {Array.from(turnosSeleccionados)
+              .filter(turnoId => turnoId !== null)
+              .map(turnoId => {
+                const turno = turnos.find(t => t.id === turnoId);
+                const vehiculo = vehiculosPorTurno[turnoId];
+                
+                if (!turno) return null;
+                
+                return (
+                  <View key={turnoId} style={styles.vehiculoCard}>
+                    <View style={styles.vehiculoHeader}>
+                      <Text style={styles.turnoNombre}>Turno {turno.nombre}</Text>
+                      <Text style={styles.turnoHorario}>
+                        {turno.hora_inicio} - {turno.hora_fin}
+                      </Text>
+                    </View>
+                    
+                    {vehiculo ? (
+                      <View style={styles.vehiculoInfo}>
+                        <View>
+                          <Text style={styles.vehiculoPlaca}>{vehiculo.placa}</Text>
+                          <Text style={styles.vehiculoDetalle}>
+                            Tipo: {vehiculo.tipo_vehiculo?.nombre || 'N/A'} | Capacidad: {vehiculo.capacidad}
+                          </Text>
+                        </View>
+                        <TouchableOpacity 
+                          style={styles.cambiarBtn}
+                          onPress={() => handleAbrirModalVehiculos(turno)}
+                        >
+                          <Text style={styles.cambiarBtnText}>Cambiar</Text>
+                        </TouchableOpacity>
                       </View>
+                    ) : (
                       <TouchableOpacity 
-                        style={styles.cambiarBtn}
+                        style={styles.asignarBtn}
                         onPress={() => handleAbrirModalVehiculos(turno)}
                       >
-                        <Text style={styles.cambiarBtnText}>Cambiar</Text>
+                        <Text style={styles.asignarBtnText}>+ Asignar vehículo</Text>
                       </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity 
-                      style={styles.asignarBtn}
-                      onPress={() => handleAbrirModalVehiculos(turno)}
-                    >
-                      <Text style={styles.asignarBtnText}>+ Asignar vehículo</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              );
-            })}
+                    )}
+                  </View>
+                );
+              })}
             
             {turnosSeleccionados.size === 0 && (
               <View style={styles.emptyState}>
@@ -446,30 +477,27 @@ export default function AsignarRecursosScreen() {
             <Text style={styles.sectionTitle}>Usuarios asignados ({usuariosAsignados.length})</Text>
             
             {usuariosAsignados.filter(Boolean).map((usuario, index) => (
-                <View key={usuario?.id || index} style={styles.usuarioCard}>
-                    <View style={styles.usuarioInfo}>
-                        <View style={styles.usuarioAvatar}>
-                            <Text style={styles.usuarioAvatarText}>
-                                {usuario.nombre?.charAt(0) || '?'}
-                            </Text>
-                        </View>
-      
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.usuarioNombre}>
-                                {usuario.nombre || 'Usuario'}
-                            </Text>
-                            <Text style={styles.usuarioCedula}>
-                                Cédula: {usuario.cedula || 'N/A'}
-                            </Text>
-                        </View>
-      
-                        <TouchableOpacity onPress={() => handleEliminarUsuario(index)}>
-                            <Ionicons name="trash-outline" size={22} color="#EF4444" />
-                        </TouchableOpacity>
-                    </View>
+              <View key={usuario?.id || index} style={styles.usuarioCard}>
+                <View style={styles.usuarioInfo}>
+                  <View style={styles.usuarioAvatar}>
+                    <Text style={styles.usuarioAvatarText}>
+                      {usuario.nombre?.charAt(0) || '?'}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.usuarioNombre}>
+                      {usuario.nombre || 'Usuario'}
+                    </Text>
+                    <Text style={styles.usuarioCedula}>
+                      Cédula: {usuario.cedula || 'N/A'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => handleEliminarUsuario(index)}>
+                    <Ionicons name="trash-outline" size={22} color="#EF4444" />
+                  </TouchableOpacity>
                 </View>
-                ))}
-
+              </View>
+            ))}
             
             {usuariosAsignados.length === 0 && (
               <View style={styles.emptyState}>

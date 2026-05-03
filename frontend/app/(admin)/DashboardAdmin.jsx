@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { getProfile } from "../../services/profileService";
 import ProfileCard from "../../components/ProfileCard";
 import theme from "../../constants/theme";
@@ -221,6 +221,13 @@ export default function DashboardAdmin() {
   useEffect(() => {
     cargarDatos();
   }, [cargarDatos]);
+
+  //Recarga datos cuando vuelve de asignar-recursos
+  useFocusEffect(
+    useCallback(() => {
+      cargarDatos(true); // true para mostrar refrescando
+  }, [])
+);
 
   // Si el admin abrió su perfil, renderiza ProfileCard en lugar del dashboard
   if (mostrarPerfil) {
