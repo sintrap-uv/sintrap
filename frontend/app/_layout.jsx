@@ -42,43 +42,13 @@ function AppConToast() {
   );
 }
 
-import { useEffect, useState, useRef } from "react";
-import { View, ActivityIndicator } from "react-native";
-import { Slot, useRouter } from "expo-router";
-import { supabase } from "../services/supabase";
-import { getProfile } from "../services/profileService";
-
-import NotificacionToast from "../components/ToastNotificacion";
-import { ToastProvider } from "../context/ToastContext";
-import { useToast } from "../context/ToastContext";
-
-import { getStoredSession } from "../services/authStorageService";
-import theme from "../constants/theme";
-
-const T = theme.lightMode;
-
-function AppConToast() {
-  const { toast, hideToast } = useToast();
-  
-  return (
-    <>
-      <Slot />
-      <NotificacionToast 
-        visible={toast.visible}
-        mensaje={toast.message}
-        tipo={toast.type}
-        alOcultar={hideToast}
-      />
-    </>
-  );
-}
-
 export default function RootLayout() {
   const router = useRouter();
   const [verificando, setVerificando] = useState(true);
   const ejecutado = useRef(false);
 
   useEffect(() => {
+
     // Solo ejecutar una vez
     if (ejecutado.current) return;
     ejecutado.current = true;
@@ -113,6 +83,7 @@ export default function RootLayout() {
       } catch (error) {
         console.error("Error:", error);
         setVerificando(false);
+
         router.replace("/login");
       }
     };
@@ -120,27 +91,6 @@ export default function RootLayout() {
     iniciar();
   }, []);
 
-  if (verificando) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: T.background,
-        }}
-      >
-        <ActivityIndicator size="large" color={T.icon.active} />
-      </View>
-    );
-  }
-
-  return (
-    <ToastProvider>
-      <AppConToast />
-    </ToastProvider>
-  );
-}
 
   if (verificando) {
     return (
