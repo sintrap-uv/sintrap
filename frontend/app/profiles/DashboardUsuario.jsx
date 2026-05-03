@@ -345,7 +345,7 @@ export default function DashboardUsuario() {
             </View>
           ) : (
             <View style={s.heroETA}>
-              <MaterialCommunityIcons name="bus-off" size={32} color="#9CA3AF" />
+              <MaterialCommunityIcons name="bus-alert" size={32} color="#9CA3AF" />
               <View>
                 <Text style={[s.heroETANumero, { color: "#9CA3AF" }]}>Sin servicio</Text>
                 <Text style={s.heroETASub}>No hay bus activo en esta ruta</Text>
