@@ -57,10 +57,19 @@ export const useMapaColaboradores = () => {
     };
 
     const eliminarPunto = (id) => {
-        console.log('ELIMINANDO ID:', typeof id, id); // ← agrega esto
-        const nuevosPuntos = puntosRuta.filter(p => p.id !== id);
+        // CORREGIDO: comparar siempre como string en ambos lados
+        const idStr = String(id);
+        const nuevosPuntos = puntosRuta.filter(p => String(p.id) !== idStr);
         setPuntosRuta(nuevosPuntos);
-        enviarAlMapa({ tipo: 'eliminarPunto', id: id });
+
+        // CORREGIDO: además de eliminarPunto, enviar actualizarLinea con puntos restantes
+        // para que la polyline se redibuje correctamente sin puntos fantasma
+        enviarAlMapa({ tipo: 'eliminarPunto', id: idStr });
+        enviarAlMapa({
+            tipo: 'actualizarLinea',
+            puntos: nuevosPuntos.map(p => ({ lat: p.lat, lon: p.lon, id: String(p.id) }))
+        });
+
         showInfo('Punto eliminado');
     };
     const limpiarPuntos = () => {
