@@ -2,7 +2,7 @@ import { useState } from "react"
 import theme from "../../constants/theme";
 import { useToast } from "../../context/ToastContext";
 import MapaSimple from "../../components/Mapa";
-import { ubicacionBuses } from "../../services/empresaServices";
+import { ubicacionBuses } from "../../services/salidaBuses";
 import { obtenerCordenadas } from "../../services/geocalizacion";
 import { ActivityIndicator, TextInput, TouchableOpacity, View, Text } from "react-native";
 import * as Location from 'expo-location';
