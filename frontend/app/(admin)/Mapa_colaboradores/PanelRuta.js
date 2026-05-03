@@ -1,6 +1,6 @@
-// PanelRuta.jsx
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Picker } from "@react-native-picker/picker";
 import theme from "../../../constants/theme";
 import { styles } from "./MapaColaboradores.styles";
 
@@ -12,6 +12,11 @@ const PanelRuta = ({
     puntosRuta, eliminarPunto,
     limpiarPuntos, guardarRuta,
     setPanelVisible, setModoEdicion,
+    conductores, vehiculos,
+    conductorId, setConductorId,
+    vehiculoId, setVehiculoId,
+    horaInicio, setHoraInicio,
+    horaFin, setHoraFin,
 }) => (
     <View style={[styles.panelCrearRuta, { backgroundColor: T.cards.background, borderTopColor: T.cards.border }]}>
         <View style={styles.panelHeader}>
@@ -26,28 +31,72 @@ const PanelRuta = ({
             </View>
         </View>
 
-        <View style={styles.inputContainer}>
-            <TextInput
-                style={[styles.input, { backgroundColor: T.input.background, borderColor: T.input.border, color: T.input.text }]}
-                value={nombreRuta}
-                onChangeText={setNombreRuta}
-                placeholder="Nombre de la ruta"
-                placeholderTextColor={T.input.placeholder}
-            />
-            <TextInput
-                style={[styles.input, { backgroundColor: T.input.background, borderColor: T.input.border, color: T.input.text }]}
-                value={numeroRuta}
-                onChangeText={setNumeroRuta}
-                placeholder="Número de ruta"
-                placeholderTextColor={T.input.placeholder}
-                keyboardType="numeric"
-            />
-        </View>
+        <ScrollView style={{ maxHeight: 420 }}>
+            {/* Nombre y número */}
+            <View style={styles.inputContainer}>
+                <TextInput
+                    style={[styles.input, { backgroundColor: T.input.background, borderColor: T.input.border, color: T.input.text }]}
+                    value={nombreRuta}
+                    onChangeText={setNombreRuta}
+                    placeholder="Nombre de la ruta"
+                    placeholderTextColor={T.input.placeholder}
+                />
+                <TextInput
+                    style={[styles.input, { backgroundColor: T.input.background, borderColor: T.input.border, color: T.input.text }]}
+                    value={numeroRuta}
+                    onChangeText={setNumeroRuta}
+                    placeholder="Número de ruta"
+                    placeholderTextColor={T.input.placeholder}
+                    keyboardType="numeric"
+                />
+            </View>
 
-        <Text style={{ color: T.text.primary, marginBottom: 8, fontWeight: 'bold' }}>
-            Puntos seleccionados: {puntosRuta.length}
-        </Text>
-        <ScrollView style={{ maxHeight: 140 }}>
+            {/* Conductor */}
+            <Text style={[styles.seccionTitulo, { color: T.text.primary }]}>Conductor</Text>
+            <View style={[styles.selectorContenedor, { borderColor: T.input.border, backgroundColor: T.input.background }]}>
+                <Picker selectedValue={conductorId} onValueChange={setConductorId} style={[styles.selector, { color: T.input.text }]}>
+                    <Picker.Item label="Selecciona un conductor..." value={null} />
+                    {conductores.map(c => (
+                        <Picker.Item key={c.id} label={c.nombre} value={c.id} />
+                    ))}
+                </Picker>
+            </View>
+
+            {/* Vehículo */}
+            <Text style={[styles.seccionTitulo, { color: T.text.primary }]}>Vehículo</Text>
+            <View style={[styles.selectorContenedor, { borderColor: T.input.border, backgroundColor: T.input.background }]}>
+                <Picker selectedValue={vehiculoId} onValueChange={setVehiculoId} style={[styles.selector, { color: T.input.text }]}>
+                    <Picker.Item label="Selecciona un vehículo..." value={null} />
+                    {vehiculos.map(v => (
+                        <Picker.Item key={v.id} label={v.placa} value={v.id} />
+                    ))}
+                </Picker>
+            </View>
+            
+
+            {/* Horario */}
+            <Text style={{ color: T.text.primary, fontWeight: 'bold', marginBottom: 4 }}>Horario</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+                <TextInput
+                    style={[styles.input, { flex: 1, backgroundColor: T.input.background, borderColor: T.input.border, color: T.input.text }]}
+                    value={horaInicio}
+                    onChangeText={setHoraInicio}
+                    placeholder="Inicio (06:00)"
+                    placeholderTextColor={T.input.placeholder}
+                />
+                <TextInput
+                    style={[styles.input, { flex: 1, backgroundColor: T.input.background, borderColor: T.input.border, color: T.input.text }]}
+                    value={horaFin}
+                    onChangeText={setHoraFin}
+                    placeholder="Fin (18:00)"
+                    placeholderTextColor={T.input.placeholder}
+                />
+            </View>
+
+            {/* Puntos */}
+            <Text style={{ color: T.text.primary, marginBottom: 8, fontWeight: 'bold' }}>
+                Puntos seleccionados: {puntosRuta.length}
+            </Text>
             {puntosRuta.map((punto, i) => (
                 <View key={punto.id} style={styles.puntoItem}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
