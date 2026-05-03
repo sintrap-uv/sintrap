@@ -23,7 +23,8 @@ import {
   getAsignacionesRuta, 
   guardarAsignaciones, 
   verificarEstadoVehiculo,
-  verificarConflictoHorario 
+  verificarConflictoHorario,
+  eliminarAsignacionTurno
 } from '../../services/rutaServices';
 import theme from '../../constants/theme';
 import { asignarRecursosStyles as styles } from '../../components/AsignarRecursosStyles';
@@ -201,15 +202,18 @@ export default function AsignarRecursosScreen() {
   };
 
   const handleEliminarAsignacion = (turnoId) => {
-    Alert.alert(
-      'Eliminar asignación',
-      '¿Estás seguro de que deseas eliminar el vehículo asignado a este turno?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Eliminar', 
-          style: 'destructive',
-          onPress: () => {
+  Alert.alert(
+    'Eliminar asignación',
+    '¿Estás seguro de que deseas eliminar el vehículo asignado a este turno?',
+    [
+      { text: 'Cancelar', style: 'cancel' },
+      { 
+        text: 'Eliminar', 
+        style: 'destructive',
+        onPress: async () => {
+          const result = await eliminarAsignacionTurno(rutaId, turnoId, fechaOperacion);
+          
+          if (result.success) {
             const nuevosVehiculos = { ...vehiculosPorTurno };
             delete nuevosVehiculos[turnoId];
             setVehiculosPorTurno(nuevosVehiculos);
@@ -217,11 +221,16 @@ export default function AsignarRecursosScreen() {
             if (Object.keys(nuevosVehiculos).length === 0) {
               setCapacidadVehiculo(0);
             }
+            
+            Alert.alert('Éxito', 'Asignación eliminada correctamente');
+          } else {
+            Alert.alert('Error', 'No se pudo eliminar la asignación');
           }
         }
-      ]
-    );
-  };
+      }
+    ]
+  );
+};
 
 
 

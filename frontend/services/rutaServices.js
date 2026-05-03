@@ -170,6 +170,26 @@ export async function getRutaById(id) {
 }
 
 /**
+ * Eliminar asignación de un turno específico
+ */
+export async function eliminarAsignacionTurno(rutaId, turnoId, fecha) {
+  try {
+    const { error } = await supabase
+      .from('ruta_horarios')
+      .delete()
+      .eq('ruta_id', rutaId)
+      .eq('tipo_turno_id', turnoId)
+      .eq('fecha', fecha);
+    
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    console.error('Error en eliminarAsignacionTurno:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Obtener vehículos disponibles para una fecha y turno específico
  */
 export async function getVehiculosDisponibles(fecha, turnoId, rutaIdExcluir = null) {
