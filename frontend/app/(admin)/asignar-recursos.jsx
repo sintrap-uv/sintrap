@@ -334,9 +334,10 @@ export default function AsignarRecursosScreen() {
   setModalUsuariosVisible(false);
 };
 
-  const handleEliminarUsuario = (index) => {
-    const nuevos = [...usuariosAsignados];
-    nuevos.splice(index, 1);
+  const handleEliminarUsuario = (usuarioAEliminar) => {
+    const nuevos = usuariosAsignados.filter(u => 
+      !(u.id === usuarioAEliminar.id && u.turno_id === usuarioAEliminar.turno_id)
+    );
     setUsuariosAsignados(nuevos);
   };
 
@@ -652,7 +653,7 @@ export default function AsignarRecursosScreen() {
                             </TouchableOpacity>
                             <TouchableOpacity 
                               style={styles.usuarioEliminarBtn} 
-                              onPress={() => handleEliminarUsuario(usuariosAsignados.findIndex(u => u.id === usuario.id))}
+                              onPress={() => handleEliminarUsuario(usuario)}
                             >
                               <Ionicons name="trash-outline" size={20} color="#EF4444" />
                             </TouchableOpacity>
