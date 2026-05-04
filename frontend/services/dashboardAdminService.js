@@ -103,7 +103,7 @@ export async function getOcupacionRutas() {
           .select("*", { count: "exact", head: true })
           .eq("ruta_id", ruta.id);
 
-        // 2. Obtener el vehículo asignado
+        // 2. Obtener vehículo asignado desde ruta_horarios
         const { data: horarioActivo } = await supabase
           .from("ruta_horarios")
           .select("vehiculo_id")
@@ -112,9 +112,10 @@ export async function getOcupacionRutas() {
           .maybeSingle();
 
         let capacidad = 0;
+        let tieneVehiculo = false;
 
-        // 3. Si hay vehículo, obtener su tipo y capacidad_max
         if (horarioActivo && horarioActivo.vehiculo_id) {
+          // 3. Obtener tipo_vehiculo_id desde vehiculos
           const { data: vehiculo } = await supabase
             .from("vehiculos")
             .select("tipo_vehiculo_id")
@@ -122,14 +123,16 @@ export async function getOcupacionRutas() {
             .single();
 
           if (vehiculo && vehiculo.tipo_vehiculo_id) {
+            // 4. Obtener capacidad_max desde tipo_vehiculo
             const { data: tipoVehiculo } = await supabase
               .from("tipo_vehiculo")
-              .select("capacidad_max")  // ← Usar capacidad_max
+              .select("capacidad_max")
               .eq("id", vehiculo.tipo_vehiculo_id)
               .single();
 
             if (tipoVehiculo) {
               capacidad = tipoVehiculo.capacidad_max || 0;
+              tieneVehiculo = true;
             }
           }
         }
@@ -141,6 +144,7 @@ export async function getOcupacionRutas() {
           asignados: asignados ?? 0,
           capacidad,
           porcentaje,
+          tieneVehiculo,
         };
       })
     );

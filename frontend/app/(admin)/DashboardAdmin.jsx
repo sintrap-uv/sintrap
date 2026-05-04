@@ -17,11 +17,9 @@ import theme from "../../constants/theme";
 import Header from "../../components/Header";
 import {
   getMetricasAdmin,
-  getOcupacionRutas,
   getActividadReciente,
   tiempoRelativo,
 } from "../../services/dashboardAdminService";
-
 
 const T = theme.lightMode;
 
@@ -71,10 +69,9 @@ const ACTIVIDAD_ICONO = {
 };
 
 // ─── Componente: barra de progreso de ocupación
-function BarraOcupacion({ porcentaje, color }) {
+function BarraOcupacion({ porcentaje }) {
   const pct = Math.min(porcentaje ?? 0, 100);
-  const barColor =
-    pct >= 90 ? "#EF4444" : pct >= 70 ? "#F97316" : (color ?? "#22C55E");
+  const barColor = pct >= 90 ? "#EF4444" : pct >= 70 ? "#F97316" : "#22C55E";
 
   return (
     <View style={styles.barraFondo}>
@@ -157,21 +154,17 @@ function TarjetaMetrica({ config, valor, cargando }) {
 // ─── Dashboard principal
 export default function DashboardAdmin() {
   const router = useRouter();
-  // ── Estados del perfil (para ProfileCard)
   const [mostrarPerfil, setMostrarPerfil] = useState(false);
   const [perfil, setPerfil] = useState(null);
   const [userId, setUserId] = useState(null);
   const [userEmail, setUserEmail] = useState("");
-
-  // ── Estados del dashboard
   const [metricas, setMetricas] = useState(null);
   const [alertas, setAlertas] = useState(null);
-  const [ocupacion, setOcupacion] = useState([]);
+  const [rutasConTurnos, setRutasConTurnos] = useState([]);
   const [actividad, setActividad] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
 
-  // Carga el perfil del admin autenticado al montar
   useEffect(() => {
     const cargarPerfil = async () => {
       const { data: authData } = await supabase.auth.getUser();
@@ -198,9 +191,8 @@ export default function DashboardAdmin() {
     else setCargando(true);
 
     try {
-      const [resMetricas, resOcupacion, resActividad] = await Promise.all([
+      const [resMetricas, resActividad] = await Promise.all([
         getMetricasAdmin(),
-        getOcupacionRutas(),
         getActividadReciente(),
       ]);
 
@@ -208,8 +200,82 @@ export default function DashboardAdmin() {
         setMetricas(resMetricas.data.metricas);
         setAlertas(resMetricas.data.alertas);
       }
-      if (resOcupacion.success) setOcupacion(resOcupacion.data);
       if (resActividad.success) setActividad(resActividad.data);
+
+      // Obtener rutas activas
+      const { data: rutasData } = await supabase
+        .from("rutas")
+        .select("*")
+        .eq("activa", true)
+        .order("numero_ruta");
+
+      // Obtener asignaciones de vehículos por ruta y turno
+      const { data: asignaciones } = await supabase
+        .from("ruta_horarios")
+        .select(`
+          ruta_id,
+          tipo_turno_id,
+          vehiculos!vehiculo_id (
+            id,
+            placa,
+            tipo_vehiculo:tipo_vehiculo_id (
+              nombre,
+              capacidad_max
+            )
+          ),
+          tipos_turno:tipo_turno_id (
+            id,
+            nombre,
+            hora_inicio,
+            hora_fin
+          )
+        `);
+
+      // Obtener cantidad de usuarios por ruta
+      const { data: usuariosPorRuta } = await supabase
+        .from("usuario_ruta")
+        .select("*");
+
+        const conteoUsuarios = {};
+        usuariosPorRuta?.forEach(u => {
+      const key = `${u.ruta_id}_${u.turno_id}`;
+        conteoUsuarios[key] = (conteoUsuarios[key] || 0) + 1;
+      });
+
+      const conteoPorRuta = usuariosPorRuta?.reduce((acc, u) => {
+        acc[u.ruta_id] = (acc[u.ruta_id] || 0) + 1;
+        return acc;
+      }, {});
+
+      const rutasConDetalles = rutasData.map(ruta => {
+        const asignacionesRuta = asignaciones?.filter(a => a.ruta_id === ruta.id) || [];
+        const totalUsuarios = conteoPorRuta[ruta.id] || 0;
+        
+        const turnos = asignacionesRuta.map(asig => {
+          const capacidad = asig.vehiculos?.tipo_vehiculo?.capacidad_max || 0;
+          const usuariosEnTurno = conteoUsuarios[`${ruta.id}_${asig.tipo_turno_id}`] || 0;
+          const porcentaje = capacidad > 0 ? Math.round((usuariosEnTurno / capacidad) * 100) : 0;
+          
+          return {
+            id: asig.tipo_turno_id,
+            nombre: asig.tipos_turno?.nombre,
+            hora_inicio: asig.tipos_turno?.hora_inicio,
+            hora_fin: asig.tipos_turno?.hora_fin,
+            vehiculo: asig.vehiculos,
+            capacidad: capacidad,
+            usuariosAsignados: usuariosEnTurno,
+            porcentaje: porcentaje,
+          };
+        });
+
+        return {
+          ...ruta,
+          turnos,
+          totalUsuarios,
+        };
+      });
+
+      setRutasConTurnos(rutasConDetalles);
     } catch (e) {
       console.error("Error cargando dashboard admin:", e.message);
     } finally {
@@ -222,14 +288,12 @@ export default function DashboardAdmin() {
     cargarDatos();
   }, [cargarDatos]);
 
-  //Recarga datos cuando vuelve de asignar-recursos
   useFocusEffect(
     useCallback(() => {
-      cargarDatos(true); // true para mostrar refrescando
-  }, [])
-);
+      cargarDatos(true);
+    }, [])
+  );
 
-  // Si el admin abrió su perfil, renderiza ProfileCard en lugar del dashboard
   if (mostrarPerfil) {
     return (
       <ProfileCard
@@ -250,13 +314,11 @@ export default function DashboardAdmin() {
         onManageUsers={() => {}}
         onReports={() => {}}
         onManageRoutes={() => {}}
-        // Botón para volver al dashboard desde ProfileCard
         onBack={() => setMostrarPerfil(false)}
       />
     );
   }
 
-  // Calcula alertas activas para mostrar los banners
   const alertasActivas = alertas
     ? [
         alertas.segurosVencidos > 0 && {
@@ -306,7 +368,7 @@ export default function DashboardAdmin() {
           />
         }
       >
-        {/*  ALERTAS CRÍTICAS */}
+        {/* ALERTAS CRÍTICAS */}
         {alertasActivas.length > 0 && (
           <View style={styles.seccion}>
             {alertasActivas.map((alerta, i) => (
@@ -315,7 +377,6 @@ export default function DashboardAdmin() {
                 icono={alerta.icono}
                 mensaje={alerta.mensaje}
                 tipo={alerta.tipo}
-                // onPress={() => router.push(alerta.ruta)}
                 onPress={() => console.log("Aun no estan los screens")}
               />
             ))}
@@ -330,14 +391,8 @@ export default function DashboardAdmin() {
               onPress={() => router.push("/(admin)/EnviarAviso")}
               activeOpacity={0.8}
             >
-              <View
-                style={[styles.accionIcono, { backgroundColor: "#FEF3C7" }]}
-              >
-                <MaterialCommunityIcons
-                  name="bullhorn"
-                  size={26}
-                  color="#F59E0B"
-                />
+              <View style={[styles.accionIcono, { backgroundColor: "#FEF3C7" }]}>
+                <MaterialCommunityIcons name="bullhorn" size={26} color="#F59E0B" />
               </View>
               <Text style={styles.accionLabel}>Crear aviso</Text>
             </TouchableOpacity>
@@ -347,14 +402,8 @@ export default function DashboardAdmin() {
               onPress={() => router.push("/(admin)/EnviarAviso")}
               activeOpacity={0.8}
             >
-              <View
-                style={[styles.accionIcono, { backgroundColor: "#FEE2E2" }]}
-              >
-                <MaterialCommunityIcons
-                  name="map-marker-plus"
-                  size={26}
-                  color="#EF4444"
-                />
+              <View style={[styles.accionIcono, { backgroundColor: "#FEE2E2" }]}>
+                <MaterialCommunityIcons name="map-marker-plus" size={26} color="#EF4444" />
               </View>
               <Text style={styles.accionLabel}>Crear ruta</Text>
             </TouchableOpacity>
@@ -364,21 +413,15 @@ export default function DashboardAdmin() {
               onPress={() => router.push("/(admin)/registrar-vehiculo")}
               activeOpacity={0.8}
             >
-              <View
-                style={[styles.accionIcono, { backgroundColor: "#DCFCE7" }]}
-              >
-                <MaterialCommunityIcons
-                  name="bus-side"
-                  size={26}
-                  color="#22C55E"
-                />
+              <View style={[styles.accionIcono, { backgroundColor: "#DCFCE7" }]}>
+                <MaterialCommunityIcons name="bus-side" size={26} color="#22C55E" />
               </View>
               <Text style={styles.accionLabel}>Registrar bus</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* MÉTRICAS  */}
+        {/* MÉTRICAS */}
         <View style={styles.seccion}>
           <Text style={styles.tituloSeccion}>Estadísticas</Text>
           <View style={styles.metricasGrid}>
@@ -393,75 +436,90 @@ export default function DashboardAdmin() {
           </View>
         </View>
 
-        {/* OCUPACIÓN POR RUTA  */}
-<View style={styles.seccion}>
-  <View style={styles.tituloRow}>
-    <Text style={styles.tituloSeccion}>Ocupación por ruta</Text>
-    {ocupacion.length > 3 && (
-      <TouchableOpacity onPress={() => router.push("/(admin)/rutas")}>
-        <Text style={styles.verTodasBtn}>Ver todas ({ocupacion.length})</Text>
-      </TouchableOpacity>
-    )}
-  </View>
-
-  {cargando ? (
-    <ActivityIndicator
-      color={T.Button.primary.background}
-      style={{ marginTop: 12 }}
-    />
-  ) : ocupacion.length === 0 ? (
-    <View style={styles.vacio}>
-      <Text style={styles.vacioTexto}>Sin rutas activas</Text>
-    </View>
-  ) : (
-    ocupacion.slice(0, 3).map((ruta) => (  // ← Solo primeras 3
-      <View key={ruta.id} style={styles.rutaCard}>
-        <View style={styles.rutaHeader}>
-          <View style={styles.rutaInfo}>
-            <View
-              style={[styles.rutaDot, { backgroundColor: ruta.color }]}
-            />
-            <Text style={styles.rutaNombre} numberOfLines={1}>
-              Ruta {ruta.numero_ruta} ·{" "}
-              {ruta.nombre.split("—")[1]?.trim() ?? ruta.nombre}
-            </Text>
+        {/* OCUPACIÓN POR RUTA */}
+        <View style={styles.seccion}>
+          <View style={styles.tituloRow}>
+            <Text style={styles.tituloSeccion}>Ocupación por ruta</Text>
+            {rutasConTurnos.length > 3 && (
+              <TouchableOpacity onPress={() => router.push("/(admin)/rutas")}>
+                <Text style={styles.verTodasBtn}>Ver todas ({rutasConTurnos.length})</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          <Text style={styles.rutaContador}>
-            {ruta.asignados}/{ruta.capacidad > 0 ? ruta.capacidad : "–"}
-          </Text>
+
+          {cargando ? (
+            <ActivityIndicator color={T.Button.primary.background} style={{ marginTop: 12 }} />
+          ) : rutasConTurnos.length === 0 ? (
+            <View style={styles.vacio}>
+              <Text style={styles.vacioTexto}>Sin rutas activas</Text>
+            </View>
+          ) : (
+            rutasConTurnos.slice(0, 3).map((ruta) => (
+              <View key={ruta.id} style={styles.rutaCard}>
+                <View style={styles.rutaHeader}>
+                  <View style={styles.rutaInfo}>
+                    <View style={[styles.rutaDot, { backgroundColor: ruta.color || "#1B5E20" }]} />
+                    <Text style={styles.rutaNombre} numberOfLines={1}>
+                      Ruta {ruta.numero_ruta} · {ruta.nombre}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.turnosTitulo}>Turnos:</Text>
+
+                {ruta.turnos.length > 0 ? (
+                  ruta.turnos.map((turno, idx) => {
+                    const colorPorcentaje = turno.porcentaje >= 90 ? "#EF4444" : turno.porcentaje >= 70 ? "#F97316" : "#22C55E";
+                    
+                    return (
+                      <View key={idx} style={styles.turnoCard}>
+                        <View style={styles.turnoHeader}>
+                          <MaterialCommunityIcons name="clock-outline" size={14} color="#6B7280" />
+                          <Text style={styles.turnoNombre}>{turno.nombre}</Text>
+                          <Text style={styles.turnoHorario}>
+                            {turno.hora_inicio?.slice(0,5)} - {turno.hora_fin?.slice(0,5)}
+                          </Text>
+                        </View>
+                        
+                        {turno.vehiculo ? (
+                          <>
+                            <View style={styles.vehiculoInfo}>
+                              <MaterialCommunityIcons name="bus" size={14} color={T.Button.primary.background} />
+                              <Text style={styles.vehiculoPlaca}>{turno.vehiculo.placa}</Text>
+                              <Text style={styles.vehiculoCapacidad}>Cap: {turno.capacidad}</Text>
+                            </View>
+                            <View style={styles.ocupacionContainer}>
+                              <View style={styles.porcentajeRow}>
+                                <Text style={styles.porcentajeTexto}>Ocupación:</Text>
+                                <View style={styles.barraFondo}>
+                                  <View style={[styles.barraRelleno, { width: `${Math.min(turno.porcentaje, 100)}%`, backgroundColor: colorPorcentaje }]} />
+                                </View>
+                                <Text style={[styles.porcentajeValor, { color: colorPorcentaje }]}>
+                                  {turno.porcentaje}%
+                                </Text>
+                              </View>
+                            </View>
+                          </>
+                        ) : (
+                          <Text style={styles.sinVehiculo}>Sin vehículo asignado</Text>
+                        )}
+                      </View>
+                    );
+                  })
+                ) : (
+                  <Text style={styles.sinVehiculo}>No hay turnos configurados</Text>
+                )}
+
+              </View>
+            ))
+          )}
         </View>
-        <BarraOcupacion
-          porcentaje={ruta.porcentaje}
-          color={ruta.color}
-        />
-        <Text style={styles.rutaPorcentaje}>
-          {ruta.capacidad > 0
-            ? `${ruta.porcentaje}% ocupado · ${ruta.capacidad - ruta.asignados} cupos disponibles`
-            : "Sin vehículo asignado"}
-        </Text>
-        
-        {/* BOTÓN ASIGNAR RUTAS */}
-        <TouchableOpacity 
-          style={styles.asignarRecursosBtn}
-          onPress={() => router.push(`/(admin)/asignar-recursos?id=${ruta.id}`)}
-        >
-          <Ionicons name="bus-outline" size={16} color="#fff" />
-          <Text style={styles.asignarRecursosBtnText}>Asignar Rutas</Text>
-        </TouchableOpacity>
-      </View>
-    ))
-  )}
-</View>
-        
+
         {/* ACTIVIDAD RECIENTE */}
         <View style={styles.seccion}>
           <Text style={styles.tituloSeccion}>Actividad reciente</Text>
-
           {cargando ? (
-            <ActivityIndicator
-              color={T.Button.primary.background}
-              style={{ marginTop: 12 }}
-            />
+            <ActivityIndicator color={T.Button.primary.background} style={{ marginTop: 12 }} />
           ) : actividad.length === 0 ? (
             <View style={styles.vacio}>
               <Text style={styles.vacioTexto}>Sin actividad reciente</Text>
@@ -471,25 +529,12 @@ export default function DashboardAdmin() {
               const cfg = ACTIVIDAD_ICONO[item.tipo] ?? ACTIVIDAD_ICONO.usuario;
               return (
                 <View key={i} style={styles.actividadItem}>
-                  <View
-                    style={[
-                      styles.actividadIcono,
-                      { backgroundColor: cfg.color + "18" },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name={cfg.nombre}
-                      size={18}
-                      color={cfg.color}
-                    />
+                  <View style={[styles.actividadIcono, { backgroundColor: cfg.color + "18" }]}>
+                    <MaterialCommunityIcons name={cfg.nombre} size={18} color={cfg.color} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.actividadDesc} numberOfLines={1}>
-                      {item.descripcion}
-                    </Text>
-                    <Text style={styles.actividadTiempo}>
-                      {tiempoRelativo(item.fecha)}
-                    </Text>
+                    <Text style={styles.actividadDesc} numberOfLines={1}>{item.descripcion}</Text>
+                    <Text style={styles.actividadTiempo}>{tiempoRelativo(item.fecha)}</Text>
                   </View>
                 </View>
               );
@@ -506,25 +551,15 @@ export default function DashboardAdmin() {
                   <View style={styles.puntoVerde} />
                 </View>
                 <View>
-                  <Text style={styles.turnoActivoLabel}>
-                    Turno en curso hoy
-                  </Text>
+                  <Text style={styles.turnoActivoLabel}>Turno en curso hoy</Text>
                   <Text style={styles.turnoActivoSub}>
-                    {metricas.turnosEnCurso} conductor
-                    {metricas.turnosEnCurso > 1 ? "es" : ""} operando
+                    {metricas.turnosEnCurso} conductor{metricas.turnosEnCurso > 1 ? "es" : ""} operando
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity
-                onPress={() => router.push("/(admin)/turnos")}
-                style={styles.turnoActivoBtn}
-              >
+              <TouchableOpacity onPress={() => router.push("/(admin)/turnos")} style={styles.turnoActivoBtn}>
                 <Text style={styles.turnoActivoBtnTexto}>Ver</Text>
-                <Ionicons
-                  name="chevron-forward"
-                  size={14}
-                  color={T.Button.primary.background}
-                />
+                <Ionicons name="chevron-forward" size={14} color={T.Button.primary.background} />
               </TouchableOpacity>
             </View>
           </View>
@@ -534,13 +569,10 @@ export default function DashboardAdmin() {
   );
 }
 
-// Estilos
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.background },
   scroll: { flex: 1 },
   contenido: { padding: 16, paddingBottom: 32, gap: 8 },
-
-  // Secciones
   seccion: { marginBottom: 8 },
   tituloSeccion: {
     fontSize: 13,
@@ -550,8 +582,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: 12,
   },
-
-  // Alertas
+  tituloRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  verTodasBtn: {
+    color: T.Button.primary.background,
+    fontSize: 12,
+    fontWeight: "500",
+  },
   alertaBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -562,12 +603,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   alertaTexto: { flex: 1, fontSize: 13, fontWeight: "500" },
-
-  // Acciones rápidas
-  accionesGrid: {
-    flexDirection: "row",
-    gap: 10,
-  },
+  accionesGrid: { flexDirection: "row", gap: 10 },
   accionBtn: {
     flex: 1,
     alignItems: "center",
@@ -581,83 +617,69 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  accionIcono: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  accionLabel: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: T.text.primary,
-    textAlign: "center",
-  },
-
-  // Métricas
-  metricasGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  tarjetaMetrica: {
-    width: "47.5%",
-    borderRadius: 14,
-    padding: 16,
-    gap: 4,
-  },
-  tarjetaIconoWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-  },
+  accionIcono: { width: 52, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  accionLabel: { fontSize: 12, fontWeight: "500", color: T.text.primary, textAlign: "center" },
+  metricasGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  tarjetaMetrica: { width: "47.5%", borderRadius: 14, padding: 16, gap: 4 },
+  tarjetaIconoWrap: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: 6 },
   tarjetaNumero: { fontSize: 28, fontWeight: "700" },
   tarjetaLabel: { fontSize: 12, color: T.text.secondary, fontWeight: "500" },
-
+  
   // Ocupación
   rutaCard: {
     backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   rutaHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
   },
   rutaInfo: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
-  rutaDot: { width: 10, height: 10, borderRadius: 5 },
-  rutaNombre: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: T.text.primary,
-    flex: 1,
+  rutaDot: { width: 12, height: 12, borderRadius: 6 },
+  rutaNombre: { fontSize: 15, fontWeight: "600", color: T.text.primary, flex: 1 },
+  usuariosBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: T.Button.primary.background,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
   },
-  rutaContador: { fontSize: 13, fontWeight: "700", color: T.text.secondary },
-  barraFondo: {
-    height: 6,
-    backgroundColor: "#F1F5F9",
-    borderRadius: 3,
-    overflow: "hidden",
+  usuariosBadgeText: { color: "#fff", fontSize: 11, fontWeight: "600" },
+  turnosTitulo: { fontSize: 12, fontWeight: "600", color: T.text.secondary, marginBottom: 8 },
+  turnoCard: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 8,
   },
-  barraRelleno: { height: 6, borderRadius: 3 },
-  rutaPorcentaje: {
-    fontSize: 11,
-    color: T.text.secondary,
-    marginTop: 6,
-  },
-
+  turnoHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
+  turnoNombre: { fontSize: 13, fontWeight: "600", color: T.text.primary },
+  turnoHorario: { fontSize: 11, color: "#6B7280" },
+  vehiculoInfo: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
+  vehiculoPlaca: { fontSize: 13, fontWeight: "500", color: T.text.primary },
+  vehiculoCapacidad: { fontSize: 11, color: "#6B7280" },
+  ocupacionContainer: { marginBottom: 6 },
+  porcentajeRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  porcentajeTexto: { fontSize: 11, color: "#6B7280" },
+  barraFondoMini: { flex: 1, height: 4, backgroundColor: "#F1F5F9", borderRadius: 2, overflow: "hidden" },
+  barraRellenoMini: { height: 4, borderRadius: 2 },
+  porcentajeValor: { fontSize: 11, fontWeight: "600", minWidth: 35, textAlign: "right" },
+  sinVehiculo: { fontSize: 11, color: "#EF4444", fontStyle: "italic", marginBottom: 6 },
+  
   // Actividad
   actividadItem: {
     flexDirection: "row",
@@ -673,16 +695,10 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
   },
-  actividadIcono: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  actividadIcono: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   actividadDesc: { fontSize: 13, fontWeight: "500", color: T.text.primary },
   actividadTiempo: { fontSize: 11, color: T.text.secondary, marginTop: 2 },
-
+  
   // Turno activo
   turnoActivo: {
     flexDirection: "row",
@@ -695,35 +711,19 @@ const styles = StyleSheet.create({
     borderColor: "#BBF7D0",
   },
   turnoActivoLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  puntoPulso: {
-    width: 12,
-    height: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  puntoVerde: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#22C55E",
-  },
+  puntoPulso: { width: 12, height: 12, alignItems: "center", justifyContent: "center" },
+  puntoVerde: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#22C55E" },
   turnoActivoLabel: { fontSize: 14, fontWeight: "600", color: "#15803D" },
   turnoActivoSub: { fontSize: 12, color: "#4ADE80" },
-  turnoActivoBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-  },
-  turnoActivoBtnTexto: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: T.Button.primary.background,
-  },
-
-  // Vacío
+  turnoActivoBtn: { flexDirection: "row", alignItems: "center", gap: 2 },
+  turnoActivoBtnTexto: { fontSize: 13, fontWeight: "600", color: T.Button.primary.background },
+  
   vacio: { alignItems: "center", padding: 20 },
   vacioTexto: { fontSize: 13, color: T.text.secondary },
-
+  
+  barraFondo: { flex: 1, height: 6, backgroundColor: "#F1F5F9", borderRadius: 3, overflow: "hidden" },
+  barraRelleno: { height: 6, borderRadius: 3 },
+  
   asignarRecursosBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -735,23 +735,72 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 12,
   },
-  asignarRecursosBtnText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "600",
-  },
+  asignarRecursosBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
 
-  tituloRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 12,
+  turnoCardMini: {
+  backgroundColor: "#F9FAFB",
+  borderRadius: 10,
+  padding: 10,
+  marginBottom: 8,
 },
-verTodasBtn: {
-  color: T.Button.primary.background,
+turnoHeaderMini: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  marginBottom: 6,
+},
+turnoNombreMini: {
   fontSize: 12,
-  fontWeight: '500',
+  fontWeight: "600",
+  color: T.text.primary,
+},
+turnoHorarioMini: {
+  fontSize: 10,
+  color: "#6B7280",
+},
+vehiculoMini: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  marginBottom: 6,
+},
+vehiculoPlacaMini: {
+  fontSize: 12,
+  fontWeight: "500",
+  color: T.text.primary,
+},
+vehiculoCapacidadMini: {
+  fontSize: 10,
+  color: "#6B7280",
+},
+progresoMini: {
+  marginTop: 4,
+},
+usuariosMini: {
+  fontSize: 10,
+  color: "#6B7280",
+  marginBottom: 2,
+},
+barraFondoMini: {
+  height: 4,
+  backgroundColor: "#F1F5F9",
+  borderRadius: 2,
+  overflow: "hidden",
+  marginBottom: 2,
+},
+barraRellenoMini: {
+  height: 4,
+  borderRadius: 2,
+},
+porcentajeMini: {
+  fontSize: 10,
+  fontWeight: "600",
+  textAlign: "right",
+},
+sinVehiculoMini: {
+  fontSize: 10,
+  color: "#EF4444",
+  fontStyle: "italic",
 },
 
 });
-

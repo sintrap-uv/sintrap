@@ -59,6 +59,8 @@ export default function AsignarRecursosScreen() {
   const [origenSeleccionado, setOrigenSeleccionado] = useState(null);
   const [destinoSeleccionado, setDestinoSeleccionado] = useState(null);
   const [searchUsuario, setSearchUsuario] = useState('');
+  const [turnoSeleccionadoUsuario, setTurnoSeleccionadoUsuario] = useState(null);
+  const [editandoUsuarioIndex, setEditandoUsuarioIndex] = useState(null);
 
   useEffect(() => {
     if (rutaId) {
@@ -66,7 +68,6 @@ export default function AsignarRecursosScreen() {
     }
   }, [rutaId]);
 
-  // Limpiar nulls de turnosSeleccionados
   useEffect(() => {
     if (turnosSeleccionados.has(null)) {
       const nuevosTurnos = new Set(turnosSeleccionados);
@@ -93,7 +94,6 @@ export default function AsignarRecursosScreen() {
       if (paradasRes.success) {
         setParadas(paradasRes.data);
       }
-
       
       if (asignacionesRes.success) {
         const { horarios, usuarios } = asignacionesRes.data;
@@ -104,9 +104,6 @@ export default function AsignarRecursosScreen() {
           const turnoId = h.tipo_turno_id || h.turno_id;
           vehiculosMap[turnoId] = h.vehiculo;
           turnosSet.add(turnoId);
-          if (h.vehiculo?.capacidad) {
-            setCapacidadVehiculo(h.vehiculo.capacidad);
-          }
         });
         setVehiculosPorTurno(vehiculosMap);
         setTurnosSeleccionados(turnosSet);
@@ -116,8 +113,11 @@ export default function AsignarRecursosScreen() {
             id: u.usuario_id || u.id,
             nombre: u.usuario?.nombre || 'Sin nombre',
             cedula: u.usuario?.cedula || 'N/A',
+            turno_id: u.turno_id,
             parada_origen_id: u.parada_origen_id,
-            parada_destino_id: u.parada_destino_id
+            parada_destino_id: u.parada_destino_id,
+            origen_nombre: u.origen_nombre || 'Sin origen',
+            destino_nombre: u.destino_nombre || 'Sin destino'
           }))
           .filter(u => u.id != null);
         
@@ -183,20 +183,29 @@ export default function AsignarRecursosScreen() {
     
     const asignarVehiculo = () => {
       const turnoId = turnoSeleccionado.id;
+      
+      let capacidadObtenida = 0;
+      
+      if (vehiculo.tipo_vehiculo && vehiculo.tipo_vehiculo.capacidad_max) {
+        capacidadObtenida = parseInt(vehiculo.tipo_vehiculo.capacidad_max);
+      } else if (vehiculo.capacidad) {
+        capacidadObtenida = parseInt(vehiculo.capacidad);
+      }
+      
       setVehiculosPorTurno(prev => ({
         ...prev,
         [turnoId]: vehiculo
       }));
-      const capacidadVehiculo = vehiculo.tipo_vehiculo?.capacidad_max || vehiculo.capacidad || 0;
-      setCapacidadVehiculo(capacidadVehiculo)
+      setCapacidadVehiculo(capacidadObtenida);
       setModalVehiculosVisible(false);
+      
+      Alert.alert('Éxito', `Vehículo ${vehiculo.placa} asignado (Capacidad: ${capacidadObtenida} personas)`);
     };
     
-    // Si hay problemas con el vehículo, NO permite asignar
     if (!estado.valido) {
       Alert.alert(
         '⚠️ Vehículo no disponible',
-        `No se puede asignar este vehículo por las siguientes razones:\n\n${estado.advertencias.join('\n')}\n\nPor favor, selecciona otro vehículo.`,
+        `No se puede asignar este vehículo por las siguientes razones:\n\n${estado.advertencias.join('\n')}`,
         [{ text: 'OK' }]
       );
       return;
@@ -206,48 +215,98 @@ export default function AsignarRecursosScreen() {
   };
 
   const handleEliminarAsignacion = (turnoId) => {
-  Alert.alert(
-    'Eliminar asignación',
-    '¿Estás seguro de que deseas eliminar el vehículo asignado a este turno?',
-    [
-      { text: 'Cancelar', style: 'cancel' },
-      { 
-        text: 'Eliminar', 
-        style: 'destructive',
-        onPress: async () => {
-          const result = await eliminarAsignacionTurno(rutaId, turnoId, fechaOperacion);
-          
-          if (result.success) {
-            const nuevosVehiculos = { ...vehiculosPorTurno };
-            delete nuevosVehiculos[turnoId];
-            setVehiculosPorTurno(nuevosVehiculos);
+    Alert.alert(
+      'Eliminar asignación',
+      '¿Estás seguro de que deseas eliminar el vehículo asignado a este turno?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Eliminar', 
+          style: 'destructive',
+          onPress: async () => {
+            const result = await eliminarAsignacionTurno(rutaId, turnoId, fechaOperacion);
             
-            if (Object.keys(nuevosVehiculos).length === 0) {
-              setCapacidadVehiculo(0);
+            if (result.success) {
+              const nuevosVehiculos = { ...vehiculosPorTurno };
+              delete nuevosVehiculos[turnoId];
+              setVehiculosPorTurno(nuevosVehiculos);
+              
+              if (Object.keys(nuevosVehiculos).length === 0) {
+                setCapacidadVehiculo(0);
+              }
+              
+              Alert.alert('Éxito', 'Asignación eliminada correctamente');
+            } else {
+              Alert.alert('Error', 'No se pudo eliminar la asignación');
             }
-            
-            Alert.alert('Éxito', 'Asignación eliminada correctamente');
-          } else {
-            Alert.alert('Error', 'No se pudo eliminar la asignación');
           }
         }
-      }
-    ]
-  );
-};
+      ]
+    );
+  };
 
-
+  const handleEditarUsuario = (usuario, index) => {
+    setUsuarioSeleccionado({
+      id: usuario.id,
+      nombre: usuario.nombre,
+      cedula: usuario.cedula
+    });
+    setTurnoSeleccionadoUsuario(turnos.find(t => t.id === usuario.turno_id));
+    setOrigenSeleccionado({ id: usuario.parada_origen_id, nombre: usuario.origen_nombre });
+    setDestinoSeleccionado({ id: usuario.parada_destino_id, nombre: usuario.destino_nombre });
+    setEditandoUsuarioIndex(index);
+    setModalUsuariosVisible(true);
+  };
 
   const handleAgregarUsuario = () => {
-    if (!usuarioSeleccionado || !origenSeleccionado || !destinoSeleccionado) {
-      Alert.alert('Error', 'Complete todos los campos');
+  if (!turnoSeleccionadoUsuario) {
+    Alert.alert('Error', 'Debes seleccionar un turno');
+    return;
+  }
+  
+  if (!usuarioSeleccionado || !origenSeleccionado || !destinoSeleccionado) {
+    Alert.alert('Error', 'Complete todos los campos');
+    return;
+  }
+  
+  // VALIDAR QUE ORIGEN Y DESTINO SEAN DIFERENTES
+  if (origenSeleccionado.id === destinoSeleccionado.id) {
+    Alert.alert('Error', 'La parada de origen y destino no pueden ser la misma');
+    return;
+  }
+  
+  // Si estamos editando
+  if (editandoUsuarioIndex !== null) {
+    const nuevosUsuarios = [...usuariosAsignados];
+    nuevosUsuarios[editandoUsuarioIndex] = {
+      ...nuevosUsuarios[editandoUsuarioIndex],
+      turno_id: turnoSeleccionadoUsuario.id,
+      turno_nombre: turnoSeleccionadoUsuario.nombre,
+      parada_origen_id: origenSeleccionado.id,
+      parada_destino_id: destinoSeleccionado.id,
+      origen_nombre: origenSeleccionado.nombre,
+      destino_nombre: destinoSeleccionado.nombre
+    };
+    setUsuariosAsignados(nuevosUsuarios);
+    setEditandoUsuarioIndex(null);
+  } else {
+    // Verificar si el usuario ya está asignado al mismo turno
+    const usuarioYaAsignado = usuariosAsignados.some(u => 
+      u.id === usuarioSeleccionado.id && u.turno_id === turnoSeleccionadoUsuario.id
+    );
+    if (usuarioYaAsignado) {
+      Alert.alert('Error', 'Este usuario ya está asignado a este turno');
       return;
     }
     
-    if (usuariosAsignados.length >= capacidadVehiculo && capacidadVehiculo > 0) {
+    const vehiculoTurno = vehiculosPorTurno[turnoSeleccionadoUsuario.id];
+    const capacidadTurno = vehiculoTurno?.tipo_vehiculo?.capacidad_max || 0;
+    const usuariosEnTurno = usuariosAsignados.filter(u => u.turno_id === turnoSeleccionadoUsuario.id).length;
+    
+    if (capacidadTurno > 0 && usuariosEnTurno >= capacidadTurno) {
       Alert.alert(
         'Capacidad llena',
-        'El vehículo ha alcanzado su capacidad máxima.'
+        `El vehículo del turno ${turnoSeleccionadoUsuario.nombre} tiene capacidad para ${capacidadTurno} personas. Ya está lleno.`
       );
       return;
     }
@@ -258,18 +317,22 @@ export default function AsignarRecursosScreen() {
         id: usuarioSeleccionado.id,
         nombre: usuarioSeleccionado.nombre,
         cedula: usuarioSeleccionado.cedula,
+        turno_id: turnoSeleccionadoUsuario.id,
+        turno_nombre: turnoSeleccionadoUsuario.nombre,
         parada_origen_id: origenSeleccionado.id,
         parada_destino_id: destinoSeleccionado.id,
         origen_nombre: origenSeleccionado.nombre,
         destino_nombre: destinoSeleccionado.nombre
       }
     ]);
-    
-    setUsuarioSeleccionado(null);
-    setOrigenSeleccionado(null);
-    setDestinoSeleccionado(null);
-    setModalUsuariosVisible(false);
-  };
+  }
+  
+  setTurnoSeleccionadoUsuario(null);
+  setUsuarioSeleccionado(null);
+  setOrigenSeleccionado(null);
+  setDestinoSeleccionado(null);
+  setModalUsuariosVisible(false);
+};
 
   const handleEliminarUsuario = (index) => {
     const nuevos = [...usuariosAsignados];
@@ -316,6 +379,7 @@ export default function AsignarRecursosScreen() {
       .filter(u => u && u.id)
       .map(u => ({
         usuarioId: u.id,
+        turnoId: u.turno_id,
         paradaOrigenId: parseInt(u.parada_origen_id),
         paradaDestinoId: parseInt(u.parada_destino_id)
       }));
@@ -344,8 +408,6 @@ export default function AsignarRecursosScreen() {
     );
   }
 
-  const capacidadRestante = capacidadVehiculo - usuariosAsignados.length;
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -353,7 +415,7 @@ export default function AsignarRecursosScreen() {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <View>
-          <Text style={styles.headerTitle}>Asignar Rutas</Text>
+          <Text style={styles.headerTitle}>Asignar Ruta</Text>
           <Text style={styles.headerSub}>
             Ruta {ruta?.numero_ruta}: {ruta?.nombre}
           </Text>
@@ -367,11 +429,21 @@ export default function AsignarRecursosScreen() {
             style={[styles.tab, activeTab === tab && styles.tabActive]}
             onPress={() => setActiveTab(tab)}
           >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab === 'horarios' && '⏰ Horarios'}
-              {tab === 'vehiculos' && '🚐 Vehículos'}
-              {tab === 'usuarios' && '👤 Usuarios'}
-            </Text>
+            <View style={styles.tabContent}>
+              <Ionicons 
+                name={
+                  tab === 'horarios' ? 'calendar-outline' :
+                  tab === 'vehiculos' ? 'car-outline' : 'people-outline'
+                } 
+                size={20} 
+                color={activeTab === tab ? T.Button.primary.background : '#6B7280'} 
+              />
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                {tab === 'horarios' && 'Horarios'}
+                {tab === 'vehiculos' && 'Vehículos'}
+                {tab === 'usuarios' && 'Usuarios'}
+              </Text>
+            </View>
           </TouchableOpacity>
         ))}
       </View>
@@ -497,57 +569,98 @@ export default function AsignarRecursosScreen() {
           </View>
         )}
         
+        {/* SECCIÓN USUARIOS - CON BOTÓN DE EDITAR */}
         {activeTab === 'usuarios' && (
           <View>
-            {capacidadVehiculo > 0 && (
-              <View style={styles.capacidadCard}>
-                <Text style={styles.capacidadText}>
-                  Capacidad del vehículo: {capacidadVehiculo} personas
-                </Text>
-                <Text style={[styles.capacidadText, { color: capacidadRestante > 0 ? '#22C55E' : '#EF4444' }]}>
-                  Disponibles: {capacidadRestante}
-                </Text>
-              </View>
-            )}
-            
             <TouchableOpacity
-              style={styles.agregarUsuarioBtn}
-              onPress={() => setModalUsuariosVisible(true)}
+              style={styles.agregarUsuarioGlobalBtn}
+              onPress={() => {
+                setEditandoUsuarioIndex(null);
+                setModalUsuariosVisible(true);
+              }}
             >
               <Ionicons name="person-add" size={20} color="#fff" />
               <Text style={styles.agregarUsuarioBtnText}>Agregar usuario</Text>
             </TouchableOpacity>
-            
-            <Text style={styles.sectionTitle}>Usuarios asignados ({usuariosAsignados.length})</Text>
-            
-            {usuariosAsignados.filter(Boolean).map((usuario, index) => (
-              <View key={usuario?.id || index} style={styles.usuarioCard}>
-                <View style={styles.usuarioInfo}>
-                  <View style={styles.usuarioAvatar}>
-                    <Text style={styles.usuarioAvatarText}>
-                      {usuario.nombre?.charAt(0) || '?'}
+
+            {Array.from(turnosSeleccionados).map(turnoId => {
+              const turno = turnos.find(t => t.id === turnoId);
+              if (!turno) return null;
+              
+              const vehiculoTurno = vehiculosPorTurno[turnoId];
+              const capacidadTurno = vehiculoTurno?.tipo_vehiculo?.capacidad_max || 0;
+              const usuariosDelTurno = usuariosAsignados.filter(u => u.turno_id === turnoId);
+              const cuposDisponibles = capacidadTurno - usuariosDelTurno.length;
+              
+              return (
+                <View key={turnoId} style={styles.turnoContainer}>
+                  <View style={styles.turnoHeaderCard}>
+                    <MaterialCommunityIcons name="clock-outline" size={20} color={T.Button.primary.background} />
+                    <Text style={styles.turnoHeaderTitle}>Turno {turno.nombre}</Text>
+                    <Text style={styles.turnoHeaderHorario}>
+                      {turno.hora_inicio?.slice(0,5)} - {turno.hora_fin?.slice(0,5)}
                     </Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.usuarioNombre}>
-                      {usuario.nombre || 'Usuario'}
-                    </Text>
-                    <Text style={styles.usuarioCedula}>
-                      Cédula: {usuario.cedula || 'N/A'}
-                    </Text>
+                  
+                  <View style={styles.capacidadCard}>
+                    <View style={styles.capacidadFila}>
+                      <Text style={styles.capacidadLabel}>Capacidad del vehículo:</Text>
+                      <Text style={styles.capacidadValor}>{capacidadTurno} personas</Text>
+                    </View>
+                    <View style={styles.capacidadFila}>
+                      <Text style={styles.capacidadLabel}>Asignados:</Text>
+                      <Text style={[styles.capacidadValor, { color: cuposDisponibles > 0 ? '#22C55E' : '#EF4444' }]}>
+                        {usuariosDelTurno.length}
+                      </Text>
+                    </View>
+                    <View style={styles.capacidadFila}>
+                      <Text style={styles.capacidadLabel}>Estado:</Text>
+                      <Text style={[styles.capacidadEstado, { color: cuposDisponibles > 0 ? '#22C55E' : '#EF4444' }]}>
+                        {cuposDisponibles > 0 ? `Disponibles: ${cuposDisponibles}` : 'LLENO'}
+                      </Text>
+                    </View>
                   </View>
-                  <TouchableOpacity onPress={() => handleEliminarUsuario(index)}>
-                    <Ionicons name="trash-outline" size={22} color="#EF4444" />
-                  </TouchableOpacity>
+                  
+                  {/* Usuarios del turno con botón de editar */}
+                  {usuariosDelTurno.length > 0 ? (
+                    usuariosDelTurno.map((usuario, idx) => (
+                      <View key={`${usuario.id}_${usuario.turno_id}`} style={styles.usuarioCard}>
+                        <View style={styles.usuarioInfo}>
+                          <View style={styles.usuarioAvatar}>
+                            <Text style={styles.usuarioAvatarText}>
+                              {usuario.nombre?.charAt(0) || '?'}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.usuarioNombre}>{usuario.nombre || 'Usuario'}</Text>
+                            <Text style={styles.usuarioCedula}>Cédula: {usuario.cedula || 'N/A'}</Text>
+                            <Text style={styles.usuarioRecorrido}>
+                              {usuario.origen_nombre} → {usuario.destino_nombre}
+                            </Text>
+                          </View>
+                          <View style={styles.usuarioAcciones}>
+                            <TouchableOpacity 
+                              style={styles.usuarioEditarBtn} 
+                              onPress={() => handleEditarUsuario(usuario, usuariosAsignados.findIndex(u => u.id === usuario.id))}
+                            >
+                              <Ionicons name="pencil-outline" size={20} color={T.Button.primary.background} />
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                              style={styles.usuarioEliminarBtn} 
+                              onPress={() => handleEliminarUsuario(usuariosAsignados.findIndex(u => u.id === usuario.id))}
+                            >
+                              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.sinUsuariosTexto}>No hay usuarios asignados a este turno</Text>
+                  )}
                 </View>
-              </View>
-            ))}
-            
-            {usuariosAsignados.length === 0 && (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>No hay usuarios asignados</Text>
-              </View>
-            )}
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -562,6 +675,7 @@ export default function AsignarRecursosScreen() {
         </TouchableOpacity>
       </View>
       
+      {/* Modal de vehículos */}
       <Modal visible={modalVehiculosVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -590,7 +704,8 @@ export default function AsignarRecursosScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.modalItemTitle}>{item.placa}</Text>
                       <Text style={styles.modalItemSub}>
-                        {item.tipo_vehiculo?.nombre || 'N/A'} | Cap: {item.tipo_vehiculo?.capacidad_max || '?'}
+                        {item.tipo_vehiculo?.nombre || 'N/A'} | 
+                        Cap: {item.tipo_vehiculo?.capacidad_max || item.capacidad || '?'}
                         {item.conductor && ` | Conductor: ${item.conductor.nombre}`}
                       </Text>
                       {noTieneConductor && (
@@ -620,24 +735,51 @@ export default function AsignarRecursosScreen() {
         </View>
       </Modal>
       
+      {/* Modal de usuarios con selector de turno y modo edición */}
       <Modal visible={modalUsuariosVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, { maxHeight: '80%' }]}>
-            <Text style={styles.modalTitle}>Agregar usuario</Text>
+            <Text style={styles.modalTitle}>
+              {editandoUsuarioIndex !== null ? 'Editar usuario' : 'Agregar usuario'}
+            </Text>
             
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Buscar usuario..."
-              placeholderTextColor="#9CA3AF"
-              value={searchUsuario}
-              onChangeText={setSearchUsuario}
-            />
+            <Text style={styles.modalSubtitle}>Seleccionar turno</Text>
+            <View style={styles.turnosSelector}>
+              {turnosSeleccionados.size > 0 ? (
+                Array.from(turnosSeleccionados).map(turnoId => {
+                  const turno = turnos.find(t => t.id === turnoId);
+                  if (!turno) return null;
+                  return (
+                    <TouchableOpacity
+                      key={turnoId}
+                      style={[
+                        styles.turnoOption,
+                        turnoSeleccionadoUsuario?.id === turnoId && styles.turnoOptionSelected
+                      ]}
+                      onPress={() => setTurnoSeleccionadoUsuario(turno)}
+                    >
+                      <Text style={[
+                        styles.turnoOptionText,
+                        turnoSeleccionadoUsuario?.id === turnoId && styles.turnoOptionTextSelected
+                      ]}>
+                        {turno.nombre}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <Text style={styles.noTurnosText}>Primero selecciona turnos en la pestaña "Horarios"</Text>
+              )}
+            </View>
             
             <Text style={styles.modalSubtitle}>Seleccionar usuario</Text>
             <FlatList
               data={usuariosDisponibles.filter(u => 
-                u.nombre?.toLowerCase().includes(searchUsuario.toLowerCase()) ||
-                u.cedula?.includes(searchUsuario)
+                (u.nombre?.toLowerCase().includes(searchUsuario.toLowerCase()) ||
+                u.cedula?.includes(searchUsuario)) &&
+                !usuariosAsignados.some(asignado => 
+                  asignado.id === u.id && asignado.turno_id === turnoSeleccionadoUsuario?.id
+                )
               )}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
@@ -663,7 +805,7 @@ export default function AsignarRecursosScreen() {
             <Text style={styles.modalSubtitle}>Parada de origen</Text>
             <FlatList
               data={paradas}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item.id.toString()}
               renderItem={({ item }) => (
                 <TouchableOpacity 
                   style={[
@@ -672,7 +814,7 @@ export default function AsignarRecursosScreen() {
                   ]}
                   onPress={() => setOrigenSeleccionado(item)}
                 >
-                  <Text>{item.nombre}</Text>
+                  <Text style={styles.modalItemText}>{item.nombre}</Text>
                 </TouchableOpacity>
               )}
               style={{ maxHeight: 150 }}
@@ -680,8 +822,8 @@ export default function AsignarRecursosScreen() {
             
             <Text style={styles.modalSubtitle}>Parada de destino</Text>
             <FlatList
-              data={paradas}
-              keyExtractor={(item) => item.id}
+              data={paradas.filter(p => p.id !== origenSeleccionado?.id)}
+              keyExtractor={(item) => item.id.toString()}
               renderItem={({ item }) => (
                 <TouchableOpacity 
                   style={[
@@ -690,7 +832,7 @@ export default function AsignarRecursosScreen() {
                   ]}
                   onPress={() => setDestinoSeleccionado(item)}
                 >
-                  <Text>{item.nombre}</Text>
+                  <Text style={styles.modalItemText}>{item.nombre}</Text>
                 </TouchableOpacity>
               )}
               style={{ maxHeight: 150 }}
@@ -699,7 +841,14 @@ export default function AsignarRecursosScreen() {
             <View style={styles.modalButtons}>
               <TouchableOpacity 
                 style={[styles.modalBtn, styles.modalBtnCancel]}
-                onPress={() => setModalUsuariosVisible(false)}
+                onPress={() => {
+                  setModalUsuariosVisible(false);
+                  setTurnoSeleccionadoUsuario(null);
+                  setUsuarioSeleccionado(null);
+                  setOrigenSeleccionado(null);
+                  setDestinoSeleccionado(null);
+                  setEditandoUsuarioIndex(null);
+                }}
               >
                 <Text style={styles.modalBtnCancelText}>Cancelar</Text>
               </TouchableOpacity>

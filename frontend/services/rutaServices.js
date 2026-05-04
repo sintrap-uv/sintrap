@@ -258,13 +258,20 @@ export async function getVehiculosDisponibles(fecha, turnoId, rutaIdExcluir = nu
     
     const ocupadosIds = (vehiculosOcupados || []).map(v => v.vehiculo_id);
     
-    // Obtener vehículos activos
+    // Consulta para traer vehículos con su capacidad_max
     let queryVehiculos = supabase
       .from('vehiculos')
       .select(`
-        *,
-        tipo_vehiculo:tipo_vehiculo_id (nombre, capacidad_max)
-        conductor:conductor_id (nombre)
+        id,
+        placa,
+        seguro,
+        conductor_id,
+        activo,
+        fecha_vencimiento,
+        tipo_vehiculo:tipo_vehiculo_id (
+          nombre,
+          capacidad_max
+        )
       `)
       .eq('activo', true);
     
@@ -275,6 +282,7 @@ export async function getVehiculosDisponibles(fecha, turnoId, rutaIdExcluir = nu
     const { data, error } = await queryVehiculos;
     
     if (error) throw error;
+    
     return { success: true, data: data || [] };
   } catch (error) {
     console.error('Error en getVehiculosDisponibles:', error.message);
@@ -434,6 +442,22 @@ export async function getAsignacionesRuta(rutaId) {
     
     if (errorUsuarios) throw errorUsuarios;
     
+    // Obtener los IDs de las paradas de origen y destino
+    const todasParadasIds = [...new Set([
+      ...usuarios.map(u => u.parada_origen_id),
+      ...usuarios.map(u => u.parada_destino_id)
+    ].filter(Boolean))];
+    
+    // Obtener los nombres de las paradas
+    let paradasMap = new Map();
+    if (todasParadasIds.length > 0) {
+      const { data: paradas } = await supabase
+        .from('paradas')
+        .select('id, nombre')
+        .in('id', todasParadasIds);
+      paradasMap = new Map((paradas || []).map(p => [p.id, p.nombre]));
+    }
+    
     const turnosIds = [...new Set(horarios.map(h => h.tipo_turno_id).filter(Boolean))];
     let turnosMap = new Map();
     if (turnosIds.length > 0) {
@@ -472,7 +496,9 @@ export async function getAsignacionesRuta(rutaId) {
     
     const usuariosConDatos = (usuarios || []).map(u => ({
       ...u,
-      usuario: perfilesMap.get(u.usuario_id) || null
+      usuario: perfilesMap.get(u.usuario_id) || null,
+      origen_nombre: paradasMap.get(u.parada_origen_id) || 'Sin nombre',
+      destino_nombre: paradasMap.get(u.parada_destino_id) || 'Sin nombre'
     }));
     
     return {
@@ -561,6 +587,7 @@ export async function guardarAsignaciones(rutaId, asignaciones) {
         ruta_id: rutaId,
         parada_origen_id: parseInt(item.paradaOrigenId),
         parada_destino_id: parseInt(item.paradaDestinoId),
+        turno_id: item.turnoId,
         estado: 'asignado'
       }));
       
