@@ -3,9 +3,12 @@ import { useState, useEffect, useRef } from "react";
 import { ubicacionColaboradores } from "../../../services/colaboradores";
 import { agruparPorCercania } from "../../../services/zonas";
 import { guardarRutaCompleta } from "../../../services/rutaServices";
-import { obtenerUbicacionBuses } from "../../../services/empresaServices";
+import { obtenerUbicacionBuses } from "../../../services/salidaBuses";
 import { generarRutaOptima } from "./rutaUtils";
 import { useToast } from "../../../context/ToastContext";
+import { getAllCountries } from "react-native-international-phone-number";
+import { obtenerVehiculos } from "../../../services/vehicleService"
+import { getAllDrivers } from "../../../services/driverService";
 
 export const useMapaColaboradores = () => {
     const [colaboradores, setColaboradores] = useState([]);
@@ -21,6 +24,12 @@ export const useMapaColaboradores = () => {
     const { showSuccess, showError, showWarning, showInfo } = useToast();
     const webViewRef = useRef(null);
     const modoEdicionRef = useRef(false);
+    const [conductores, setConductores] = useState([]);
+    const [vehiculos, setVehiculos] = useState([]);
+    const [conductorId, setConductorId] = useState(null);
+    const [vehiculoId, setVehiculoId] = useState(null);
+    const [horaInicio, setHoraInicio] = useState("06:00");
+    const [horaFin, setHoraFin] = useState("18:00");
 
     const cargarDatos = async () => {
         setCargando(true);
@@ -28,6 +37,11 @@ export const useMapaColaboradores = () => {
         setColaboradores(datos);
         setGrupos(agruparPorCercania(datos, 0.3));
         setEmpresaUbicacion(await obtenerUbicacionBuses());
+
+        const { data: listaConductores } = await getAllDrivers();
+        const listaVehiculos = await obtenerVehiculos();
+        setConductores(listaConductores || []);
+        setVehiculos(listaVehiculos || []);
         setCargando(false);
     };
 
@@ -57,10 +71,19 @@ export const useMapaColaboradores = () => {
     };
 
     const eliminarPunto = (id) => {
-        console.log('ELIMINANDO ID:', typeof id, id); // ← agrega esto
-        const nuevosPuntos = puntosRuta.filter(p => p.id !== id);
+        // CORREGIDO: comparar siempre como string en ambos lados
+        const idStr = String(id);
+        const nuevosPuntos = puntosRuta.filter(p => String(p.id) !== idStr);
         setPuntosRuta(nuevosPuntos);
-        enviarAlMapa({ tipo: 'eliminarPunto', id: id });
+
+        // CORREGIDO: además de eliminarPunto, enviar actualizarLinea con puntos restantes
+        // para que la polyline se redibuje correctamente sin puntos fantasma
+        enviarAlMapa({ tipo: 'eliminarPunto', id: idStr });
+        enviarAlMapa({
+            tipo: 'actualizarLinea',
+            puntos: nuevosPuntos.map(p => ({ lat: p.lat, lon: p.lon, id: String(p.id) }))
+        });
+
         showInfo('Punto eliminado');
     };
     const limpiarPuntos = () => {
@@ -73,16 +96,20 @@ export const useMapaColaboradores = () => {
     const guardarRuta = async () => {
         if (!nombreRuta.trim()) { showError("El nombre de la ruta es obligatorio"); return; }
         if (!puntosRuta.length) { showWarning('Debes seleccionar al menos un punto'); return; }
-        try {
-            await guardarRutaCompleta(nombreRuta, numeroRuta, puntosRuta);
-            showSuccess(`Ruta "${nombreRuta}" guardada exitosamente`);
-            setModoEdicion(false);
-            setNombreRuta("");
-            setNumeroRuta("");
-            setPuntosRuta([]);
-        } catch {
+        if (!conductorId) { showError("Debes seleccionar un conductor"); return; }
+        if (!vehiculoId) { showError("Debes seleccionar un vehículo"); return; }
+         try {
+        await guardarRutaCompleta(nombreRuta, numeroRuta, puntosRuta, conductorId, vehiculoId, horaInicio, horaFin);
+        showSuccess(`Ruta "${nombreRuta}" guardada exitosamente`);
+        // limpiar estados...
+    } catch (error) {
+        // Mensaje específico según el error
+        if (error?.code === '23505') {
+            showError(`Ya existe una ruta con el número ${numeroRuta}`);
+        } else {
             showError('Error al guardar la ruta');
         }
+    }
     };
 
     const onMensajeMapa = (event) => {
@@ -108,5 +135,10 @@ export const useMapaColaboradores = () => {
         webViewRef, onMensajeMapa,
         handleRutaOptima, eliminarPunto, limpiarPuntos, guardarRuta,
         showInfo,
+        conductores, vehiculos,          // ← estos
+        conductorId, setConductorId,
+        vehiculoId, setVehiculoId,
+        horaInicio, setHoraInicio,
+        horaFin, setHoraFin,
     };
 };

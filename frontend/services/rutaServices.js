@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-
+import { notificarConductorAsignado } from "./notificacionesServices";
 
 export async function crearRuta(nombre, numeroRuta, trayecto) {
 
@@ -28,12 +28,24 @@ export async function crearRuta(nombre, numeroRuta, trayecto) {
     return { data, error };
 }
 
-export const guardarRutaCompleta = async (nombre, numeroRuta, puntosRuta) => {
+export const guardarRutaCompleta = async (nombre, numeroRuta, puntosRuta, conductorId, vehiculoId, horaInicio, horaFin) => {
+    
+       // Verificar si el número de ruta ya existe
+    const { data: rutaExistente } = await supabase
+        .from('rutas')
+        .select('id')
+        .eq('numero_ruta', parseInt(numeroRuta))
+        .maybeSingle();
+
+    if (rutaExistente) {
+        throw new Error(`Ya existe una ruta con el número ${numeroRuta}`);
+    }
     const puntosParaEnvio = puntosRuta.map(punto => ({
         lon: punto.lon,
         lat: punto.lat
     }));
 
+    // 1. Guardar la ruta con el trayecto
     const { data, error } = await supabase
         .rpc('guardar_ruta', {
             p_nombre: nombre,
@@ -45,7 +57,42 @@ export const guardarRutaCompleta = async (nombre, numeroRuta, puntosRuta) => {
         console.error("Error guardando ruta:", error);
         throw error;
     }
-    return data;
+    const rutaId = data?.id ?? data; // la función RPC retorna el id de la ruta creada
+
+    if (rutaId && conductorId && vehiculoId) {
+        const { error: errorHorario } = await supabase
+            .from('ruta_horarios')
+            .insert({
+                ruta_id: parseInt(rutaId), 
+                hora_inicio: horaInicio,
+                hora_fin: horaFin,
+                vehiculo_id: vehiculoId,  // el vehículo ya tiene conductor_id
+                lunes: true, martes: true, miercoles: true,
+                jueves: true, viernes: true,
+                sabado: false, domingo: false,
+                activo: true
+            });
+
+        if (errorHorario) {
+            console.error("Error guardando horario:", errorHorario);
+            throw errorHorario;
+        }
+        // Obtener la placa del vehículo para la notificación
+        const { data: vehiculo } = await supabase
+            .from('vehiculos')
+            .select('placa')
+            .eq('id', vehiculoId)
+            .single();
+
+        // Notificar al conductor
+        await notificarConductorAsignado({
+            conductorId,
+            placaBus: vehiculo?.placa ?? 'Sin placa',
+            nombreRuta: nombre,
+            numeroRuta,
+        });
+    }
+    return rutaId;
 };
 
 

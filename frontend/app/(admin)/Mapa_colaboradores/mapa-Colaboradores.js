@@ -20,6 +20,11 @@ const MapaColaboradores = () => {
         webViewRef, onMensajeMapa,
         handleRutaOptima, eliminarPunto, limpiarPuntos, guardarRuta,
         showInfo,
+        conductores, vehiculos,        // ← agrega esto
+        conductorId, setConductorId,
+        vehiculoId, setVehiculoId,
+        horaInicio, setHoraInicio,
+        horaFin, setHoraFin,
     } = useMapaColaboradores();
 
     const circulosJS = grupos.map(g =>
@@ -68,16 +73,20 @@ const MapaColaboradores = () => {
                 />
                 <View style={styles.botonesFlotantes}>
                     <View style={styles.botonesContainer}>
-                        <TouchableOpacity
-                            style={[styles.botonFlotanteCrear, { backgroundColor: T.Button.primary.background }]}
-                            onPress={() => { setModoEdicion(true); showInfo('Modo edición activado - Toca el mapa para agregar puntos'); }}>
-                            <Text style={{ color: T.Button.primary.Text, fontWeight: 'bold' }}>Crear ruta</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.botonFlotanteOptima, { backgroundColor: T.Button.secondary.background, borderWidth: 1, borderColor: T.Button.secondary.border }]}
-                            onPress={handleRutaOptima}>
-                            <Text style={{ color: T.Button.secondary.text }}>Ruta óptima</Text>
-                        </TouchableOpacity>
+                        {!modoEdicion && (
+                            <TouchableOpacity
+                                style={[styles.botonFlotanteCrear, { backgroundColor: T.Button.primary.background }]}
+                                onPress={() => { setModoEdicion(true); showInfo('Modo edición activado - Toca el mapa para agregar puntos'); }}>
+                                <Text style={{ color: T.Button.primary.Text, fontWeight: 'bold' }}>Crear ruta</Text>
+                            </TouchableOpacity>
+                        )}
+                        {!modoEdicion && (
+                            <TouchableOpacity
+                                style={[styles.botonFlotanteOptima, { backgroundColor: T.Button.secondary.background, borderWidth: 1, borderColor: T.Button.secondary.border }]}
+                                onPress={handleRutaOptima}>
+                                <Text style={{ color: T.Button.secondary.text }}>Ruta óptima</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
 
@@ -96,6 +105,11 @@ const MapaColaboradores = () => {
                     puntosRuta={puntosRuta} eliminarPunto={eliminarPunto}
                     limpiarPuntos={limpiarPuntos} guardarRuta={guardarRuta}
                     setPanelVisible={setPanelVisible} setModoEdicion={setModoEdicion}
+                    conductores={conductores} vehiculos={vehiculos}
+                    conductorId={conductorId} setConductorId={setConductorId}
+                    vehiculoId={vehiculoId} setVehiculoId={setVehiculoId}
+                    horaInicio={horaInicio} setHoraInicio={setHoraInicio}
+                    horaFin={horaFin} setHoraFin={setHoraFin}
                 />
             )}
 
