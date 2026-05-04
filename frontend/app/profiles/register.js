@@ -48,29 +48,28 @@ export default function Register() {
   }
 
   const handleRegister = async () => {
+  if (!validar()) return;
 
-    if (!validar()) return
+  const { data, error } = await signUp(email, password);
 
-    const { data, error } = await signUp(email, password)
+  if (error) {
+    alert("Error al registrarse: " + error.message);
+    return;
+  }
 
-    if (error) {
-      alert("Error al registrarse: " + error.message)
-      return
-    }
+  const user = data.user;
 
-    const user = data.user
+  if (!user) {
+    alert("No se pudo crear el usuario");
+    return;
+  }
 
-    if (!user) {
-      alert("No se pudo crear el usuario")
-      return
-    }
-
-    const { error: profileError } = await createProfile({
-      id: user.id,
-      nombre: name,
-      rol: "usuario",
-      activo: true
-    })
+  const { error: profileError } = await createProfile({
+    id: user.id,
+    nombre: name,
+    rol: "usuario",
+    activo: true,
+  });
 
     // Fix duplicate key
     if (profileError && !profileError.message.includes("duplicate")) {
@@ -81,7 +80,8 @@ export default function Register() {
     alert("Registro exitoso")
     router.push("/login")
   
-  }
+  router.replace('/home');
+};
 
   return (
     <View style={styles.container}>
