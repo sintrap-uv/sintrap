@@ -353,7 +353,7 @@ export default function AsignarRecursosScreen() {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <View>
-          <Text style={styles.headerTitle}>Asignar Recursos</Text>
+          <Text style={styles.headerTitle}>Asignar Rutas</Text>
           <Text style={styles.headerSub}>
             Ruta {ruta?.numero_ruta}: {ruta?.nombre}
           </Text>

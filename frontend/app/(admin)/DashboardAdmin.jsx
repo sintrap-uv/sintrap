@@ -440,13 +440,13 @@ export default function DashboardAdmin() {
             : "Sin vehículo asignado"}
         </Text>
         
-        {/* BOTÓN ASIGNAR RECURSOS */}
+        {/* BOTÓN ASIGNAR RUTAS */}
         <TouchableOpacity 
           style={styles.asignarRecursosBtn}
           onPress={() => router.push(`/(admin)/asignar-recursos?id=${ruta.id}`)}
         >
           <Ionicons name="bus-outline" size={16} color="#fff" />
-          <Text style={styles.asignarRecursosBtnText}>Asignar recursos</Text>
+          <Text style={styles.asignarRecursosBtnText}>Asignar Rutas</Text>
         </TouchableOpacity>
       </View>
     ))
