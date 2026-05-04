@@ -604,9 +604,14 @@ export default function AsignarRecursosScreen() {
                   
                   <View style={styles.capacidadCard}>
                     <View style={styles.capacidadFila}>
+                      <Text style={styles.capacidadLabel}>Vehículo asignado:</Text>
+                      <Text style={styles.capacidadValor}>{vehiculoTurno?.placa || 'No asignado'}</Text>
+                    </View>
+                    <View style={styles.capacidadFila}>
                       <Text style={styles.capacidadLabel}>Capacidad del vehículo:</Text>
                       <Text style={styles.capacidadValor}>{capacidadTurno} personas</Text>
                     </View>
+                    
                     <View style={styles.capacidadFila}>
                       <Text style={styles.capacidadLabel}>Asignados:</Text>
                       <Text style={[styles.capacidadValor, { color: cuposDisponibles > 0 ? '#22C55E' : '#EF4444' }]}>
