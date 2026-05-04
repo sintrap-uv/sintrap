@@ -296,7 +296,7 @@ export default function DashboardAdmin() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.contenido}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         refreshControl={
           <RefreshControl
             refreshing={refrescando}
@@ -394,57 +394,64 @@ export default function DashboardAdmin() {
         </View>
 
         {/* OCUPACIÓN POR RUTA  */}
-        <View style={styles.seccion}>
-          <Text style={styles.tituloSeccion}>Ocupación por ruta</Text>
+<View style={styles.seccion}>
+  <View style={styles.tituloRow}>
+    <Text style={styles.tituloSeccion}>Ocupación por ruta</Text>
+    {ocupacion.length > 3 && (
+      <TouchableOpacity onPress={() => router.push("/(admin)/rutas")}>
+        <Text style={styles.verTodasBtn}>Ver todas ({ocupacion.length})</Text>
+      </TouchableOpacity>
+    )}
+  </View>
 
-          {cargando ? (
-            <ActivityIndicator
-              color={T.Button.primary.background}
-              style={{ marginTop: 12 }}
+  {cargando ? (
+    <ActivityIndicator
+      color={T.Button.primary.background}
+      style={{ marginTop: 12 }}
+    />
+  ) : ocupacion.length === 0 ? (
+    <View style={styles.vacio}>
+      <Text style={styles.vacioTexto}>Sin rutas activas</Text>
+    </View>
+  ) : (
+    ocupacion.slice(0, 3).map((ruta) => (  // ← Solo primeras 3
+      <View key={ruta.id} style={styles.rutaCard}>
+        <View style={styles.rutaHeader}>
+          <View style={styles.rutaInfo}>
+            <View
+              style={[styles.rutaDot, { backgroundColor: ruta.color }]}
             />
-          ) : ocupacion.length === 0 ? (
-            <View style={styles.vacio}>
-              <Text style={styles.vacioTexto}>Sin rutas activas</Text>
-            </View>
-          ) : (
-            ocupacion.map((ruta) => (
-              <View key={ruta.id} style={styles.rutaCard}>
-                <View style={styles.rutaHeader}>
-                  <View style={styles.rutaInfo}>
-                    <View
-                      style={[styles.rutaDot, { backgroundColor: ruta.color }]}
-                    />
-                    <Text style={styles.rutaNombre} numberOfLines={1}>
-                      Ruta {ruta.numero_ruta} ·{" "}
-                      {ruta.nombre.split("—")[1]?.trim() ?? ruta.nombre}
-                    </Text>
-                  </View>
-                  <Text style={styles.rutaContador}>
-                    {ruta.asignados}/{ruta.capacidad > 0 ? ruta.capacidad : "–"}
-                  </Text>
-                </View>
-                <BarraOcupacion
-                  porcentaje={ruta.porcentaje}
-                  color={ruta.color}
-                />
-                <Text style={styles.rutaPorcentaje}>
-                  {ruta.capacidad > 0
-                    ? `${ruta.porcentaje}% ocupado · ${ruta.capacidad - ruta.asignados} cupos disponibles`
-                    : "Sin vehículo asignado"}
-                </Text>
-                
-                {/* BOTÓN ASIGNAR RECURSOS */}
-                <TouchableOpacity 
-                  style={styles.asignarRecursosBtn}
-                  onPress={() => router.push(`/(admin)/asignar-recursos?id=${ruta.id}`)}
-                >
-                  <Ionicons name="calendar-outline" size={16} color="#fff" />
-                  <Text style={styles.asignarRecursosBtnText}>Asignar recursos</Text>
-                </TouchableOpacity>
-              </View>
-            ))
-          )}
+            <Text style={styles.rutaNombre} numberOfLines={1}>
+              Ruta {ruta.numero_ruta} ·{" "}
+              {ruta.nombre.split("—")[1]?.trim() ?? ruta.nombre}
+            </Text>
+          </View>
+          <Text style={styles.rutaContador}>
+            {ruta.asignados}/{ruta.capacidad > 0 ? ruta.capacidad : "–"}
+          </Text>
         </View>
+        <BarraOcupacion
+          porcentaje={ruta.porcentaje}
+          color={ruta.color}
+        />
+        <Text style={styles.rutaPorcentaje}>
+          {ruta.capacidad > 0
+            ? `${ruta.porcentaje}% ocupado · ${ruta.capacidad - ruta.asignados} cupos disponibles`
+            : "Sin vehículo asignado"}
+        </Text>
+        
+        {/* BOTÓN ASIGNAR RECURSOS */}
+        <TouchableOpacity 
+          style={styles.asignarRecursosBtn}
+          onPress={() => router.push(`/(admin)/asignar-recursos?id=${ruta.id}`)}
+        >
+          <Ionicons name="bus-outline" size={16} color="#fff" />
+          <Text style={styles.asignarRecursosBtnText}>Asignar recursos</Text>
+        </TouchableOpacity>
+      </View>
+    ))
+  )}
+</View>
         
         {/* ACTIVIDAD RECIENTE */}
         <View style={styles.seccion}>
@@ -733,5 +740,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
+
+  tituloRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 12,
+},
+verTodasBtn: {
+  color: T.Button.primary.background,
+  fontSize: 12,
+  fontWeight: '500',
+},
+
 });
 

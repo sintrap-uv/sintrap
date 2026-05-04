@@ -61,6 +61,7 @@ export default function AdminLayout() {
         }}
       >
         <Stack.Screen name="asignar-recursos" options={{ headerShown: false }} />
+        <Stack.Screen name="rutas" options={{ headerShown: false }} />
       </Stack>
     </>
   );

@@ -241,35 +241,38 @@ export async function eliminarAsignacionTurno(rutaId, turnoId, fecha) {
  */
 export async function getVehiculosDisponibles(fecha, turnoId, rutaIdExcluir = null) {
   try {
-    let query = supabase
+    // Primero obtener vehículos ocupados en esa fecha/turno
+    let queryOcupados = supabase
       .from('ruta_horarios')
       .select('vehiculo_id')
       .eq('fecha', fecha)
       .eq('tipo_turno_id', turnoId);
     
     if (rutaIdExcluir) {
-      query = query.neq('ruta_id', rutaIdExcluir);
+      queryOcupados = queryOcupados.neq('ruta_id', rutaIdExcluir);
     }
     
-    const { data: vehiculosOcupados, error: errorOcupados } = await query;
+    const { data: vehiculosOcupados, error: errorOcupados } = await queryOcupados;
     
     if (errorOcupados) throw errorOcupados;
     
     const ocupadosIds = (vehiculosOcupados || []).map(v => v.vehiculo_id);
     
-    let vehiculosQuery = supabase
+    // Obtener vehículos activos
+    let queryVehiculos = supabase
       .from('vehiculos')
       .select(`
         *,
         tipo_vehiculo:tipo_vehiculo_id (nombre, capacidad_max)
+        conductor:conductor_id (nombre)
       `)
       .eq('activo', true);
     
     if (ocupadosIds.length > 0) {
-      vehiculosQuery = vehiculosQuery.not('id', 'in', `(${ocupadosIds.join(',')})`);
+      queryVehiculos = queryVehiculos.not('id', 'in', `(${ocupadosIds.join(',')})`);
     }
     
-    const { data, error } = await vehiculosQuery;
+    const { data, error } = await queryVehiculos;
     
     if (error) throw error;
     return { success: true, data: data || [] };
@@ -301,6 +304,11 @@ export function verificarEstadoVehiculo(vehiculo) {
   // Verificar seguro
   if (vehiculo.seguro === false) {
     advertencias.push(`⚠️ El vehículo no tiene seguro activo`);
+  }
+ 
+  //verificar conductor
+  if (!vehiculo.conductor_id) {
+    advertencias.push(`❌ El vehículo no tiene un conductor asignado`);
   }
   
   return {
@@ -395,7 +403,10 @@ export async function getParadasByRuta(rutaId) {
   try {
     const { data, error } = await supabase
       .from('ruta_paradas')
-      .select('*, paradas(*)')
+      .select(`
+        *,
+        parada:parada_id (*)
+      `)
       .eq('ruta_id', rutaId)
       .order('orden', { ascending: true });
     
@@ -441,7 +452,7 @@ export async function getAsignacionesRuta(rutaId) {
     if (vehiculosIds.length > 0) {
       const { data: vehiculos } = await supabase
         .from('vehiculos')
-        .select('*, tipo_vehiculo:tipo_vehiculo_id(nombre, capacidad_max)')
+        .select('*, tipo_vehiculo:tipo_vehiculo_id(nombre, capacidad_max), conductor:conductor_id(id, nombre)')
         .in('id', vehiculosIds);
       vehiculosMap = new Map((vehiculos || []).map(v => [v.id, v]));
     }

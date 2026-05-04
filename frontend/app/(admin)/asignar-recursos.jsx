@@ -38,7 +38,7 @@ export default function AsignarRecursosScreen() {
   const [ruta, setRuta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('vehiculos');
+  const [activeTab, setActiveTab] = useState('horarios');
   
   const [turnos, setTurnos] = useState([]);
   const [turnosSeleccionados, setTurnosSeleccionados] = useState(new Set());
@@ -91,6 +91,9 @@ export default function AsignarRecursosScreen() {
       if (turnosRes.success) setTurnos(turnosRes.data);
       if (usuariosRes.success) setUsuariosDisponibles(usuariosRes.data);
       if (paradasRes.success) setParadas(paradasRes.data);
+      if (paradasRes.success) {
+      setParadas(paradasRes.data);
+      }
       
       if (asignacionesRes.success) {
         const { horarios, usuarios } = asignacionesRes.data;
@@ -184,6 +187,7 @@ export default function AsignarRecursosScreen() {
         ...prev,
         [turnoId]: vehiculo
       }));
+      const capacidadVehiculo = vehiculo.tipo_vehiculo?.capacidad_max || vehiculo.capacidad || 0;
       setCapacidadVehiculo(vehiculo.capacidad);
       setModalVehiculosVisible(false);
     };
@@ -357,16 +361,16 @@ export default function AsignarRecursosScreen() {
       </View>
       
       <View style={styles.tabBar}>
-        {['vehiculos', 'horarios', 'usuarios'].map((tab) => (
+        {['horarios', 'vehiculos', 'usuarios'].map((tab) => (
           <TouchableOpacity
             key={tab}
             style={[styles.tab, activeTab === tab && styles.tabActive]}
             onPress={() => setActiveTab(tab)}
           >
             <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab === 'vehiculos' && '🚌 Vehículos'}
               {tab === 'horarios' && '⏰ Horarios'}
-              {tab === 'usuarios' && '👥 Usuarios'}
+              {tab === 'vehiculos' && '🚐 Vehículos'}
+              {tab === 'usuarios' && '👤 Usuarios'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -423,7 +427,7 @@ export default function AsignarRecursosScreen() {
                         <View style={{ flex: 1 }}>
                           <Text style={styles.vehiculoPlaca}>{vehiculo.placa}</Text>
                           <Text style={styles.vehiculoDetalle}>
-                            Tipo: {vehiculo.tipo_vehiculo?.nombre || 'N/A'} | Capacidad: {vehiculo.capacidad}
+                            Tipo: {vehiculo.tipo_vehiculo?.nombre || 'N/A'} | Capacidad: {vehiculo.tipo_vehiculo?.capacidad_max || vehiculo.capacidad || '?'}
                           </Text>
                         </View>
                         <View style={styles.vehiculoAcciones}>
@@ -568,6 +572,7 @@ export default function AsignarRecursosScreen() {
               renderItem={({ item }) => {
                 const estadoVehiculo = verificarEstadoVehiculo(item);
                 const tieneAlerta = !estadoVehiculo.valido;
+                const noTieneConductor = !item.conductor_id;
                 
                 return (
                   <TouchableOpacity 
@@ -585,9 +590,15 @@ export default function AsignarRecursosScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.modalItemTitle}>{item.placa}</Text>
                       <Text style={styles.modalItemSub}>
-                        {item.tipo_vehiculo?.nombre} | Cap: {item.capacidad}
+                        {item.tipo_vehiculo?.nombre || 'N/A'} | Cap: {item.tipo_vehiculo?.capacidad_max || '?'}
+                        {item.conductor && ` | Conductor: ${item.conductor.nombre}`}
                       </Text>
-                      {tieneAlerta && (
+                      {noTieneConductor && (
+                        <Text style={{ color: "#EF4444", fontSize: 11, marginTop: 2 }}>
+                          ⚠️ Sin conductor asignado
+                        </Text>
+                      )}
+                      {tieneAlerta && !noTieneConductor && (
                         <Text style={{ color: "#EF4444", fontSize: 11, marginTop: 2 }}>
                           ⚠️ {estadoVehiculo.advertencias[0]}
                         </Text>
@@ -661,7 +672,7 @@ export default function AsignarRecursosScreen() {
                   ]}
                   onPress={() => setOrigenSeleccionado(item)}
                 >
-                  <Text>{item.nombre}</Text>
+                  <Text>{item.parada?.nombre || item.nombre}</Text>
                 </TouchableOpacity>
               )}
               style={{ maxHeight: 150 }}
@@ -679,7 +690,7 @@ export default function AsignarRecursosScreen() {
                   ]}
                   onPress={() => setDestinoSeleccionado(item)}
                 >
-                  <Text>{item.nombre}</Text>
+                  <Text>{item.parada?.nombre || item.nombre}</Text>
                 </TouchableOpacity>
               )}
               style={{ maxHeight: 150 }}
