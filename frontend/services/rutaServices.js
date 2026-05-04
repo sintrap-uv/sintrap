@@ -401,19 +401,16 @@ export async function getUsuariosDisponibles() {
  */
 export async function getParadasByRuta(rutaId) {
   try {
+    // Consulta simple a la tabla paradas
     const { data, error } = await supabase
-      .from('ruta_paradas')
-      .select(`
-        *,
-        parada:parada_id (*)
-      `)
-      .eq('ruta_id', rutaId)
-      .order('orden', { ascending: true });
+      .from('paradas')
+      .select('id, nombre')
+      .eq('activa', true);
     
     if (error) throw error;
+    
     return { success: true, data: data || [] };
   } catch (error) {
-    console.error('Error en getParadasByRuta:', error.message);
     return { success: false, error: error.message, data: [] };
   }
 }

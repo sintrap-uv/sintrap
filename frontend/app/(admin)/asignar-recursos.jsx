@@ -90,10 +90,10 @@ export default function AsignarRecursosScreen() {
       if (rutaRes.success) setRuta(rutaRes.data);
       if (turnosRes.success) setTurnos(turnosRes.data);
       if (usuariosRes.success) setUsuariosDisponibles(usuariosRes.data);
-      if (paradasRes.success) setParadas(paradasRes.data);
       if (paradasRes.success) {
-      setParadas(paradasRes.data);
+        setParadas(paradasRes.data);
       }
+
       
       if (asignacionesRes.success) {
         const { horarios, usuarios } = asignacionesRes.data;
@@ -188,7 +188,7 @@ export default function AsignarRecursosScreen() {
         [turnoId]: vehiculo
       }));
       const capacidadVehiculo = vehiculo.tipo_vehiculo?.capacidad_max || vehiculo.capacidad || 0;
-      setCapacidadVehiculo(vehiculo.capacidad);
+      setCapacidadVehiculo(capacidadVehiculo)
       setModalVehiculosVisible(false);
     };
     
@@ -672,7 +672,7 @@ export default function AsignarRecursosScreen() {
                   ]}
                   onPress={() => setOrigenSeleccionado(item)}
                 >
-                  <Text>{item.parada?.nombre || item.nombre}</Text>
+                  <Text>{item.nombre}</Text>
                 </TouchableOpacity>
               )}
               style={{ maxHeight: 150 }}
@@ -690,7 +690,7 @@ export default function AsignarRecursosScreen() {
                   ]}
                   onPress={() => setDestinoSeleccionado(item)}
                 >
-                  <Text>{item.parada?.nombre || item.nombre}</Text>
+                  <Text>{item.nombre}</Text>
                 </TouchableOpacity>
               )}
               style={{ maxHeight: 150 }}
