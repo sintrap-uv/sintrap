@@ -84,7 +84,6 @@ export async function getMetricasAdmin() {
 
 /**
  * Ocupación actual de cada ruta activa.
- * Retorna nombre, color, asignados y capacidad para la barra de progreso.
  */
 export async function getOcupacionRutas() {
   try {
@@ -98,25 +97,56 @@ export async function getOcupacionRutas() {
 
     const ocupacion = await Promise.all(
       rutas.map(async (ruta) => {
-        const [{ count: asignados }, { data: vehiculo }] = await Promise.all([
-          supabase
-            .from("usuario_ruta")
-            .select("*", { count: "exact", head: true })
-            .eq("ruta_id", ruta.id)
-            .eq("activa", true),
-          supabase
+        // 1. Obtener cantidad de usuarios asignados
+        const { count: asignados } = await supabase
+          .from("usuario_ruta")
+          .select("*", { count: "exact", head: true })
+          .eq("ruta_id", ruta.id);
+
+        // 2. Obtener vehículo asignado desde ruta_horarios
+        const { data: horarioActivo } = await supabase
+          .from("ruta_horarios")
+          .select("vehiculo_id")
+          .eq("ruta_id", ruta.id)
+          .not("vehiculo_id", "is", null)
+          .maybeSingle();
+
+        let capacidad = 0;
+        let tieneVehiculo = false;
+
+        if (horarioActivo && horarioActivo.vehiculo_id) {
+          // 3. Obtener tipo_vehiculo_id desde vehiculos
+          const { data: vehiculo } = await supabase
             .from("vehiculos")
-            .select("capacidad")
-            .eq("ruta_id", ruta.id)
-            .eq("activo", true)
-            .limit(1)
-            .single(),
-        ]);
-        const capacidad = vehiculo?.capacidad ?? 0;
-        const porcentaje =
-          capacidad > 0 ? Math.round((asignados / capacidad) * 100) : 0;
-        return { ...ruta, asignados: asignados ?? 0, capacidad, porcentaje };
-      }),
+            .select("tipo_vehiculo_id")
+            .eq("id", horarioActivo.vehiculo_id)
+            .single();
+
+          if (vehiculo && vehiculo.tipo_vehiculo_id) {
+            // 4. Obtener capacidad_max desde tipo_vehiculo
+            const { data: tipoVehiculo } = await supabase
+              .from("tipo_vehiculo")
+              .select("capacidad_max")
+              .eq("id", vehiculo.tipo_vehiculo_id)
+              .single();
+
+            if (tipoVehiculo) {
+              capacidad = tipoVehiculo.capacidad_max || 0;
+              tieneVehiculo = true;
+            }
+          }
+        }
+
+        const porcentaje = capacidad > 0 ? Math.round(((asignados || 0) / capacidad) * 100) : 0;
+
+        return {
+          ...ruta,
+          asignados: asignados ?? 0,
+          capacidad,
+          porcentaje,
+          tieneVehiculo,
+        };
+      })
     );
 
     return { success: true, data: ocupacion };
@@ -146,7 +176,7 @@ export async function getActividadReciente() {
           .limit(3),
         supabase
           .from("turnos")
-          .select("estado, hora_inicio_real, ruta_horarios(rutas(numero_ruta))")
+          .select("estado, hora_inicio_real, conductor_id")
           .not("hora_inicio_real", "is", null)
           .order("hora_inicio_real", { ascending: false })
           .limit(3),
@@ -165,7 +195,7 @@ export async function getActividadReciente() {
       })) ?? []),
       ...(turnos?.map((t) => ({
         tipo: "turno",
-        descripcion: `Turno iniciado — Ruta ${t.ruta_horarios?.rutas?.numero_ruta ?? ""}`,
+        descripcion: `Turno iniciado por conductor`,
         fecha: t.hora_inicio_real,
       })) ?? []),
     ]

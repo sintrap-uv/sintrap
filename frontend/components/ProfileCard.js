@@ -12,10 +12,10 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import theme from "../constants/theme";
 import EditarPerfilForm from "./forms/EditarPerfilForm";
+import Header from "./Header";
 import ResetPassword from "../app/profiles/resetPassword";
 import NotificacionesAdmin from "../app/(notificaciones)/NotificacionesAdmin";
 import NotificacionesUsuario from "../app/(notificaciones)/NotificacionesUsuarios";
-import Header from "./Header";
 import { useRouter } from "expo-router";
 
 const t = theme.lightMode;

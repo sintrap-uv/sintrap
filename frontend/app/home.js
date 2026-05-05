@@ -32,6 +32,7 @@ import MapaColaboradores from "./(admin)/Mapa_colaboradores/mapa-Colaboradores";
 import ConfiguracionBuses from "./(admin)/configurar-buses";
 import { ObtenerDireccionUsuario } from "../services/geocalizacion";
 import CajaDireccion from "../components/ModalDireccion";
+import TodasLasRutasScreen from "./(admin)/rutas";
 
 
 
@@ -181,9 +182,7 @@ export default function Home() {
       // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
 
       inicio: () => <DashboardAdmin />,
-      rutas: () => (
-        <TabPendiente nombre="Gestión de rutas" icono="map-outline" />
-      ),
+      rutas: () => <TodasLasRutasScreen />,
       crear: () => (
         <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />
       ),
