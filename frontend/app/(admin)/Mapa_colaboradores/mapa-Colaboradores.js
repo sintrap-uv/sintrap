@@ -1,5 +1,6 @@
 // MapaColaboradores.jsx
-import { View, Text, ActivityIndicator, TouchableOpacity } from "react-native";
+import { useState, useEffect } from "react";
+import { View, Text, ActivityIndicator, TouchableOpacity, Keyboard } from "react-native";
 import { WebView } from "react-native-webview";
 import theme from "../../../constants/theme";
 import { useMapaColaboradores } from "./useMapaColaboradores";
@@ -10,6 +11,18 @@ import { styles } from "./MapaColaboradores.styles";
 const T = theme.lightMode;
 
 const MapaColaboradores = () => {
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+    useEffect(() => {
+        const mostrar = Keyboard.addListener('keyboardDidShow', (e) => {
+            setKeyboardHeight(e.endCoordinates.height);
+        });
+        const ocultar = Keyboard.addListener('keyboardDidHide', () => {
+            setKeyboardHeight(0);
+        });
+        return () => { mostrar.remove(); ocultar.remove(); };
+    }, []);
+
     const {
         colaboradores, grupos, cargando,
         modoEdicion, setModoEdicion,
@@ -19,8 +32,8 @@ const MapaColaboradores = () => {
         panelVisible, setPanelVisible,
         webViewRef, onMensajeMapa,
         handleRutaOptima, eliminarPunto, limpiarPuntos, guardarRuta,
-        showInfo,
-        conductores, vehiculos,        // ← agrega esto
+        showInfo, showError, showWarning,
+        conductores, vehiculos,
         conductorId, setConductorId,
         vehiculoId, setVehiculoId,
         horaInicio, setHoraInicio,
@@ -54,7 +67,8 @@ const MapaColaboradores = () => {
 
     return (
         <View style={[styles.mapaContenedor, { backgroundColor: T.background }]}>
-            <View style={styles.mapaWrapper}>
+            {/* Mapa — se encoge cuando aparece el teclado */}
+            <View style={[styles.mapaWrapper, { flex: keyboardHeight > 0 ? 0.35 : 1 }]}>
                 <WebView
                     ref={webViewRef}
                     source={{ html: htmlMapa }}
@@ -71,12 +85,16 @@ const MapaColaboradores = () => {
                     }}
                     onMessage={onMensajeMapa}
                 />
+
                 <View style={styles.botonesFlotantes}>
                     <View style={styles.botonesContainer}>
                         {!modoEdicion && (
                             <TouchableOpacity
                                 style={[styles.botonFlotanteCrear, { backgroundColor: T.Button.primary.background }]}
-                                onPress={() => { setModoEdicion(true); showInfo('Modo edición activado - Toca el mapa para agregar puntos'); }}>
+                                onPress={() => {
+                                    setModoEdicion(true);
+                                    showInfo('Modo edición activado - Toca el mapa para agregar puntos');
+                                }}>
                                 <Text style={{ color: T.Button.primary.Text, fontWeight: 'bold' }}>Crear ruta</Text>
                             </TouchableOpacity>
                         )}
@@ -98,19 +116,23 @@ const MapaColaboradores = () => {
                 )}
             </View>
 
+            {/* Panel — sube cuando aparece el teclado */}
             {modoEdicion && panelVisible && (
-                <PanelRuta
-                    nombreRuta={nombreRuta} setNombreRuta={setNombreRuta}
-                    numeroRuta={numeroRuta} setNumeroRuta={setNumeroRuta}
-                    puntosRuta={puntosRuta} eliminarPunto={eliminarPunto}
-                    limpiarPuntos={limpiarPuntos} guardarRuta={guardarRuta}
-                    setPanelVisible={setPanelVisible} setModoEdicion={setModoEdicion}
-                    conductores={conductores} vehiculos={vehiculos}
-                    conductorId={conductorId} setConductorId={setConductorId}
-                    vehiculoId={vehiculoId} setVehiculoId={setVehiculoId}
-                    horaInicio={horaInicio} setHoraInicio={setHoraInicio}
-                    horaFin={horaFin} setHoraFin={setHoraFin}
-                />
+                <View style={{ marginBottom: keyboardHeight > 0 ? keyboardHeight - 30 : 0 }}>
+                    <PanelRuta
+                        nombreRuta={nombreRuta} setNombreRuta={setNombreRuta}
+                        numeroRuta={numeroRuta} setNumeroRuta={setNumeroRuta}
+                        puntosRuta={puntosRuta} eliminarPunto={eliminarPunto}
+                        limpiarPuntos={limpiarPuntos} guardarRuta={guardarRuta}
+                        setPanelVisible={setPanelVisible} setModoEdicion={setModoEdicion}
+                        conductores={conductores} vehiculos={vehiculos}
+                        conductorId={conductorId} setConductorId={setConductorId}
+                        vehiculoId={vehiculoId} setVehiculoId={setVehiculoId}
+                        horaInicio={horaInicio} setHoraInicio={setHoraInicio}
+                        horaFin={horaFin} setHoraFin={setHoraFin}
+                        showError={showError} showWarning={showWarning}
+                    />
+                </View>
             )}
 
             {modoEdicion && !panelVisible && (
