@@ -1,6 +1,9 @@
 // MapaColaboradores.jsx
 import { useState, useEffect } from "react";
-import { View, Text, ActivityIndicator, TouchableOpacity, Keyboard } from "react-native";
+import {
+    View, Text, ActivityIndicator,
+    TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Animated
+} from "react-native"
 import { WebView } from "react-native-webview";
 import theme from "../../../constants/theme";
 import { useMapaColaboradores } from "./useMapaColaboradores";
@@ -11,8 +14,12 @@ import { styles } from "./MapaColaboradores.styles";
 const T = theme.lightMode;
 
 const MapaColaboradores = () => {
+
+    const [paso, setPaso] = useState(1);
+    const [panelColapsado, setPanelColapsado] = useState(false);
     const [keyboardHeight, setKeyboardHeight] = useState(0);
 
+    
     useEffect(() => {
         const mostrar = Keyboard.addListener('keyboardDidShow', (e) => {
             setKeyboardHeight(e.endCoordinates.height);
@@ -22,6 +29,7 @@ const MapaColaboradores = () => {
         });
         return () => { mostrar.remove(); ocultar.remove(); };
     }, []);
+
 
     const {
         colaboradores, grupos, cargando,
@@ -39,6 +47,12 @@ const MapaColaboradores = () => {
         horaInicio, setHoraInicio,
         horaFin, setHoraFin,
     } = useMapaColaboradores();
+
+    const handleSetModoEdicion = (valor) => {
+        if (!valor) setPaso(1);
+        setModoEdicion(valor);
+    };
+
 
     const circulosJS = grupos.map(g =>
         `L.circle([${g.centro.lat}, ${g.centro.lon}], { radius: 300, color: 'green', fillColor: '#22C55E', fillOpacity: 0.2 }).addTo(map);`
@@ -65,10 +79,17 @@ const MapaColaboradores = () => {
         </View>
     );
 
+    const esPaso3 = paso === 3;
+
+    // El mapa ocupa toda la pantalla si: no hay modo edición, O estamos en paso 3
+    const mapaOcupaTodo = !modoEdicion || esPaso3;
+
+    const flexMapa = 1;
+
     return (
         <View style={[styles.mapaContenedor, { backgroundColor: T.background }]}>
             {/* Mapa — se encoge cuando aparece el teclado */}
-            <View style={[styles.mapaWrapper, { flex: keyboardHeight > 0 ? 0.35 : 1 }]}>
+            <View style={{ flex: flexMapa }}>
                 <WebView
                     ref={webViewRef}
                     source={{ html: htmlMapa }}
@@ -92,7 +113,7 @@ const MapaColaboradores = () => {
                             <TouchableOpacity
                                 style={[styles.botonFlotanteCrear, { backgroundColor: T.Button.primary.background }]}
                                 onPress={() => {
-                                    setModoEdicion(true);
+                                    handleSetModoEdicion(true);
                                     showInfo('Modo edición activado - Toca el mapa para agregar puntos');
                                 }}>
                                 <Text style={{ color: T.Button.primary.Text, fontWeight: 'bold' }}>Crear ruta</Text>
@@ -118,7 +139,12 @@ const MapaColaboradores = () => {
 
             {/* Panel — sube cuando aparece el teclado */}
             {modoEdicion && panelVisible && (
-                <View style={{ marginBottom: keyboardHeight > 0 ? keyboardHeight - 30 : 0 }}>
+                <View style={{
+                    position: 'absolute',
+                    bottom: esPaso3 ? 0 : keyboardHeight,  // ← sube solo en pasos 1 y 2
+                    left: 0,
+                    right: 0,
+                }}>
                     <PanelRuta
                         nombreRuta={nombreRuta} setNombreRuta={setNombreRuta}
                         numeroRuta={numeroRuta} setNumeroRuta={setNumeroRuta}
@@ -131,16 +157,21 @@ const MapaColaboradores = () => {
                         horaInicio={horaInicio} setHoraInicio={setHoraInicio}
                         horaFin={horaFin} setHoraFin={setHoraFin}
                         showError={showError} showWarning={showWarning}
+                        panelColapsado={panelColapsado}
+                        setPanelColapsado={setPanelColapsado}
+                        paso={paso}
+                        setPaso={setPaso}
                     />
                 </View>
             )}
 
-            {modoEdicion && !panelVisible && (
+            {modoEdicion && !panelVisible && !esPaso3 && (
                 <TouchableOpacity style={styles.botonMostrarPanel} onPress={() => setPanelVisible(true)}>
                     <Text style={styles.textoMostrarPanel}>Mostrar panel</Text>
                 </TouchableOpacity>
             )}
         </View>
+
     );
 };
 

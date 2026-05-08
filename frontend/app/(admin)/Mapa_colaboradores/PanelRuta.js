@@ -2,7 +2,7 @@
 import { useState, useRef } from "react";
 import {
     View, Text, TextInput, TouchableOpacity,
-    ScrollView, StyleSheet, Animated, PanResponder
+    ScrollView, StyleSheet, Animated, PanResponder,Keyboard 
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
@@ -29,7 +29,7 @@ const Progreso = ({ pasoActual }) => (
                         ? <Ionicons name="checkmark" size={12} color="white" />
                         : <Text style={[s.progresoNumero, pasoActual === paso.numero && { color: 'white' }]}>
                             {paso.numero}
-                          </Text>
+                        </Text>
                     }
                 </View>
                 {i < PASOS.length - 1 && (
@@ -82,8 +82,8 @@ const Paso2 = ({
                 {vehiculos.map(v => <Picker.Item key={v.id} label={v.placa} value={v.id} />)}
             </Picker>
         </View>
-        <Text style={s.labelSeccion}>Horario</Text>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <Text style={s.labelSeccion}>Vehículo</Text>
+        <View style={s.selectorContenedor}>
             <TextInput
                 style={[s.input, { flex: 1 }]}
                 value={horaInicio}
@@ -150,8 +150,9 @@ const PanelRuta = ({
     horaFin, setHoraFin,
     showError, showWarning,
     panelColapsado, setPanelColapsado,
+    paso, setPaso,
 }) => {
-    const [paso, setPaso] = useState(1);
+    
     const [errores, setErrores] = useState({});  // ← errores inline
     const translateY = useRef(new Animated.Value(0)).current;
     const colapsadoRef = useRef(false); // ← ref para el PanResponder (evita bug de closure)
@@ -228,9 +229,12 @@ const PanelRuta = ({
 
     const siguiente = () => {
         if (validarPaso()) {
+            Keyboard.dismiss(); 
             setErrores({});
             translateY.setValue(0);
+            setTimeout(() => {
             setPaso(p => p + 1);
+        }, 150);
         }
     };
 
