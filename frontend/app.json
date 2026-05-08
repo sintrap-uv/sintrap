@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "Sintrap",
+    "slug": "sintrap",
     "scheme": "sintrap",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -27,8 +27,11 @@
       },
       "permissions": [
         "ACCES_COARSE_LOCATION",
-        "ACCES_FINE_LOCATION"
-      ]
+        "ACCES_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "package": "com.johanngonza26.frontend"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -43,6 +46,13 @@
         }
       ],
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "84ddd9a9-2d94-42e0-8536-2995157d13dd"
+      }
+    },
+    "owner": "johanngonza26"
   }
 }
