@@ -7,6 +7,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import theme from "../../constants/theme";
 import Header from "../../components/Header";
+import {useRouter} from "expo-router";
 import {
   getDashboardUsuario, calcularETA,
   marcarNotifLeida, formatearHora,
@@ -227,6 +228,7 @@ function TarjetaVehiculo({ bus, turnoHoy }) {
 
 // ─── Dashboard principal ──────────────────────────────────────────────────
 export default function DashboardUsuario() {
+  const router = useRouter();
   const [userId,      setUserId]      = useState(null);
   const [datos,       setDatos]       = useState(null);
   const [sinRuta,     setSinRuta]     = useState(false);
@@ -299,7 +301,7 @@ export default function DashboardUsuario() {
         subtitulo={`Ruta ${asignacion.numeroRuta} · ${asignacion.paradaOrigen.nombre}`}
         mode="light"
         iconoDerecha={
-          <TouchableOpacity onPress={() => console.log("Notificaciones")} style={{ position: "relative" }}>
+          <TouchableOpacity onPress={() => router.push("/Notificaciones")} style={{ position: "relative" }}>
             <Ionicons name="notifications-outline" size={24} color="#fff" />
             {notificaciones.length > 0 && (
               <View style={s.badgeNotif}>
