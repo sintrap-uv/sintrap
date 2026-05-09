@@ -18,10 +18,7 @@ import { subirAvatar } from "../../services/uploadService";
 import theme from "../../constants/theme";
 import Header from "../../components/Header";
 import * as Location from "expo-location";
-import {
-  actualizarUbicacionUsuario,
-  obtenerUbicacionUsuario,
-} from "../../services/locationService";
+import { guardarUbicacionUsuario, ObtenerDireccionUsuario } from "../../services/geocalizacion";
 
 const T = theme.lightMode; // cambia a theme.darkMode para modo oscuro
 
@@ -61,17 +58,12 @@ export default function EditarPerfilForm({
       if (!userId) return;
 
       try {
-        const resultado = await obtenerUbicacionUsuario(userId);
+        const resultado = await ObtenerDireccionUsuario(userId);
 
         // resultado.data es null si el usuario nunca guardó la ubicacion
-        if (resultado.success && resultado.data) {
-          const { latitude, longitude, direccion } = resultado.data;
-
-          // Llena el estado de unicación con lat/lng del formulario 
-          setUbicacion({ latitude, longitude, direccion: direccion ?? ""});
-
-          // Tambien pre-llenar el campo dirección del formulario
-          if (direccion) actualizarCampo("direccion", direccion);
+        if (resultado?.direccion) {
+          actualizarCampo("direccion", resultado.direccion);
+          setUbicacion((prev) => ({ ...prev, direccion: resultado.direccion }));
         }
         // Si data es null -> usuario sin ubicación, no se hace nad
         // El componente muestra "Sin ubicacion guardada"
@@ -184,14 +176,14 @@ export default function EditarPerfilForm({
       actualizarCampo("direccion", direccionTexto);
 
       // Guardar en supbase
-      const resultado = await actualizarUbicacionUsuario(
+      const {error} = await guardarUbicacionUsuario(
         userId,
+        direccionTexto,
         latitude,
         longitude,
-        direccionTexto,
       );
 
-      if (!resultado.success) throw new Error(resultado.error);
+      if (error) throw new Error(error.message);
 
       Alert.alert("Ubicacion guardada", `${direccionTexto}`);
     } catch (e) {
@@ -201,7 +193,7 @@ export default function EditarPerfilForm({
     }
   };
 
-    return (
+  return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -328,70 +320,70 @@ export default function EditarPerfilForm({
             <Ionicons
               name={ubicacion.latitude ? "location" : "location-outline"}
               size={16}
-            color={ubicacion.latitude ? T.icon.active : T.text.secondary}
+              color={ubicacion.latitude ? T.icon.active : T.text.secondary}
             />
+          </View>
+          <View style={{ flex: 1 }}>
+            {ubicacion.latitude ? (
+              <>
+                <Text style={styles.ubicacionChipTexto}>
+                  {ubicacion.direccion || "Ubicación guardada"}
+                </Text>
+                <Text style={styles.ubicacionChipSub}>
+                  {ubicacion.latitude.toFixed(5)}, {ubicacion.longitude.toFixed(5)}
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.ubicacionChipVacio}>
+                Sin ubicación guardada
+              </Text>
+            )}
+          </View>
         </View>
-        <View style={{ flex: 1 }}>
-          {ubicacion.latitude ? (
-            <>
-            <Text style={styles.ubicacionChipTexto}>
-              {ubicacion.direccion || "Ubicación guardada"}
-            </Text>
-            <Text style={styles.ubicacionChipSub}>
-              {ubicacion.latitude.toFixed(5)}, {ubicacion.longitude.toFixed(5)}
-            </Text>
-          </>
-       ) : (
-        <Text style={styles.ubicacionChipVacio}>
-          Sin ubicación guardada
-        </Text>
-      )}
-    </View>
-  </View>
 
-  {/* Botón GPS */}
-  <TouchableOpacity
-    style={[
+        {/* Botón GPS */}
+        <TouchableOpacity
+          style={[
             styles.botonUbicacion,
             guardandoUbicacion && styles.botonDeshabilitado,
-    ]}
-    onPress={reportarUbicacionActual}
-    disabled={guardandoUbicacion}
-    activeOpacity={0.85}
-  >
-    {guardandoUbicacion ? (
-      <ActivityIndicator color={T.Button.primary.background} size="small" />
-    ) : (
-      <>
-        <Ionicons
-          name="locate-outline"
-          size={18}
-          color={T.Button.primary.background}
-        />
-        <Text style={styles.botonUbicacionTexto}>
-          {ubicacion.latitude ? "Actualizar ubicación" : "Obtener ubicación actual"}
-        </Text>
-      </>
-    )}
-  </TouchableOpacity>
+          ]}
+          onPress={reportarUbicacionActual}
+          disabled={guardandoUbicacion}
+          activeOpacity={0.85}
+        >
+          {guardandoUbicacion ? (
+            <ActivityIndicator color={T.Button.primary.background} size="small" />
+          ) : (
+            <>
+              <Ionicons
+                name="locate-outline"
+                size={18}
+                color={T.Button.primary.background}
+              />
+              <Text style={styles.botonUbicacionTexto}>
+                {ubicacion.latitude ? "Actualizar ubicación" : "Obtener ubicación actual"}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
 
-  {/* Campo dirección editable — se llena con GPS pero el usuario puede cambiarlo */}
-  <CampoTexto
-    label="Dirección"
-    icono="location-outline"
-    IconLib={Ionicons}
-    valor={form.direccion}
-    onChange={(v) => {
-      actualizarCampo("direccion", v);
-      // Si el usuario edita manualmente, limpia las coords del chip
-      // para que no muestre coordenadas desincronizadas con el texto
-      setUbicacion((prev) => ({ ...prev, direccion: v }));
-    }}
-    error={errores.direccion}
-    placeholder="Calle 20 # 49-21"
-    autoCapitalize="words"
-  />
-  {/* ── FIN SECCIÓN UBICACIÓN ────────────────────────────── */}
+        {/* Campo dirección editable — se llena con GPS pero el usuario puede cambiarlo */}
+        <CampoTexto
+          label="Dirección"
+          icono="location-outline"
+          IconLib={Ionicons}
+          valor={form.direccion}
+          onChange={(v) => {
+            actualizarCampo("direccion", v);
+            // Si el usuario edita manualmente, limpia las coords del chip
+            // para que no muestre coordenadas desincronizadas con el texto
+            setUbicacion((prev) => ({ ...prev, direccion: v }));
+          }}
+          error={errores.direccion}
+          placeholder="Calle 20 # 49-21"
+          autoCapitalize="words"
+        />
+        {/* ── FIN SECCIÓN UBICACIÓN ────────────────────────────── */}
 
         {guardado && (
           <View style={styles.mensajeExito}>
@@ -586,53 +578,53 @@ const styles = StyleSheet.create({
   botonTexto: { color: T.Button.primary.Text, fontSize: 16, fontWeight: "600" },
 
   ubicacionChip: {
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 10,
-  backgroundColor: T.cards.background,
-  borderWidth: 1.5,
-  borderColor: T.cards.border,
-  borderRadius: 12,
-  padding: 12,
-  marginBottom: 12,
-},
-ubicacionChipIcono: {
-  width: 32,
-  height: 32,
-  borderRadius: 16,
-  backgroundColor: T.background,
-  alignItems: "center",
-  justifyContent: "center",
-},
-ubicacionChipTexto: {
-  fontSize: 14,
-  fontWeight: "500",
-  color: T.text.primary,
-},
-ubicacionChipSub: {
-  fontSize: 11,
-  color: T.text.secondary,
-  marginTop: 2,
-},
-ubicacionChipVacio: {
-  fontSize: 13,
-  color: T.text.secondary,
-  fontStyle: "italic",
-},
-botonUbicacion: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 8,
-  borderWidth: 1.5,
-  borderColor: T.Button.primary.background,
-  borderRadius: T.Button.primary.borderRadius,
-  height: 48,
-  marginBottom: 16,
-},
-botonUbicacionTexto: {
-  color: T.Button.primary.background,
-  fontSize: 15,
-  fontWeight: "500",
-},
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: T.cards.background,
+    borderWidth: 1.5,
+    borderColor: T.cards.border,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  ubicacionChipIcono: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: T.background,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ubicacionChipTexto: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: T.text.primary,
+  },
+  ubicacionChipSub: {
+    fontSize: 11,
+    color: T.text.secondary,
+    marginTop: 2,
+  },
+  ubicacionChipVacio: {
+    fontSize: 13,
+    color: T.text.secondary,
+    fontStyle: "italic",
+  },
+  botonUbicacion: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: T.Button.primary.background,
+    borderRadius: T.Button.primary.borderRadius,
+    height: 48,
+    marginBottom: 16,
+  },
+  botonUbicacionTexto: {
+    color: T.Button.primary.background,
+    fontSize: 15,
+    fontWeight: "500",
+  },
 });

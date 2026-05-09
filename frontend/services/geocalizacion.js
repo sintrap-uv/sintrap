@@ -1,44 +1,14 @@
 import { supabase } from "./supabase";
 
-//bamos a convertir la direccion de los colaboradores en datos de latidud y longitud 
-// y lo guardaremos en la tabla de supabase con sus respectivas columnas 
-
-
-export async function ubicacionUsuario(userId, direccion, latidud, longitud) {
-
-    const { data, error } = await supabase
-        .from('ubicacion_usuario')
-        .insert({
-            usuario_id: userId,
-            direccion: direccion,
-            latidud: latidud,
-            longitud: longitud,
-            
-        })
-        .select()
-        .single();
-    if (error) {
-        console.error("ERROR INSERTANDO:", error);
-    } else {
-        console.log("GUARDADO OK:", data);
-    }
-    return { data, error };
-}
-
-
-export const obtenerCordenadas = async (direccion,) => {
+// Convierte dirección en coordenadas usando OpenStreetMap
+export const obtenerCordenadas = async (direccion) => {
     try {
-        const direccionCodificada = encodeURIComponent(direccion)
-
-        //implementmaos la direccion de OpenstreetMap
+        const direccionCodificada = encodeURIComponent(direccion);
         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${direccionCodificada}&limit=1`;
 
         const respuesta = await fetch(url, {
-            headers: {
-                'User-Agent': 'SintrapApp'
-            }
+            headers: { 'User-Agent': 'SintrapApp' }
         });
-
         const datos = await respuesta.json();
 
         if (datos.length > 0) {
@@ -47,20 +17,39 @@ export const obtenerCordenadas = async (direccion,) => {
                 longitud: parseFloat(datos[0].lon)
             };
         }
-        else {
-            throw new Error("No encontramos esa dirección");
-
-        }
+        throw new Error("No encontramos esa dirección");
 
     } catch (error) {
         console.error('Error buscando en OSM', error);
         return null;
     }
+};
+
+// Guarda o actualiza la ubicación del usuario (upsert)
+// ← esta es la ÚNICA función para guardar, sirve tanto para crear como para actualizar
+export async function guardarUbicacionUsuario(userId, direccion, latidud, longitud) {
+    const { data, error } = await supabase
+        .from('ubicacion_usuario')
+        .upsert(
+            {
+                usuario_id: userId,
+                direccion: direccion,
+                latidud: latidud,
+                longitud: longitud,
+            },
+            { onConflict: 'usuario_id' }
+        )
+        .select()
+        .single();
+
+    if (error) console.error("Error guardando ubicación:", error);
+    else console.log("Ubicación guardada:", data);
+
+    return { data, error };
 }
 
-//se hace una busqueda en supabase
+// Obtiene la dirección guardada de un usuario
 export const ObtenerDireccionUsuario = async (userId) => {
-
     try {
         const { data, error } = await supabase
             .from('ubicacion_usuario')
@@ -72,34 +61,24 @@ export const ObtenerDireccionUsuario = async (userId) => {
             console.error("Error obteniendo la direccion", error);
             return null;
         }
-
         return data;
-
     } catch (error) {
-        console.error("Error inesperado:", er);
+        console.error("Error inesperado:", error); // ← también corregí el bug "er"
         return null;
     }
-
 };
 
-export const calcularDistancia = (lat1, long1,lat2,long2)=>{
+// Calcula distancia entre dos coordenadas en kilómetros (fórmula Haversine)
+export const calcularDistancia = (lat1, long1, lat2, long2) => {
     const radioTierra = 6371;
+    const toRad = (grados) => grados * Math.PI / 180;
 
-    const convertiaRadiantes = (grados) => grados * Math.PI / 180;
+    const dlat = toRad(lat2 - lat1);
+    const dlon = toRad(long2 - long1);
 
-    //Diferencia entre coordenadas
-    const dlat = convertiaRadiantes(lat2 -lat1)
-    const dlon = convertiaRadiantes(long2 - long1);
+    const a = Math.sin(dlat / 2) ** 2 +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+              Math.sin(dlon / 2) ** 2;
 
-    //formula de Haversine 
-    const a = Math.sin(dlat / 2) * Math.sin(dlat / 2) +
-              Math.cos(convertiaRadiantes(lat1)) * Math.cos(convertiaRadiantes(lat2)) *
-              Math.sin(dlon / 2) * Math.sin(dlon / 2);
-    
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    
-    // Distancia final en kilómetros
-    const distancia = radioTierra * c;
-    
-    return distancia;
-}
+    return radioTierra * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};

@@ -1,32 +1,7 @@
 import { supabase } from "./supabase";
 import { notificarConductorAsignado } from "./notificacionesServices";
 
-export async function crearRuta(nombre, numeroRuta, trayecto) {
 
-    const datosInsertar = {
-        numero_ruta: numeroRuta,
-        nombre: nombre,
-        activa: true,
-        fecha_registro: new Date().toISOString().split('T')[0]
-    }
-    if (trayecto) {
-        datosInsertar.trayecto = trayecto;
-    }
-
-    const { data, error } = await supabase
-        .from('rutas')
-        .insert(datosInsertar)
-        .select()
-        .single()
-
-    if (error) {
-        console.log("Error al insertar los datos", error)
-    }
-    else {
-        console.log("Datos de ruta guardados exitosamente", data)
-    }
-    return { data, error };
-}
 
 export const guardarRutaCompleta = async (nombre, numeroRuta, puntosRuta, conductorId, vehiculoId, horaInicio, horaFin, turno_id) => {
 

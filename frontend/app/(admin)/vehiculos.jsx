@@ -163,7 +163,7 @@ export default function VehiculosScreen() {
     setFormTipoVehiculoId(v.tipo_vehiculo_id ?? null);
     setFormFechaInicio(v.fecha_inicio ?? "");
     setFormFechaVencimiento(v.fecha_vencimiento ?? "");
-    
+
     fetchConductoresDisponibles(v.id);
     setModalVisible(true);
   }
@@ -243,36 +243,33 @@ export default function VehiculosScreen() {
   // ── VERIFICAR Y ELIMINAR ─────────────────────────────────────────────────
   async function pedirConfirmacion(v) {
     setParaEliminar(v);
+
     try {
-      const { data: turnosActivos, error } = await supabase
-        .from("turnos")
-        .select("id, fecha, conductor_id, estado, profiles(nombre)")
+      const { data: rutasAsignadas, error } = await supabase
+        .from("ruta_horarios")
+        .select("id, ruta_id, rutas(numero_ruta, nombre)")
         .eq("vehiculo_id", v.id)
-        .eq("estado", "en_curso")
+        .eq("activo", true)
         .limit(1);
 
       if (error) throw error;
 
-      if (turnosActivos?.length > 0) {
-        const turno = turnosActivos[0];
+      if (rutasAsignadas?.length > 0) {
+        // Tiene ruta → bloqueado
         setTieneDependencias("bloqueado");
         setInfoDependencia({
-          conductor: turno?.profiles?.nombre ?? "Conductor desconocido",
-          fecha: turno?.fecha ?? "sin fecha"
+          ruta: `Ruta ${rutasAsignadas[0].rutas?.numero_ruta} - ${rutasAsignadas[0].rutas?.nombre}`
         });
       } else {
-        const { count } = await supabase
-          .from("turnos")
-          .select("*", { count: "exact", head: true })
-          .eq("vehiculo_id", v.id);
-
-        setTieneDependencias(count > 0 ? "historial" : "ninguna");
+        // Sin ruta → puede eliminarse
+        setTieneDependencias("ninguna");
         setInfoDependencia(null);
       }
     } catch (err) {
       setTieneDependencias("ninguna");
       setInfoDependencia(null);
     }
+
     setConfirmVisible(true);
   }
 
@@ -666,27 +663,19 @@ export default function VehiculosScreen() {
 
               {tieneDependencias === "bloqueado" && (
                 <>
-                  <Text style={[s.confirmTitle, { color: T.icon.error }]}>No se puede eliminar</Text>
+                  <Text style={[s.confirmTitle, { color: T.icon.error }]}>
+                    No se puede eliminar
+                  </Text>
                   <View style={s.confirmCard}>
                     <View style={s.confirmRow}>
-                      <Ionicons name="bus-outline" size={16} color={T.text.secondary} />
-                      <Text style={s.confirmRowLabel}>Vehículo</Text>
-                      <Text style={s.confirmRowValue}>{paraEliminar?.placa}</Text>
-                    </View>
-                    <View style={s.confirmDivider} />
-                    <View style={s.confirmRow}>
-                      <Ionicons name="person-outline" size={16} color={T.text.secondary} />
-                      <Text style={s.confirmRowLabel}>Conductor</Text>
-                      <Text style={s.confirmRowValue}>{infoDependencia?.conductor}</Text>
-                    </View>
-                    <View style={s.confirmDivider} />
-                    <View style={s.confirmRow}>
-                      <Ionicons name="calendar-outline" size={16} color={T.text.secondary} />
-                      <Text style={s.confirmRowLabel}>Fecha</Text>
-                      <Text style={s.confirmRowValue}>{infoDependencia?.fecha}</Text>
+                      <Ionicons name="map-outline" size={16} color={T.text.secondary} />
+                      <Text style={s.confirmRowLabel}>Ruta asignada</Text>
+                      <Text style={s.confirmRowValue}>{infoDependencia?.ruta}</Text>
                     </View>
                   </View>
-                  <Text style={s.confirmSubtext}>Espera a que el turno finalice.</Text>
+                  <Text style={s.confirmSubtext}>
+                    Desasigna el vehículo de la ruta antes de eliminarlo.
+                  </Text>
                 </>
               )}
 

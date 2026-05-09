@@ -6,7 +6,6 @@ import { guardarRutaCompleta } from "../../../services/rutaServices";
 import { obtenerUbicacionBuses } from "../../../services/salidaBuses";
 import { generarRutaOptima } from "./rutaUtils";
 import { useToast } from "../../../context/ToastContext";
-import { getAllCountries } from "react-native-international-phone-number";
 import { obtenerVehiculos , getVehiculoPorConductor} from "../../../services/vehicleService"
 import { getAllDrivers } from "../../../services/driverService";
 import { supabase } from "../../../services/supabase";
