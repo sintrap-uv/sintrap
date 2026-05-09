@@ -1,7 +1,7 @@
- /**
- * vehiculos.jsx
-  
- */
+/**
+* vehiculos.jsx
+ 
+*/
 
 import { useState, useEffect, useCallback } from "react";
 import {
@@ -18,26 +18,26 @@ import theme from "../../constants/theme";
 const T = theme.lightMode;
 
 export default function VehiculosScreen() {
-  const [vehiculos,            setVehiculos]            = useState([]);
-  const [conductores,          setConductores]          = useState([]);
-  const [tiposVehiculo,        setTiposVehiculo]        = useState([]);
-  const [loading,              setLoading]              = useState(true);
-  const [refreshing,           setRefreshing]           = useState(false);
-  const [globalError,          setGlobalError]          = useState(null);
-  const [busqueda,             setBusqueda]             = useState("");
+  const [vehiculos, setVehiculos] = useState([]);
+  const [conductores, setConductores] = useState([]);
+  const [tiposVehiculo, setTiposVehiculo] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [globalError, setGlobalError] = useState(null);
+  const [busqueda, setBusqueda] = useState("");
 
   // Modal edición
-  const [modalVisible,         setModalVisible]         = useState(false);
-  const [editando,             setEditando]             = useState(null);
-  const [formActivo,           setFormActivo]           = useState(true);
-  const [formSeguro,           setFormSeguro]           = useState(false);
-  const [formConductorId,      setFormConductorId]      = useState(null);
-  const [formTipoVehiculoId,   setFormTipoVehiculoId]   = useState(null);
-  const [formFechaInicio,      setFormFechaInicio]      = useState("");
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editando, setEditando] = useState(null);
+  const [formActivo, setFormActivo] = useState(true);
+  const [formSeguro, setFormSeguro] = useState(false);
+  const [formConductorId, setFormConductorId] = useState(null);
+  const [formTipoVehiculoId, setFormTipoVehiculoId] = useState(null);
+  const [formFechaInicio, setFormFechaInicio] = useState("");
   const [formFechaVencimiento, setFormFechaVencimiento] = useState("");
-  const [showPickerInicio,     setShowPickerInicio]     = useState(false);
-  const [showPickerVencimiento,setShowPickerVencimiento]= useState(false);
-  const [guardando,            setGuardando]            = useState(false);
+  const [showPickerInicio, setShowPickerInicio] = useState(false);
+  const [showPickerVencimiento, setShowPickerVencimiento] = useState(false);
+  const [guardando, setGuardando] = useState(false);
 
   // Modal conductor
   const [modalConductorVisible, setModalConductorVisible] = useState(false);
@@ -46,11 +46,11 @@ export default function VehiculosScreen() {
   const [modalTipoVisible, setModalTipoVisible] = useState(false);
 
   // Modal confirmación borrado
-  const [confirmVisible,   setConfirmVisible]   = useState(false);
-  const [paraEliminar,     setParaEliminar]     = useState(null);
-  const [eliminando,       setEliminando]       = useState(false);
-  const [tieneDependencias,setTieneDependencias]= useState("ninguna");
-  const [infoDependencia,  setInfoDependencia]  = useState(null);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [paraEliminar, setParaEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [tieneDependencias, setTieneDependencias] = useState("ninguna");
+  const [infoDependencia, setInfoDependencia] = useState(null);
 
   // ── FETCH VEHÍCULOS ──────────────────────────────────────────────────────
   const fetchVehiculos = useCallback(async () => {
@@ -74,6 +74,37 @@ export default function VehiculosScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  }, []);
+
+  //Filtramos los condcutores que no tienen un bus asigando 
+  const fetchConductoresDisponibles = useCallback(async (vehiculoActualId) => {
+    try {
+      // 1. Traer todos los conductores
+      const { data: todos, error: e1 } = await supabase
+        .from("profiles")
+        .select("id, nombre")
+        .eq("rol", "conductor")
+        .order("nombre", { ascending: true });
+      if (e1) throw e1;
+
+      // 2. Traer conductores que YA tienen vehículo activo
+      const { data: ocupados, error: e2 } = await supabase
+        .from("vehiculos")
+        .select("conductor_id")
+        .eq("activo", true)
+        .not("conductor_id", "is", null)
+        .neq("id", vehiculoActualId); // excluir el vehículo que estás editando
+
+      if (e2) throw e2;
+
+      const idsOcupados = ocupados.map((v) => v.conductor_id);
+
+      // 3. Quedarte solo con los libres
+      const libres = todos.filter((c) => !idsOcupados.includes(c.id));
+      setConductores(libres);
+    } catch (err) {
+      console.warn("Error cargando conductores:", err.message);
     }
   }, []);
 
@@ -132,6 +163,8 @@ export default function VehiculosScreen() {
     setFormTipoVehiculoId(v.tipo_vehiculo_id ?? null);
     setFormFechaInicio(v.fecha_inicio ?? "");
     setFormFechaVencimiento(v.fecha_vencimiento ?? "");
+    
+    fetchConductoresDisponibles(v.id);
     setModalVisible(true);
   }
 
@@ -169,16 +202,16 @@ export default function VehiculosScreen() {
       list.map((v) =>
         v.id === editando.id
           ? {
-              ...v,
-              activo:            formActivo,
-              seguro:            formSeguro,
-              conductor_id:      formConductorId,
-              tipo_vehiculo_id:  formTipoVehiculoId,
-              fecha_inicio:      formSeguro ? formFechaInicio      : null,
-              fecha_vencimiento: formSeguro ? formFechaVencimiento : null,
-              profiles:          conductorSeleccionado,
-              tipo_vehiculo:     tipoSeleccionado,
-            }
+            ...v,
+            activo: formActivo,
+            seguro: formSeguro,
+            conductor_id: formConductorId,
+            tipo_vehiculo_id: formTipoVehiculoId,
+            fecha_inicio: formSeguro ? formFechaInicio : null,
+            fecha_vencimiento: formSeguro ? formFechaVencimiento : null,
+            profiles: conductorSeleccionado,
+            tipo_vehiculo: tipoSeleccionado,
+          }
           : v
       )
     );
@@ -188,11 +221,11 @@ export default function VehiculosScreen() {
       const { error } = await supabase
         .from("vehiculos")
         .update({
-          activo:            formActivo,
-          seguro:            formSeguro,
-          conductor_id:      formConductorId,       // null = quitar conductor
-          tipo_vehiculo_id:  formTipoVehiculoId,
-          fecha_inicio:      formSeguro ? formFechaInicio      : null,
+          activo: formActivo,
+          seguro: formSeguro,
+          conductor_id: formConductorId,       // null = quitar conductor
+          tipo_vehiculo_id: formTipoVehiculoId,
+          fecha_inicio: formSeguro ? formFechaInicio : null,
           fecha_vencimiento: formSeguro ? formFechaVencimiento : null,
           // "capacidad" nunca se toca aquí
         })
@@ -391,7 +424,7 @@ export default function VehiculosScreen() {
         />
       )}
 
-       {/* ══════════════════════════════════════
+      {/* ══════════════════════════════════════
           MODAL — EDITAR VEHÍCULO
       ══════════════════════════════════════ */}
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={cerrarEdicion}>
@@ -602,10 +635,10 @@ export default function VehiculosScreen() {
             <View style={s.modalHead}>
               <Text style={[s.modalTitle, {
                 color: tieneDependencias === "bloqueado" ? T.icon.error :
-                       tieneDependencias === "historial"  ? T.icon.alert : T.icon.error
+                  tieneDependencias === "historial" ? T.icon.alert : T.icon.error
               }]}>
                 {tieneDependencias === "bloqueado" ? "Acción bloqueada" :
-                 tieneDependencias === "historial"  ? "Atención" : "Eliminar vehículo"}
+                  tieneDependencias === "historial" ? "Atención" : "Eliminar vehículo"}
               </Text>
               <TouchableOpacity onPress={() => setConfirmVisible(false)}>
                 <Ionicons name="close" size={24} color={T.text.secondary} />
@@ -616,17 +649,17 @@ export default function VehiculosScreen() {
               <View style={[s.confirmIconCircle, {
                 backgroundColor:
                   tieneDependencias === "bloqueado" ? "#FEF2F2" :
-                  tieneDependencias === "historial"  ? "#FFFBEB" : "#FEF2F2"
+                    tieneDependencias === "historial" ? "#FFFBEB" : "#FEF2F2"
               }]}>
                 <Ionicons
                   name={
                     tieneDependencias === "bloqueado" ? "ban-outline" :
-                    tieneDependencias === "historial"  ? "warning-outline" : "trash-outline"
+                      tieneDependencias === "historial" ? "warning-outline" : "trash-outline"
                   }
                   size={36}
                   color={
                     tieneDependencias === "bloqueado" ? T.icon.error :
-                    tieneDependencias === "historial"  ? T.icon.alert : T.icon.error
+                      tieneDependencias === "historial" ? T.icon.alert : T.icon.error
                   }
                 />
               </View>
@@ -695,8 +728,8 @@ export default function VehiculosScreen() {
                   {eliminando
                     ? <ActivityIndicator color="#fff" size="small" />
                     : <Text style={s.btnSaveText}>
-                        {tieneDependencias === "historial" ? "Desactivar" : "Sí, eliminar"}
-                      </Text>
+                      {tieneDependencias === "historial" ? "Desactivar" : "Sí, eliminar"}
+                    </Text>
                   }
                 </TouchableOpacity>
               )}
@@ -710,7 +743,7 @@ export default function VehiculosScreen() {
 
 // ─── ESTILOS ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  container:  { flex: 1, backgroundColor: T.background },
+  container: { flex: 1, backgroundColor: T.background },
 
   // Buscador
   searchWrap: {
@@ -733,7 +766,7 @@ const s = StyleSheet.create({
   errorText: { color: T.icon.error, fontSize: 13, flex: 1 },
 
   // Loading / empty
-  centered:    { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   loadingText: { color: T.text.secondary, fontSize: 14 },
 
   // Lista
@@ -749,22 +782,22 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
   },
-  cardHeader:  { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cardActions: { flexDirection: "row", gap: 12 },
-  placa:       { fontSize: 20, fontWeight: "800", color: T.text.primary, letterSpacing: 1 },
+  placa: { fontSize: 20, fontWeight: "800", color: T.text.primary, letterSpacing: 1 },
 
-  badge:         { borderRadius: 100, paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1 },
-  badgeActivo:   { backgroundColor: "#DCFCE7", borderColor: "#86EFAC" },
+  badge: { borderRadius: 100, paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1 },
+  badgeActivo: { backgroundColor: "#DCFCE7", borderColor: "#86EFAC" },
   badgeInactivo: { backgroundColor: "#F1F5F9", borderColor: T.cards.border },
-  badgeText:     { fontSize: 11, fontWeight: "600" },
+  badgeText: { fontSize: 11, fontWeight: "600" },
 
-  cardInfo:  { gap: 8 },
-  infoRow:   { flexDirection: "row", alignItems: "center", gap: 8 },
+  cardInfo: { gap: 8 },
+  infoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   infoValue: { fontSize: 13, color: T.text.secondary, fontWeight: "500" },
 
   // Modal base
-  overlay:   { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  modalBox:  {
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  modalBox: {
     backgroundColor: "#fff",
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     borderWidth: 1, borderColor: T.cards.border,
@@ -774,7 +807,7 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     padding: 20, borderBottomWidth: 1, borderBottomColor: T.cards.border,
   },
-  modalTitle:{ fontSize: 18, fontWeight: "800", color: T.text.primary },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: T.text.primary },
   modalBody: { padding: 20 },
   modalFoot: {
     flexDirection: "row", gap: 10,
@@ -784,51 +817,51 @@ const s = StyleSheet.create({
 
   // Inputs del formulario
   fieldLabel: { fontSize: 13, fontWeight: "600", color: T.text.secondary, marginBottom: 6, marginTop: 14 },
-  fieldHint:  { fontSize: 11, color: T.text.tertiary, marginTop: 3, marginBottom: 4 },
-  inputRow:   {
+  fieldHint: { fontSize: 11, color: T.text.tertiary, marginTop: 3, marginBottom: 4 },
+  inputRow: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: T.background, borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 12, marginBottom: 4,
   },
-  inputIcon:  { marginRight: 10 },
-  inputText:  { flex: 1, fontSize: 15, color: T.text.primary },
+  inputIcon: { marginRight: 10 },
+  inputText: { flex: 1, fontSize: 15, color: T.text.primary },
 
   // Modal items (conductor / tipo)
-  modalItem:         {
+  modalItem: {
     flexDirection: "row", alignItems: "center", gap: 12,
     paddingVertical: 14, paddingHorizontal: 20,
     borderBottomWidth: 1, borderBottomColor: T.cards.border,
   },
   modalItemSelected: { backgroundColor: "#F0FDF4" },
-  modalItemText:     { flex: 1, fontSize: 15, color: T.text.primary },
+  modalItemText: { flex: 1, fontSize: 15, color: T.text.primary },
 
   // Botones modal
-  btnCancel:     {
+  btnCancel: {
     flex: 1, borderWidth: 1, borderColor: T.cards.border,
     borderRadius: T.Button.secondary.borderRadius,
     paddingVertical: 13, alignItems: "center",
     backgroundColor: T.Button.secondary.background,
   },
   btnCancelText: { color: T.text.secondary, fontWeight: "700", fontSize: 14 },
-  btnSave:       {
+  btnSave: {
     flex: 1, backgroundColor: T.Button.primary.background,
     borderRadius: T.Button.primary.borderRadius,
     paddingVertical: 13, alignItems: "center",
   },
-  btnSaveText:   { color: "#fff", fontWeight: "800", fontSize: 14 },
+  btnSaveText: { color: "#fff", fontWeight: "800", fontSize: 14 },
 
-   // Confirm
-  confirmBody:       { alignItems: "center", padding: 20, gap: 12 },
+  // Confirm
+  confirmBody: { alignItems: "center", padding: 20, gap: 12 },
   confirmIconCircle: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
-  confirmTitle:      { fontSize: 16, fontWeight: "800", textAlign: "center" },
-  confirmSubtext:    { fontSize: 13, color: T.text.secondary, textAlign: "center", lineHeight: 20 },
-  confirmCard:       {
+  confirmTitle: { fontSize: 16, fontWeight: "800", textAlign: "center" },
+  confirmSubtext: { fontSize: 13, color: T.text.secondary, textAlign: "center", lineHeight: 20 },
+  confirmCard: {
     width: "100%", backgroundColor: "#F8FAFC",
     borderRadius: 12, borderWidth: 1, borderColor: T.cards.border,
     paddingHorizontal: 16, paddingVertical: 4,
   },
-  confirmRow:        { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 10 },
-  confirmRowLabel:   { fontSize: 13, color: T.text.secondary, flex: 1 },
-  confirmRowValue:   { fontSize: 13, fontWeight: "700", color: T.text.primary },
-  confirmDivider:    { height: 1, backgroundColor: T.cards.border },
+  confirmRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 10 },
+  confirmRowLabel: { fontSize: 13, color: T.text.secondary, flex: 1 },
+  confirmRowValue: { fontSize: 13, fontWeight: "700", color: T.text.primary },
+  confirmDivider: { height: 1, backgroundColor: T.cards.border },
 });
