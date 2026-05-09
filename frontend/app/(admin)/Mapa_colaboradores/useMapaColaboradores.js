@@ -6,7 +6,8 @@ import { guardarRutaCompleta } from "../../../services/rutaServices";
 import { obtenerUbicacionBuses } from "../../../services/salidaBuses";
 import { generarRutaOptima } from "./rutaUtils";
 import { useToast } from "../../../context/ToastContext";
-import { obtenerVehiculos } from "../../../services/vehicleService";
+import { getAllCountries } from "react-native-international-phone-number";
+import { obtenerVehiculos , getVehiculoPorConductor} from "../../../services/vehicleService"
 import { getAllDrivers } from "../../../services/driverService";
 import { supabase } from "../../../services/supabase";
 
@@ -33,6 +34,19 @@ export const useMapaColaboradores = () => {
     const [turnoId, setTurnoId] = useState(null);
     const [turnos, setTurnos] = useState([]);
 
+    // 2. Cuando el admin escoge conductor, carga su vehículo automáticamente
+    const handleConductorChange = async (id) => {
+        setConductorId(id);
+        setVehiculoId(null); // resetea vehículo anterior
+        if (!id) return;
+        const vehiculo = await getVehiculoPorConductor(id);
+        if (vehiculo) {
+            setVehiculoId(vehiculo.id);
+        } else {
+            showWarning('Este conductor no tiene vehículo asignado');
+        }
+    };
+
     const cargarDatos = async () => {
         setCargando(true);
         const datos = await ubicacionColaboradores();
@@ -42,12 +56,12 @@ export const useMapaColaboradores = () => {
 
         const { data: listaConductores } = await getAllDrivers();
         const listaVehiculos = await obtenerVehiculos();
-        const { data: listaTurnos } = await supabase.from('tipos_turno').select('*');
-
         setConductores(listaConductores || []);
         setVehiculos(listaVehiculos || []);
-        setTurnos(listaTurnos || []);
         setCargando(false);
+
+        const { data: listaTurnos } = await supabase.from('tipos_turno').select('*');
+        setTurnos(listaTurnos || [])
     };
 
     useEffect(() => { cargarDatos(); }, []);
@@ -76,17 +90,21 @@ export const useMapaColaboradores = () => {
     };
 
     const eliminarPunto = (id) => {
+        // CORREGIDO: comparar siempre como string en ambos lados
         const idStr = String(id);
         const nuevosPuntos = puntosRuta.filter(p => String(p.id) !== idStr);
         setPuntosRuta(nuevosPuntos);
+
+        // CORREGIDO: además de eliminarPunto, enviar actualizarLinea con puntos restantes
+        // para que la polyline se redibuje correctamente sin puntos fantasma
         enviarAlMapa({ tipo: 'eliminarPunto', id: idStr });
         enviarAlMapa({
             tipo: 'actualizarLinea',
             puntos: nuevosPuntos.map(p => ({ lat: p.lat, lon: p.lon, id: String(p.id) }))
         });
+
         showInfo('Punto eliminado');
     };
-
     const limpiarPuntos = () => {
         if (!puntosRuta.length) { showInfo('No hay puntos para limpiar'); return; }
         setPuntosRuta([]);
@@ -99,11 +117,12 @@ export const useMapaColaboradores = () => {
         if (!puntosRuta.length) { showWarning('Debes seleccionar al menos un punto'); return; }
         if (!conductorId) { showError("Debes seleccionar un conductor"); return; }
         if (!vehiculoId) { showError("Debes seleccionar un vehículo"); return; }
-        if (!turnoId) { showError("Debes seleccionar un turno"); return; }
         try {
             await guardarRutaCompleta(nombreRuta, numeroRuta, puntosRuta, conductorId, vehiculoId, horaInicio, horaFin, turnoId);
             showSuccess(`Ruta "${nombreRuta}" guardada exitosamente`);
+            // limpiar estados...
         } catch (error) {
+            // Mensaje específico según el error
             if (error?.code === '23505') {
                 showError(`Ya existe una ruta con el número ${numeroRuta}`);
             } else {
@@ -119,6 +138,7 @@ export const useMapaColaboradores = () => {
             if (mensaje.tipo === 'error') { showError(mensaje.mensaje); return; }
             if (mensaje.tipo === 'trazoExitoso') return;
             if (modoEdicionRef.current && mensaje.id && mensaje.lat && mensaje.lon) {
+                console.log('TIPO DE ID:', typeof mensaje.id, 'VALOR:', mensaje.id); // ← agrega esto
                 setPuntosRuta(prev => [...prev, { id: mensaje.id, lat: mensaje.lat, lon: mensaje.lon }]);
             }
         } catch { /* mensaje no JSON */ }
@@ -133,13 +153,14 @@ export const useMapaColaboradores = () => {
         panelVisible, setPanelVisible,
         webViewRef, onMensajeMapa,
         handleRutaOptima, eliminarPunto, limpiarPuntos, guardarRuta,
-        showInfo, showError, showWarning,
-        conductores, vehiculos,
-        conductorId, setConductorId,
+        showInfo,
+        conductores, vehiculos,          // ← estos
         vehiculoId, setVehiculoId,
         horaInicio, setHoraInicio,
         horaFin, setHoraFin,
-        // ✅ NUEVO: turnos exportados
+        showError, showWarning,
         turnos, turnoId, setTurnoId,
+        conductorId, 
+        handleConductorChange, 
     };
 };

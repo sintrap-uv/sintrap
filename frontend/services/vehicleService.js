@@ -53,3 +53,14 @@ export async function registerVehicle(vehicleData) {
   return data;
 
 }
+export async function getVehiculoPorConductor(conductorId) {
+    const { data, error } = await supabase
+        .from('vehiculos')
+        .select('id, placa, conductor_id')
+        .eq('conductor_id', conductorId)
+        .eq('activo', true)
+        .single();
+
+    if (error) return null;
+    return data;
+}

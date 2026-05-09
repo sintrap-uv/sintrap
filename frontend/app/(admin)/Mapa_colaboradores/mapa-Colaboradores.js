@@ -19,7 +19,7 @@ const MapaColaboradores = () => {
     const [panelColapsado, setPanelColapsado] = useState(false);
     const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-    
+
     useEffect(() => {
         const mostrar = Keyboard.addListener('keyboardDidShow', (e) => {
             setKeyboardHeight(e.endCoordinates.height);
@@ -42,10 +42,11 @@ const MapaColaboradores = () => {
         handleRutaOptima, eliminarPunto, limpiarPuntos, guardarRuta,
         showInfo, showError, showWarning,
         conductores, vehiculos,
-        conductorId, setConductorId,
+        conductorId, handleConductorChange,
         vehiculoId, setVehiculoId,
         horaInicio, setHoraInicio,
         horaFin, setHoraFin,
+         
     } = useMapaColaboradores();
 
     const handleSetModoEdicion = (valor) => {
@@ -152,7 +153,7 @@ const MapaColaboradores = () => {
                         limpiarPuntos={limpiarPuntos} guardarRuta={guardarRuta}
                         setPanelVisible={setPanelVisible} setModoEdicion={setModoEdicion}
                         conductores={conductores} vehiculos={vehiculos}
-                        conductorId={conductorId} setConductorId={setConductorId}
+                        conductorId={conductorId} handleConductorChange={handleConductorChange} 
                         vehiculoId={vehiculoId} setVehiculoId={setVehiculoId}
                         horaInicio={horaInicio} setHoraInicio={setHoraInicio}
                         horaFin={horaFin} setHoraFin={setHoraFin}
@@ -161,6 +162,7 @@ const MapaColaboradores = () => {
                         setPanelColapsado={setPanelColapsado}
                         paso={paso}
                         setPaso={setPaso}
+                        
                     />
                 </View>
             )}

@@ -28,7 +28,7 @@ export async function crearRuta(nombre, numeroRuta, trayecto) {
     return { data, error };
 }
 
-export const guardarRutaCompleta = async (nombre, numeroRuta, puntosRuta, conductorId, vehiculoId, horaInicio, horaFin) => {
+export const guardarRutaCompleta = async (nombre, numeroRuta, puntosRuta, conductorId, vehiculoId, horaInicio, horaFin, turno_id) => {
 
     // Verificar si el número de ruta ya existe
     const { data: rutaExistente } = await supabase
@@ -40,6 +40,16 @@ export const guardarRutaCompleta = async (nombre, numeroRuta, puntosRuta, conduc
     if (rutaExistente) {
         throw new Error(`Ya existe una ruta con el número ${numeroRuta}`);
     }
+    // 2. Verificar conflicto de horario del vehículo
+    const { data: conflicto } = await supabase
+        .from('ruta_horarios')
+        .select('id')
+        .eq('vehiculo_id', vehiculoId)
+        .eq('hora_inicio', horaInicio)
+        .maybeSingle();
+
+    if (conflicto) throw new Error('Este vehículo ya tiene una ruta asignada en ese horario');
+
     const puntosParaEnvio = puntosRuta.map(punto => ({
         lon: punto.lon,
         lat: punto.lat
@@ -53,72 +63,89 @@ export const guardarRutaCompleta = async (nombre, numeroRuta, puntosRuta, conduc
             p_puntos: puntosParaEnvio
         });
 
-    if (error) {
-        console.error("Error guardando ruta:", error);
-        throw error;
-    }
+    if (error) throw error;
+
     const rutaId = data?.id ?? data; // la función RPC retorna el id de la ruta creada
 
-    if (rutaId && conductorId && vehiculoId) {
-        const { error: errorHorario } = await supabase
-            .from('ruta_horarios')
-            .insert({
-                ruta_id: parseInt(rutaId),
-                hora_inicio: horaInicio,
-                hora_fin: horaFin,
-                vehiculo_id: vehiculoId,  // el vehículo ya tiene conductor_id
-                lunes: true, martes: true, miercoles: true,
-                jueves: true, viernes: true,
-                sabado: false, domingo: false,
-                activo: true
-            });
+    //Guardamos el Horario 
+    const { error: errorHorario } = await supabase
+        .from('ruta_horarios')
+        .insert({
+            ruta_id: parseInt(rutaId),
+            hora_inicio: horaInicio,
+            hora_fin: horaFin,
+            vehiculo_id: vehiculoId,
+            turno_id: turnoId,
+            lunes: true, martes: true, miercoles: true,
+            jueves: true, viernes: true,
+            sabado: false, domingo: false,
+            activo: true
+        });
+    if (errorHorario) throw errorHorario;
 
-        if (errorHorario) {
-            console.error("Error guardando horario:", errorHorario);
-            throw errorHorario;
-        }
-        // Obtener la placa del vehículo para la notificación
-        const { data: vehiculo } = await supabase
-            .from('vehiculos')
-            .select('placa')
-            .eq('id', vehiculoId)
-            .single();
+    // 5. Guardar paradas y vincularlas a la ruta
+    for (let i = 0; i < puntosRuta.length; i++) {
+        const punto = puntosRuta[i];
+        const puntoGeo = `POINT(${punto.lon} ${punto.lat})`;
 
 
-        }
-        return rutaId;
-    };
-
-
-    export async function crearRutaParadas(nombre, latidud, longitud, descripcion) {
-
-        const puntoGeo = `POINT(${longitud} ${latitud})`;
-
-        const { data, error } = await supabase
-
+        // Crear la parada
+        const { data: parada, error: errorParada } = await supabase
             .from('paradas')
             .insert({
-                nombre: nombre,
+                nombre: `Parada ${i + 1}`,
                 ubicacion: puntoGeo,
-                descripcion: descripcion,
                 activa: true
             })
             .select()
             .single();
 
-        if (error) {
-            console.log("Error al insertar los datos ", error);
-        }
-        else {
-            console.log("Datos de paradas guardados exitosamente", data)
-        }
-        return { data, error };
-    }
+        if (errorParada) throw errorParada;
 
-    export async function obtenerRutas() {
-        const { data, error } = await supabase
-            .from('rutas')
-            .select(`
+        // Vincular a la ruta
+        const { error: errorRutaParada } = await supabase
+            .from('ruta_paradas')
+            .insert({
+                ruta_id: parseInt(rutaId),
+                parada_id: parada.id,
+                orden: i + 1
+            });
+
+        if (errorRutaParada) throw errorRutaParada;
+    }
+    return rutaId;
+};
+
+
+export async function crearRutaParadas(nombre, latidud, longitud, descripcion) {
+
+    const puntoGeo = `POINT(${longitud} ${latitud})`;
+
+    const { data, error } = await supabase
+
+        .from('paradas')
+        .insert({
+            nombre: nombre,
+            ubicacion: puntoGeo,
+            descripcion: descripcion,
+            activa: true
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.log("Error al insertar los datos ", error);
+    }
+    else {
+        console.log("Datos de paradas guardados exitosamente", data)
+    }
+    return { data, error };
+}
+
+export async function obtenerRutas() {
+    const { data, error } = await supabase
+        .from('rutas')
+        .select(`
             *,
             ruta_paradas (
                 orden,
@@ -130,20 +157,20 @@ export const guardarRutaCompleta = async (nombre, numeroRuta, puntosRuta, conduc
                 )
             )
         `)
-            .order('fecha_registro', { ascending: false });
+        .order('fecha_registro', { ascending: false });
 
-        if (error) {
-            console.log("Error al obtener rutas", error);
-            return { data: null, error };
-        }
-
-        return { data, error: null };
+    if (error) {
+        console.log("Error al obtener rutas", error);
+        return { data: null, error };
     }
 
-    export async function obtenerRutaPorId(id) {
-        const { data, error } = await supabase
-            .from('rutas')
-            .select(`
+    return { data, error: null };
+}
+
+export async function obtenerRutaPorId(id) {
+    const { data, error } = await supabase
+        .from('rutas')
+        .select(`
             *,
             ruta_paradas (
                 orden,
@@ -157,105 +184,105 @@ export const guardarRutaCompleta = async (nombre, numeroRuta, puntosRuta, conduc
                 )
             )
         `)
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        console.log("Error al obtener la ruta", error);
+        return { data: null, error };
+    }
+
+    return { data, error: null };
+}
+
+
+// ============================================================
+//           FUNCIONES DE ASIGNACIÓN DE RECURSOS 
+// ============================================================
+
+/**
+ * Obtener todas las rutas (versión simple)
+ */
+export async function getRutas() {
+    try {
+        const { data, error } = await supabase
+            .from('rutas')
+            .select('*')
+            .order('numero_ruta', { ascending: true });
+
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        console.error('Error en getRutas:', error.message);
+        return { success: false, error: error.message, data: [] };
+    }
+}
+
+/**
+ * Obtener una ruta por ID (versión simple)
+ */
+export async function getRutaById(id) {
+    try {
+        const { data, error } = await supabase
+            .from('rutas')
+            .select('*')
             .eq('id', id)
             .single();
 
-        if (error) {
-            console.log("Error al obtener la ruta", error);
-            return { data: null, error };
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        console.error('Error en getRutaById:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Eliminar asignación de un turno específico
+ */
+export async function eliminarAsignacionTurno(rutaId, turnoId, fecha) {
+    try {
+        const { error } = await supabase
+            .from('ruta_horarios')
+            .delete()
+            .eq('ruta_id', rutaId)
+            .eq('tipo_turno_id', turnoId)
+            .eq('fecha', fecha);
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error) {
+        console.error('Error en eliminarAsignacionTurno:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Obtener vehículos disponibles para una fecha y turno específico
+ */
+export async function getVehiculosDisponibles(fecha, turnoId, rutaIdExcluir = null) {
+    try {
+        // Primero obtener vehículos ocupados en esa fecha/turno
+        let queryOcupados = supabase
+            .from('ruta_horarios')
+            .select('vehiculo_id')
+            .eq('fecha', fecha)
+            .eq('tipo_turno_id', turnoId);
+
+        if (rutaIdExcluir) {
+            queryOcupados = queryOcupados.neq('ruta_id', rutaIdExcluir);
         }
 
-        return { data, error: null };
-    }
+        const { data: vehiculosOcupados, error: errorOcupados } = await queryOcupados;
 
+        if (errorOcupados) throw errorOcupados;
 
-    // ============================================================
-    //           FUNCIONES DE ASIGNACIÓN DE RECURSOS 
-    // ============================================================
+        const ocupadosIds = (vehiculosOcupados || []).map(v => v.vehiculo_id);
 
-    /**
-     * Obtener todas las rutas (versión simple)
-     */
-    export async function getRutas() {
-        try {
-            const { data, error } = await supabase
-                .from('rutas')
-                .select('*')
-                .order('numero_ruta', { ascending: true });
-
-            if (error) throw error;
-            return { success: true, data };
-        } catch (error) {
-            console.error('Error en getRutas:', error.message);
-            return { success: false, error: error.message, data: [] };
-        }
-    }
-
-    /**
-     * Obtener una ruta por ID (versión simple)
-     */
-    export async function getRutaById(id) {
-        try {
-            const { data, error } = await supabase
-                .from('rutas')
-                .select('*')
-                .eq('id', id)
-                .single();
-
-            if (error) throw error;
-            return { success: true, data };
-        } catch (error) {
-            console.error('Error en getRutaById:', error.message);
-            return { success: false, error: error.message };
-        }
-    }
-
-    /**
-     * Eliminar asignación de un turno específico
-     */
-    export async function eliminarAsignacionTurno(rutaId, turnoId, fecha) {
-        try {
-            const { error } = await supabase
-                .from('ruta_horarios')
-                .delete()
-                .eq('ruta_id', rutaId)
-                .eq('tipo_turno_id', turnoId)
-                .eq('fecha', fecha);
-
-            if (error) throw error;
-            return { success: true };
-        } catch (error) {
-            console.error('Error en eliminarAsignacionTurno:', error.message);
-            return { success: false, error: error.message };
-        }
-    }
-
-    /**
-     * Obtener vehículos disponibles para una fecha y turno específico
-     */
-    export async function getVehiculosDisponibles(fecha, turnoId, rutaIdExcluir = null) {
-        try {
-            // Primero obtener vehículos ocupados en esa fecha/turno
-            let queryOcupados = supabase
-                .from('ruta_horarios')
-                .select('vehiculo_id')
-                .eq('fecha', fecha)
-                .eq('tipo_turno_id', turnoId);
-
-            if (rutaIdExcluir) {
-                queryOcupados = queryOcupados.neq('ruta_id', rutaIdExcluir);
-            }
-
-            const { data: vehiculosOcupados, error: errorOcupados } = await queryOcupados;
-
-            if (errorOcupados) throw errorOcupados;
-
-            const ocupadosIds = (vehiculosOcupados || []).map(v => v.vehiculo_id);
-
-            // Consulta para traer vehículos con su capacidad_max
-            let queryVehiculos = supabase
-                .from('vehiculos')
-                .select(`
+        // Consulta para traer vehículos con su capacidad_max
+        let queryVehiculos = supabase
+            .from('vehiculos')
+            .select(`
         id,
         placa,
         seguro,
@@ -267,334 +294,334 @@ export const guardarRutaCompleta = async (nombre, numeroRuta, puntosRuta, conduc
           capacidad_max
         )
       `)
-                .eq('activo', true);
+            .eq('activo', true);
 
-            if (ocupadosIds.length > 0) {
-                queryVehiculos = queryVehiculos.not('id', 'in', `(${ocupadosIds.join(',')})`);
-            }
-
-            const { data, error } = await queryVehiculos;
-
-            if (error) throw error;
-
-            return { success: true, data: data || [] };
-        } catch (error) {
-            console.error('Error en getVehiculosDisponibles:', error.message);
-            return { success: false, error: error.message, data: [] };
+        if (ocupadosIds.length > 0) {
+            queryVehiculos = queryVehiculos.not('id', 'in', `(${ocupadosIds.join(',')})`);
         }
+
+        const { data, error } = await queryVehiculos;
+
+        if (error) throw error;
+
+        return { success: true, data: data || [] };
+    } catch (error) {
+        console.error('Error en getVehiculosDisponibles:', error.message);
+        return { success: false, error: error.message, data: [] };
+    }
+}
+
+/**
+ * Verificar validez de SOAT, seguro y tecnomecánica
+ */
+export function verificarEstadoVehiculo(vehiculo) {
+    const advertencias = [];
+    const hoy = new Date();
+
+    // Verificar SOAT (fecha_vencimiento)
+    if (vehiculo.fecha_vencimiento) {
+        const fechaSOAT = new Date(vehiculo.fecha_vencimiento);
+        if (fechaSOAT < hoy) {
+            advertencias.push(`⚠️ SOAT vencido desde ${vehiculo.fecha_vencimiento}`);
+        } else if (fechaSOAT < new Date(hoy.setMonth(hoy.getMonth() + 1))) {
+            advertencias.push(`⚠️ SOAT vence el ${vehiculo.fecha_vencimiento}`);
+        }
+    } else {
+        advertencias.push(`⚠️ No tiene fecha de vencimiento de SOAT registrada`);
     }
 
-    /**
-     * Verificar validez de SOAT, seguro y tecnomecánica
-     */
-    export function verificarEstadoVehiculo(vehiculo) {
-        const advertencias = [];
-        const hoy = new Date();
-
-        // Verificar SOAT (fecha_vencimiento)
-        if (vehiculo.fecha_vencimiento) {
-            const fechaSOAT = new Date(vehiculo.fecha_vencimiento);
-            if (fechaSOAT < hoy) {
-                advertencias.push(`⚠️ SOAT vencido desde ${vehiculo.fecha_vencimiento}`);
-            } else if (fechaSOAT < new Date(hoy.setMonth(hoy.getMonth() + 1))) {
-                advertencias.push(`⚠️ SOAT vence el ${vehiculo.fecha_vencimiento}`);
-            }
-        } else {
-            advertencias.push(`⚠️ No tiene fecha de vencimiento de SOAT registrada`);
-        }
-
-        // Verificar seguro
-        if (vehiculo.seguro === false) {
-            advertencias.push(`⚠️ El vehículo no tiene seguro activo`);
-        }
-
-        //verificar conductor
-        if (!vehiculo.conductor_id) {
-            advertencias.push(`❌ El vehículo no tiene un conductor asignado`);
-        }
-
-        return {
-            valido: advertencias.length === 0,
-            advertencias
-        };
+    // Verificar seguro
+    if (vehiculo.seguro === false) {
+        advertencias.push(`⚠️ El vehículo no tiene seguro activo`);
     }
 
-    /**
-     * Obtener turnos (tipos_turno)
-     */
-    export async function getTurnos() {
-        try {
-            const { data, error } = await supabase
-                .from('tipos_turno')
-                .select('*')
-                .order('id');
-
-            if (error) throw error;
-            return { success: true, data: data || [] };
-        } catch (error) {
-            console.error('Error en getTurnos:', error.message);
-            return { success: false, error: error.message, data: [] };
-        }
+    //verificar conductor
+    if (!vehiculo.conductor_id) {
+        advertencias.push(`❌ El vehículo no tiene un conductor asignado`);
     }
 
-    /**
-     * Verificar conflicto de horario
-     */
-    export async function verificarConflictoHorario(vehiculoId, turnoId, fecha, rutaIdExcluir = null) {
-        try {
-            let query = supabase
-                .from('ruta_horarios')
-                .select('id, ruta_id')
-                .eq('vehiculo_id', vehiculoId)
-                .eq('tipo_turno_id', turnoId)
-                .eq('fecha', fecha);
+    return {
+        valido: advertencias.length === 0,
+        advertencias
+    };
+}
 
-            if (rutaIdExcluir) {
-                query = query.neq('ruta_id', rutaIdExcluir);
-            }
+/**
+ * Obtener turnos (tipos_turno)
+ */
+export async function getTurnos() {
+    try {
+        const { data, error } = await supabase
+            .from('tipos_turno')
+            .select('*')
+            .order('id');
 
-            const { data, error } = await query;
-
-            if (error) throw error;
-
-            if (data && data.length > 0) {
-                const { data: rutaData } = await supabase
-                    .from('rutas')
-                    .select('numero_ruta')
-                    .eq('id', data[0].ruta_id)
-                    .single();
-
-                return {
-                    success: true,
-                    tieneConflicto: true,
-                    rutaConflicto: rutaData?.numero_ruta || 'otra ruta'
-                };
-            }
-
-            return { success: true, tieneConflicto: false };
-        } catch (error) {
-            console.error('Error en verificarConflictoHorario:', error.message);
-            return { success: true, tieneConflicto: false };
-        }
+        if (error) throw error;
+        return { success: true, data: data || [] };
+    } catch (error) {
+        console.error('Error en getTurnos:', error.message);
+        return { success: false, error: error.message, data: [] };
     }
+}
 
-    /**
-     * Obtener usuarios disponibles
-     */
-    export async function getUsuariosDisponibles() {
-        try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('id, nombre, cedula, rol')
-                .eq('rol', 'usuario')
-                .eq('activo', true)
-                .order('nombre');
+/**
+ * Verificar conflicto de horario
+ */
+export async function verificarConflictoHorario(vehiculoId, turnoId, fecha, rutaIdExcluir = null) {
+    try {
+        let query = supabase
+            .from('ruta_horarios')
+            .select('id, ruta_id')
+            .eq('vehiculo_id', vehiculoId)
+            .eq('tipo_turno_id', turnoId)
+            .eq('fecha', fecha);
 
-            if (error) throw error;
-            return { success: true, data: data || [] };
-        } catch (error) {
-            console.error('Error en getUsuariosDisponibles:', error.message);
-            return { success: false, error: error.message, data: [] };
+        if (rutaIdExcluir) {
+            query = query.neq('ruta_id', rutaIdExcluir);
         }
-    }
 
-    /**
-     * Obtener paradas de una ruta (desde ruta_paradas)
-     */
-    export async function getParadasByRuta(rutaId) {
-        try {
-            // Consulta simple a la tabla paradas
-            const { data, error } = await supabase
-                .from('paradas')
-                .select('id, nombre')
-                .eq('activa', true);
+        const { data, error } = await query;
 
-            if (error) throw error;
+        if (error) throw error;
 
-            return { success: true, data: data || [] };
-        } catch (error) {
-            return { success: false, error: error.message, data: [] };
-        }
-    }
-
-    /**
-     * Obtener asignaciones actuales de una ruta
-     */
-    export async function getAsignacionesRuta(rutaId) {
-        try {
-            const { data: horarios, error: errorHorarios } = await supabase
-                .from('ruta_horarios')
-                .select('*')
-                .eq('ruta_id', rutaId);
-
-            if (errorHorarios) throw errorHorarios;
-
-            const { data: usuarios, error: errorUsuarios } = await supabase
-                .from('usuario_ruta')
-                .select('*')
-                .eq('ruta_id', rutaId);
-
-            if (errorUsuarios) throw errorUsuarios;
-
-            // Obtener los IDs de las paradas de origen y destino
-            const todasParadasIds = [...new Set([
-                ...usuarios.map(u => u.parada_origen_id),
-                ...usuarios.map(u => u.parada_destino_id)
-            ].filter(Boolean))];
-
-            // Obtener los nombres de las paradas
-            let paradasMap = new Map();
-            if (todasParadasIds.length > 0) {
-                const { data: paradas } = await supabase
-                    .from('paradas')
-                    .select('id, nombre')
-                    .in('id', todasParadasIds);
-                paradasMap = new Map((paradas || []).map(p => [p.id, p.nombre]));
-            }
-
-            const turnosIds = [...new Set(horarios.map(h => h.tipo_turno_id).filter(Boolean))];
-            let turnosMap = new Map();
-            if (turnosIds.length > 0) {
-                const { data: turnos } = await supabase
-                    .from('tipos_turno')
-                    .select('*')
-                    .in('id', turnosIds);
-                turnosMap = new Map((turnos || []).map(t => [t.id, t]));
-            }
-
-            const vehiculosIds = [...new Set(horarios.map(h => h.vehiculo_id).filter(Boolean))];
-            let vehiculosMap = new Map();
-            if (vehiculosIds.length > 0) {
-                const { data: vehiculos } = await supabase
-                    .from('vehiculos')
-                    .select('*, tipo_vehiculo:tipo_vehiculo_id(nombre, capacidad_max), conductor:conductor_id(id, nombre)')
-                    .in('id', vehiculosIds);
-                vehiculosMap = new Map((vehiculos || []).map(v => [v.id, v]));
-            }
-
-            const usuariosIds = [...new Set(usuarios.map(u => u.usuario_id).filter(Boolean))];
-            let perfilesMap = new Map();
-            if (usuariosIds.length > 0) {
-                const { data: perfiles } = await supabase
-                    .from('profiles')
-                    .select('id, nombre, cedula, rol')
-                    .in('id', usuariosIds);
-                perfilesMap = new Map((perfiles || []).map(p => [p.id, p]));
-            }
-
-            const horariosConDatos = (horarios || []).map(h => ({
-                ...h,
-                turno: turnosMap.get(h.tipo_turno_id) || null,
-                vehiculo: vehiculosMap.get(h.vehiculo_id) || null
-            }));
-
-            const usuariosConDatos = (usuarios || []).map(u => ({
-                ...u,
-                usuario: perfilesMap.get(u.usuario_id) || null,
-                origen_nombre: paradasMap.get(u.parada_origen_id) || 'Sin nombre',
-                destino_nombre: paradasMap.get(u.parada_destino_id) || 'Sin nombre'
-            }));
+        if (data && data.length > 0) {
+            const { data: rutaData } = await supabase
+                .from('rutas')
+                .select('numero_ruta')
+                .eq('id', data[0].ruta_id)
+                .single();
 
             return {
                 success: true,
-                data: {
-                    horarios: horariosConDatos,
-                    usuarios: usuariosConDatos
+                tieneConflicto: true,
+                rutaConflicto: rutaData?.numero_ruta || 'otra ruta'
+            };
+        }
+
+        return { success: true, tieneConflicto: false };
+    } catch (error) {
+        console.error('Error en verificarConflictoHorario:', error.message);
+        return { success: true, tieneConflicto: false };
+    }
+}
+
+/**
+ * Obtener usuarios disponibles
+ */
+export async function getUsuariosDisponibles() {
+    try {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id, nombre, cedula, rol')
+            .eq('rol', 'usuario')
+            .eq('activo', true)
+            .order('nombre');
+
+        if (error) throw error;
+        return { success: true, data: data || [] };
+    } catch (error) {
+        console.error('Error en getUsuariosDisponibles:', error.message);
+        return { success: false, error: error.message, data: [] };
+    }
+}
+
+/**
+ * Obtener paradas de una ruta (desde ruta_paradas)
+ */
+export async function getParadasByRuta(rutaId) {
+    try {
+        // Consulta simple a la tabla paradas
+        const { data, error } = await supabase
+            .from('paradas')
+            .select('id, nombre')
+            .eq('activa', true);
+
+        if (error) throw error;
+
+        return { success: true, data: data || [] };
+    } catch (error) {
+        return { success: false, error: error.message, data: [] };
+    }
+}
+
+/**
+ * Obtener asignaciones actuales de una ruta
+ */
+export async function getAsignacionesRuta(rutaId) {
+    try {
+        const { data: horarios, error: errorHorarios } = await supabase
+            .from('ruta_horarios')
+            .select('*')
+            .eq('ruta_id', rutaId);
+
+        if (errorHorarios) throw errorHorarios;
+
+        const { data: usuarios, error: errorUsuarios } = await supabase
+            .from('usuario_ruta')
+            .select('*')
+            .eq('ruta_id', rutaId);
+
+        if (errorUsuarios) throw errorUsuarios;
+
+        // Obtener los IDs de las paradas de origen y destino
+        const todasParadasIds = [...new Set([
+            ...usuarios.map(u => u.parada_origen_id),
+            ...usuarios.map(u => u.parada_destino_id)
+        ].filter(Boolean))];
+
+        // Obtener los nombres de las paradas
+        let paradasMap = new Map();
+        if (todasParadasIds.length > 0) {
+            const { data: paradas } = await supabase
+                .from('paradas')
+                .select('id, nombre')
+                .in('id', todasParadasIds);
+            paradasMap = new Map((paradas || []).map(p => [p.id, p.nombre]));
+        }
+
+        const turnosIds = [...new Set(horarios.map(h => h.tipo_turno_id).filter(Boolean))];
+        let turnosMap = new Map();
+        if (turnosIds.length > 0) {
+            const { data: turnos } = await supabase
+                .from('tipos_turno')
+                .select('*')
+                .in('id', turnosIds);
+            turnosMap = new Map((turnos || []).map(t => [t.id, t]));
+        }
+
+        const vehiculosIds = [...new Set(horarios.map(h => h.vehiculo_id).filter(Boolean))];
+        let vehiculosMap = new Map();
+        if (vehiculosIds.length > 0) {
+            const { data: vehiculos } = await supabase
+                .from('vehiculos')
+                .select('*, tipo_vehiculo:tipo_vehiculo_id(nombre, capacidad_max), conductor:conductor_id(id, nombre)')
+                .in('id', vehiculosIds);
+            vehiculosMap = new Map((vehiculos || []).map(v => [v.id, v]));
+        }
+
+        const usuariosIds = [...new Set(usuarios.map(u => u.usuario_id).filter(Boolean))];
+        let perfilesMap = new Map();
+        if (usuariosIds.length > 0) {
+            const { data: perfiles } = await supabase
+                .from('profiles')
+                .select('id, nombre, cedula, rol')
+                .in('id', usuariosIds);
+            perfilesMap = new Map((perfiles || []).map(p => [p.id, p]));
+        }
+
+        const horariosConDatos = (horarios || []).map(h => ({
+            ...h,
+            turno: turnosMap.get(h.tipo_turno_id) || null,
+            vehiculo: vehiculosMap.get(h.vehiculo_id) || null
+        }));
+
+        const usuariosConDatos = (usuarios || []).map(u => ({
+            ...u,
+            usuario: perfilesMap.get(u.usuario_id) || null,
+            origen_nombre: paradasMap.get(u.parada_origen_id) || 'Sin nombre',
+            destino_nombre: paradasMap.get(u.parada_destino_id) || 'Sin nombre'
+        }));
+
+        return {
+            success: true,
+            data: {
+                horarios: horariosConDatos,
+                usuarios: usuariosConDatos
+            }
+        };
+    } catch (error) {
+        console.error('Error en getAsignacionesRuta:', error.message);
+        return { success: false, error: error.message, data: { horarios: [], usuarios: [] } };
+    }
+}
+
+/**
+ * Guardar asignaciones
+ */
+export async function guardarAsignaciones(rutaId, asignaciones) {
+    try {
+        const { error: errorHorarios } = await supabase
+            .from('ruta_horarios')
+            .delete()
+            .eq('ruta_id', rutaId);
+
+        if (errorHorarios) throw errorHorarios;
+
+        const { error: errorUsuarios } = await supabase
+            .from('usuario_ruta')
+            .delete()
+            .eq('ruta_id', rutaId);
+
+        if (errorUsuarios) throw errorUsuarios;
+
+        if (asignaciones.vehiculosPorTurno && asignaciones.vehiculosPorTurno.length > 0) {
+            const turnosIds = [...new Set(asignaciones.vehiculosPorTurno.map(item => parseInt(item.turnoId)))];
+            const { data: turnosData } = await supabase
+                .from('tipos_turno')
+                .select('id, hora_inicio, hora_fin')
+                .in('id', turnosIds);
+
+            const turnosMap = new Map();
+            if (turnosData) {
+                turnosData.forEach(t => {
+                    turnosMap.set(t.id, {
+                        hora_inicio: t.hora_inicio,
+                        hora_fin: t.hora_fin
+                    });
+                });
+            }
+
+            const getEnumValue = (turnoId) => {
+                switch (parseInt(turnoId)) {
+                    case 1: return 'manana';
+                    case 2: return 'tarde';
+                    case 3: return 'noche';
+                    default: return '';
                 }
             };
-        } catch (error) {
-            console.error('Error en getAsignacionesRuta:', error.message);
-            return { success: false, error: error.message, data: { horarios: [], usuarios: [] } };
-        }
-    }
 
-    /**
-     * Guardar asignaciones
-     */
-    export async function guardarAsignaciones(rutaId, asignaciones) {
-        try {
-            const { error: errorHorarios } = await supabase
-                .from('ruta_horarios')
-                .delete()
-                .eq('ruta_id', rutaId);
+            const datosHorarios = asignaciones.vehiculosPorTurno.map(item => {
+                const turnoId = parseInt(item.turnoId);
+                const turnoInfo = turnosMap.get(turnoId);
 
-            if (errorHorarios) throw errorHorarios;
-
-            const { error: errorUsuarios } = await supabase
-                .from('usuario_ruta')
-                .delete()
-                .eq('ruta_id', rutaId);
-
-            if (errorUsuarios) throw errorUsuarios;
-
-            if (asignaciones.vehiculosPorTurno && asignaciones.vehiculosPorTurno.length > 0) {
-                const turnosIds = [...new Set(asignaciones.vehiculosPorTurno.map(item => parseInt(item.turnoId)))];
-                const { data: turnosData } = await supabase
-                    .from('tipos_turno')
-                    .select('id, hora_inicio, hora_fin')
-                    .in('id', turnosIds);
-
-                const turnosMap = new Map();
-                if (turnosData) {
-                    turnosData.forEach(t => {
-                        turnosMap.set(t.id, {
-                            hora_inicio: t.hora_inicio,
-                            hora_fin: t.hora_fin
-                        });
-                    });
-                }
-
-                const getEnumValue = (turnoId) => {
-                    switch (parseInt(turnoId)) {
-                        case 1: return 'manana';
-                        case 2: return 'tarde';
-                        case 3: return 'noche';
-                        default: return '';
-                    }
-                };
-
-                const datosHorarios = asignaciones.vehiculosPorTurno.map(item => {
-                    const turnoId = parseInt(item.turnoId);
-                    const turnoInfo = turnosMap.get(turnoId);
-
-                    return {
-                        ruta_id: rutaId,
-                        tipo_turno_id: turnoId,
-                        vehiculo_id: item.vehiculoId,
-                        fecha: item.fecha,
-                        nombre_turno: getEnumValue(item.turnoId),
-                        hora_inicio: turnoInfo?.hora_inicio || '00:00:00',
-                        hora_fin: turnoInfo?.hora_fin || '00:00:00'
-                    };
-                });
-
-                const { error: errorInsertHorarios } = await supabase
-                    .from('ruta_horarios')
-                    .insert(datosHorarios);
-
-                if (errorInsertHorarios) throw errorInsertHorarios;
-            }
-
-            if (asignaciones.usuarios && asignaciones.usuarios.length > 0) {
-                const datosUsuarios = asignaciones.usuarios.map(item => ({
-                    usuario_id: item.usuarioId,
+                return {
                     ruta_id: rutaId,
-                    parada_origen_id: parseInt(item.paradaOrigenId),
-                    parada_destino_id: parseInt(item.paradaDestinoId),
-                    turno_id: item.turnoId,
-                    estado: 'asignado'
-                }));
+                    tipo_turno_id: turnoId,
+                    vehiculo_id: item.vehiculoId,
+                    fecha: item.fecha,
+                    nombre_turno: getEnumValue(item.turnoId),
+                    hora_inicio: turnoInfo?.hora_inicio || '00:00:00',
+                    hora_fin: turnoInfo?.hora_fin || '00:00:00'
+                };
+            });
 
-                const { error: errorInsertUsuarios } = await supabase
-                    .from('usuario_ruta')
-                    .insert(datosUsuarios);
+            const { error: errorInsertHorarios } = await supabase
+                .from('ruta_horarios')
+                .insert(datosHorarios);
 
-                if (errorInsertUsuarios) throw errorInsertUsuarios;
-            }
-
-            return { success: true };
-        } catch (error) {
-            console.error('Error en guardarAsignaciones:', error.message);
-            return { success: false, error: error.message };
+            if (errorInsertHorarios) throw errorInsertHorarios;
         }
+
+        if (asignaciones.usuarios && asignaciones.usuarios.length > 0) {
+            const datosUsuarios = asignaciones.usuarios.map(item => ({
+                usuario_id: item.usuarioId,
+                ruta_id: rutaId,
+                parada_origen_id: parseInt(item.paradaOrigenId),
+                parada_destino_id: parseInt(item.paradaDestinoId),
+                turno_id: item.turnoId,
+                estado: 'asignado'
+            }));
+
+            const { error: errorInsertUsuarios } = await supabase
+                .from('usuario_ruta')
+                .insert(datosUsuarios);
+
+            if (errorInsertUsuarios) throw errorInsertUsuarios;
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error('Error en guardarAsignaciones:', error.message);
+        return { success: false, error: error.message };
     }
+}

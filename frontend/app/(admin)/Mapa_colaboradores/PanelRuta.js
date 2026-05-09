@@ -2,11 +2,12 @@
 import { useState, useRef } from "react";
 import {
     View, Text, TextInput, TouchableOpacity,
-    ScrollView, StyleSheet, Animated, PanResponder,Keyboard 
+    ScrollView, StyleSheet, Animated, PanResponder, Keyboard
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import theme from "../../../constants/theme";
+import { subscribe } from "expo-router/build/link/linking";
 
 const T = theme.lightMode;
 
@@ -14,6 +15,7 @@ const PASOS = [
     { numero: 1, titulo: "Información de la ruta", subtitulo: "Nombre y número" },
     { numero: 2, titulo: "Recursos", subtitulo: "Conductor, vehículo y horario" },
     { numero: 3, titulo: "Trazar ruta", subtitulo: "Toca el mapa para agregar puntos" },
+    { numero: 4, titulo: "Escoge las paradas del bus", subtitulo: "Toca el mapa para agregar las paradas" }
 ];
 
 const Progreso = ({ pasoActual }) => (
@@ -137,6 +139,42 @@ const Paso3 = ({ puntosRuta, eliminarPunto, limpiarPuntos }) => (
     </View>
 );
 
+//Paso $ mostramos un panel para escoger las paradas del bus 
+const Paso4 = ({ PuntosParada, eliminarPunto, limpiarParadas }) => (
+    <View style={s.pasoContenedor}>
+        <View style={s.infoTrazado}>
+            <Ionicons name="information-circle-outline" size={16} color="#22C55E" />
+            <Text style={s.textoInfoTrazado}>Toca el mapa para agregar puntos a la ruta</Text>
+        </View>
+        <Text style={s.labelSeccion}>Puntos seleccionados: {puntosRuta.length}</Text>
+        <ScrollView style={{ maxHeight: 140 }} showsVerticalScrollIndicator={false}>
+            {puntosRuta.length === 0 && (
+                <Text style={s.textoSinPuntos}>Aún no has agregado puntos</Text>
+            )}
+            {puntosRuta.map((punto, i) => (
+                <View key={punto.id} style={s.puntoItem}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                        <View style={s.puntoBurbuja}>
+                            <Text style={s.puntoNumero}>{i + 1}</Text>
+                        </View>
+                        <Text style={s.puntoCoordenadas} numberOfLines={1}>
+                            {punto.direccion || `${punto.lat.toFixed(5)}, ${punto.lon.toFixed(5)}`}
+                        </Text>
+                    </View>
+                    <TouchableOpacity onPress={() => eliminarPunto(punto.id)}>
+                        <Ionicons name="trash-outline" size={18} color={T.icon.error} />
+                    </TouchableOpacity>
+                </View>
+            ))}
+        </ScrollView>
+        {puntosRuta.length > 0 && (
+            <TouchableOpacity style={s.botonLimpiar} onPress={limpiarPuntos}>
+                <Text style={s.textoLimpiar}>Limpiar todos los puntos</Text>
+            </TouchableOpacity>
+        )}
+    </View>
+);
+
 const PanelRuta = ({
     nombreRuta, setNombreRuta,
     numeroRuta, setNumeroRuta,
@@ -151,8 +189,9 @@ const PanelRuta = ({
     showError, showWarning,
     panelColapsado, setPanelColapsado,
     paso, setPaso,
+    handleConductorChange,
 }) => {
-    
+
     const [errores, setErrores] = useState({});  // ← errores inline
     const translateY = useRef(new Animated.Value(0)).current;
     const colapsadoRef = useRef(false); // ← ref para el PanResponder (evita bug de closure)
@@ -217,10 +256,12 @@ const PanelRuta = ({
         }
         if (paso === 2) {
             if (!conductorId) nuevosErrores.conductor = "Debes seleccionar un conductor";
-            if (!vehiculoId) nuevosErrores.vehiculo = "Debes seleccionar un vehículo";
         }
         if (paso === 3) {
             if (!puntosRuta.length) showWarning("Debes agregar al menos un punto");
+        }
+        if (paso === 4) {
+            if (!puntosRuta.length) showWarning("Debes agregar al menos un punto de parada");
         }
 
         setErrores(nuevosErrores);
@@ -229,12 +270,12 @@ const PanelRuta = ({
 
     const siguiente = () => {
         if (validarPaso()) {
-            Keyboard.dismiss(); 
+            Keyboard.dismiss();
             setErrores({});
             translateY.setValue(0);
             setTimeout(() => {
-            setPaso(p => p + 1);
-        }, 150);
+                setPaso(p => p + 1);
+            }, 150);
         }
     };
 
@@ -308,19 +349,18 @@ const PanelRuta = ({
                 <View style={s.pasoContenedor}>
                     <Text style={s.labelSeccion}>Conductor</Text>
                     <View style={[s.selectorContenedor, errores.conductor && s.selectorError]}>
-                        <Picker selectedValue={conductorId} onValueChange={(v) => { setConductorId(v); setErrores(e => ({ ...e, conductor: null })); }} style={{ color: T.input.text }}>
+                        <Picker selectedValue={conductorId} onValueChange={(v) => { handleConductorChange(v); setErrores(e => ({ ...e, conductor: null })); }} style={{ color: T.input.text }}>
                             <Picker.Item label="Selecciona un conductor..." value={null} />
                             {conductores.map(c => <Picker.Item key={c.id} label={c.nombre} value={c.id} />)}
                         </Picker>
                     </View>
                     {errores.conductor && <Text style={s.textoError}>{errores.conductor}</Text>}
 
-                    <Text style={s.labelSeccion}>Vehículo</Text>
-                    <View style={[s.selectorContenedor, errores.vehiculo && s.selectorError]}>
-                        <Picker selectedValue={vehiculoId} onValueChange={(v) => { setVehiculoId(v); setErrores(e => ({ ...e, vehiculo: null })); }} style={{ color: T.input.text }}>
-                            <Picker.Item label="Selecciona un vehículo..." value={null} />
-                            {vehiculos.map(v => <Picker.Item key={v.id} label={v.placa} value={v.id} />)}
-                        </Picker>
+                    <Text style={s.labelSeccion}>Vehículo asignado</Text>
+                    <View style={s.selectorContenedor}>
+                        <Text style={{ padding: 14, color: T.input.text }}>
+                            {vehiculos.find(v => v.id === vehiculoId)?.placa || 'Se asignará al escoger conductor'}
+                        </Text>
                     </View>
                     {errores.vehiculo && <Text style={s.textoError}>{errores.vehiculo}</Text>}
 
