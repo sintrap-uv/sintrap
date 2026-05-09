@@ -6,7 +6,7 @@ import { guardarRutaCompleta } from "../../../services/rutaServices";
 import { obtenerUbicacionBuses } from "../../../services/salidaBuses";
 import { generarRutaOptima } from "./rutaUtils";
 import { useToast } from "../../../context/ToastContext";
-import { obtenerVehiculos , getVehiculoPorConductor} from "../../../services/vehicleService"
+import { obtenerVehiculos, getVehiculoPorConductor } from "../../../services/vehicleService"
 import { getAllDrivers } from "../../../services/driverService";
 import { supabase } from "../../../services/supabase";
 
@@ -65,10 +65,11 @@ export const useMapaColaboradores = () => {
 
     useEffect(() => { cargarDatos(); }, []);
 
-    useEffect(() => {
-        modoEdicionRef.current = modoEdicion;
-        webViewRef.current?.injectJavaScript(`window.editando = ${modoEdicion};`);
-    }, [modoEdicion]);
+    const sincronizarModoMapa = (pasoActual) => {
+        const mapaActivo = pasoActual === 3;
+        modoEdicionRef.current = mapaActivo;
+        webViewRef.current?.injectJavaScript(`window.editando = ${mapaActivo};`);
+    };
 
     const enviarAlMapa = (mensaje) =>
         webViewRef.current?.postMessage(JSON.stringify(mensaje));
@@ -97,11 +98,6 @@ export const useMapaColaboradores = () => {
         // CORREGIDO: además de eliminarPunto, enviar actualizarLinea con puntos restantes
         // para que la polyline se redibuje correctamente sin puntos fantasma
         enviarAlMapa({ tipo: 'eliminarPunto', id: idStr });
-        enviarAlMapa({
-            tipo: 'actualizarLinea',
-            puntos: nuevosPuntos.map(p => ({ lat: p.lat, lon: p.lon, id: String(p.id) }))
-        });
-
         showInfo('Punto eliminado');
     };
     const limpiarPuntos = () => {
@@ -159,7 +155,8 @@ export const useMapaColaboradores = () => {
         horaFin, setHoraFin,
         showError, showWarning,
         turnos, turnoId, setTurnoId,
-        conductorId, 
-        handleConductorChange, 
+        conductorId,
+        handleConductorChange,
+        sincronizarModoMapa
     };
 };

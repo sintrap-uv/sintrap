@@ -190,6 +190,7 @@ const PanelRuta = ({
     panelColapsado, setPanelColapsado,
     paso, setPaso,
     handleConductorChange,
+    sincronizarModoMapa, 
 }) => {
 
     const [errores, setErrores] = useState({});  // ← errores inline
@@ -274,7 +275,9 @@ const PanelRuta = ({
             setErrores({});
             translateY.setValue(0);
             setTimeout(() => {
-                setPaso(p => p + 1);
+                const nuevoPaso = paso + 1;
+                setPaso(nuevoPaso);
+                sincronizarModoMapa(nuevoPaso);
             }, 150);
         }
     };
@@ -282,7 +285,9 @@ const PanelRuta = ({
     const anterior = () => {
         setErrores({});
         translateY.setValue(0);
-        setPaso(p => p - 1);
+        const nuevoPaso = paso - 1;
+        setPaso(nuevoPaso);
+        sincronizarModoMapa(nuevoPaso);
     };
 
     const cancelar = () => {
@@ -290,6 +295,7 @@ const PanelRuta = ({
         setPaso(1);
         setErrores({});
         translateY.setValue(0);
+        sincronizarModoMapa(1);
     };
 
     return (

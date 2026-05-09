@@ -46,7 +46,8 @@ const MapaColaboradores = () => {
         vehiculoId, setVehiculoId,
         horaInicio, setHoraInicio,
         horaFin, setHoraFin,
-         
+        sincronizarModoMapa, 
+
     } = useMapaColaboradores();
 
     const handleSetModoEdicion = (valor) => {
@@ -92,6 +93,7 @@ const MapaColaboradores = () => {
             {/* Mapa — se encoge cuando aparece el teclado */}
             <View style={{ flex: flexMapa }}>
                 <WebView
+                    key={colaboradores.length}
                     ref={webViewRef}
                     source={{ html: htmlMapa }}
                     javaScriptEnabled={true}
@@ -114,8 +116,9 @@ const MapaColaboradores = () => {
                             <TouchableOpacity
                                 style={[styles.botonFlotanteCrear, { backgroundColor: T.Button.primary.background }]}
                                 onPress={() => {
-                                    handleSetModoEdicion(true);
-                                    showInfo('Modo edición activado - Toca el mapa para agregar puntos');
+                                    setModoEdicion(true);   
+                                    setPanelVisible(true);
+                                    showInfo('Completa los pasos para trazar tu ruta');
                                 }}>
                                 <Text style={{ color: T.Button.primary.Text, fontWeight: 'bold' }}>Crear ruta</Text>
                             </TouchableOpacity>
@@ -153,16 +156,18 @@ const MapaColaboradores = () => {
                         limpiarPuntos={limpiarPuntos} guardarRuta={guardarRuta}
                         setPanelVisible={setPanelVisible} setModoEdicion={setModoEdicion}
                         conductores={conductores} vehiculos={vehiculos}
-                        conductorId={conductorId} handleConductorChange={handleConductorChange} 
+                        conductorId={conductorId} handleConductorChange={handleConductorChange}
                         vehiculoId={vehiculoId} setVehiculoId={setVehiculoId}
                         horaInicio={horaInicio} setHoraInicio={setHoraInicio}
                         horaFin={horaFin} setHoraFin={setHoraFin}
                         showError={showError} showWarning={showWarning}
                         panelColapsado={panelColapsado}
                         setPanelColapsado={setPanelColapsado}
+                        sincronizarModoMapa={sincronizarModoMapa} 
                         paso={paso}
                         setPaso={setPaso}
                         
+
                     />
                 </View>
             )}

@@ -37,6 +37,7 @@ export const generarHtmlMapa = ({ centroInicial, circulosJS, marcadoresJS, marca
 
     var marcadoresRuta = [];
     var puntosGuardados = [];
+    var segmentosRuta = [];
     var procesandoClick = false;
     var editando = false;
 
@@ -60,16 +61,25 @@ export const generarHtmlMapa = ({ centroInicial, circulosJS, marcadoresJS, marca
                 map.removeLayer(layer);
             }
         });
+        for (var i = 0; i < segmentosRuta.length; i++) {
+            var seg = segmentosRuta[i];
+            var existe = false;
+            for (var j = 0; j < puntosGuardados.length; j++) {
+            if (puntosGuardados[j].id === seg.id) { existe = true; break; }
+            }
 
+             if (existe) {
+                  L.polyline(seg.puntos, { color: '#22C55E', weight: 4, opacity: 0.8 }).addTo(map);
+            }
         // FIX: siempre incluir la empresa como primer punto del trazado.
         // Antes la condicion era length > 1, lo que omitia el tramo
         // empresa->punto1 cuando solo quedaba 1 punto, borrando ese segmento.
         // Ahora con length >= 1 siempre se dibuja desde la empresa.
-        if (puntosGuardados.length >= 1) {
-            var coords = [[EMPRESA_LAT, EMPRESA_LON]].concat(
-                puntosGuardados.map(function(p) { return [p.lat, p.lon]; })
-            );
-            L.polyline(coords, { color: '#22C55E', weight: 4, opacity: 0.8 }).addTo(map);
+        //if (puntosGuardados.length >= 1) {
+          //  var coords = [[EMPRESA_LAT, EMPRESA_LON]].concat(
+            //    puntosGuardados.map(function(p) { return [p.lat, p.lon]; })
+            //);
+            //L.polyline(coords, { color: '#22C55E', weight: 4, opacity: 0.8 }).addTo(map);
         }
         // Con 0 puntos no se dibuja nada — correcto
     }
@@ -80,6 +90,7 @@ export const generarHtmlMapa = ({ centroInicial, circulosJS, marcadoresJS, marca
         }
         puntosGuardados = [];
         marcadoresRuta = [];
+        segmentosRuta = []; 
         puntoAnteriorLat = EMPRESA_LAT;
         puntoAnteriorLon = EMPRESA_LON;
         redibujarPolyline();
@@ -122,6 +133,25 @@ export const generarHtmlMapa = ({ centroInicial, circulosJS, marcadoresJS, marca
             if (idxPunto !== -1) {
                 puntosGuardados.splice(idxPunto, 1);
             }
+            var idxSegmento = -1;
+            for (var i = 0; i < segmentosRuta.length; i++) {
+            if (segmentosRuta[i].id === idBuscado) { idxSegmento = i; break; }
+             }
+            if (idxSegmento !== -1) {
+             segmentosRuta.splice(idxSegmento, 1);
+            }
+
+
+
+        if (puntosGuardados.length > 0) {
+            var ultimoPunto = puntosGuardados[puntosGuardados.length - 1];
+            puntoAnteriorLat = ultimoPunto.lat;
+            puntoAnteriorLon = ultimoPunto.lon;
+    } else {
+        // Si no quedan puntos, volver al origen de la empresa
+        puntoAnteriorLat = EMPRESA_LAT;
+        puntoAnteriorLon = EMPRESA_LON;
+    }
 
             redibujarPolyline();
         }
@@ -146,7 +176,11 @@ export const generarHtmlMapa = ({ centroInicial, circulosJS, marcadoresJS, marca
         if (puntosGuardados.length === 0) {
             puntoAnteriorLat = EMPRESA_LAT;
             puntoAnteriorLon = EMPRESA_LON;
-        }
+        } else {
+            var ultimo = puntosGuardados[puntosGuardados.length - 1];
+            puntoAnteriorLat = ultimo.lat;
+            puntoAnteriorLon = ultimo.lon;
+            }
 
         fetch('https://router.project-osrm.org/nearest/v1/driving/' + lon + ',' + lat)
             .then(function(r) { return r.json(); })
@@ -166,6 +200,9 @@ export const generarHtmlMapa = ({ centroInicial, circulosJS, marcadoresJS, marca
                 if (data.ruta.routes && data.ruta.routes.length > 0) {
                     var puntos = data.ruta.routes[0].geometry.coordinates.map(function(p) { return [p[1], p[0]]; });
                     L.polyline(puntos, { color: '#22C55E', weight: 4 }).addTo(map);
+
+                    segmentosRuta.push({ id: nuevoId, puntos: puntos });
+
                     window.ReactNativeWebView.postMessage(JSON.stringify({ tipo: 'trazoExitoso', mensaje: 'Ruta dibujada' }));
                 } else {
                     L.polyline(
