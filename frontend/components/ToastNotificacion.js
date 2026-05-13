@@ -85,7 +85,7 @@ const NotificacionToast = ({ visible, mensaje, tipo, alOcultar }) => {
     const obtenerColorFondo = () => {
         switch (tipo) {
             case 'exito':
-                return '#4CAF50';
+                return '#1B365D';
             case 'error':
                 return '#F44336';
             case 'advertencia':
