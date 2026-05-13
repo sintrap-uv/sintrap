@@ -40,6 +40,9 @@ export const generarHtmlMapa = ({ centroInicial, circulosJS, marcadoresJS, marca
     var segmentosRuta = [];
     var procesandoClick = false;
     var editando = false;
+    var modoMapa = 'ruta';
+    var marcadoresParada = [];
+    var puntosParada = [];
 
     // Coordenadas fijas de la empresa — origen permanente del trazado
     var EMPRESA_LAT = ${empLat};
@@ -52,6 +55,26 @@ export const generarHtmlMapa = ({ centroInicial, circulosJS, marcadoresJS, marca
             icon: L.divIcon({ className: 'punto-marcador', iconSize: [12, 12] })
         }).addTo(map);
         marcadoresRuta.push({ id: String(id), marcador: marcador });
+    }
+
+    function agregarMarcadorRojo(id, lat, lon) {
+    var marcador = L.marker([lat, lon], {
+        icon: L.divIcon({
+            className: '',
+            html: '<div style="background:#EF4444;border:2px solid white;border-radius:50%;width:14px;height:14px;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
+            iconSize: [14, 14],
+            iconAnchor: [7, 7],
+        })
+    }).addTo(map);
+    marcadoresParada.push({ id: String(id), marcador: marcador });
+    }
+
+    function limpiarParadas() {
+    for (var i = 0; i < marcadoresParada.length; i++) {
+        map.removeLayer(marcadoresParada[i].marcador);
+    }
+    marcadoresParada = [];
+    puntosParada = [];
     }
 
     function redibujarPolyline() {
@@ -90,6 +113,7 @@ export const generarHtmlMapa = ({ centroInicial, circulosJS, marcadoresJS, marca
         }
         puntosGuardados = [];
         marcadoresRuta = [];
+        marcadoresParada = [];
         segmentosRuta = []; 
         puntoAnteriorLat = EMPRESA_LAT;
         puntoAnteriorLon = EMPRESA_LON;
@@ -113,6 +137,28 @@ export const generarHtmlMapa = ({ centroInicial, circulosJS, marcadoresJS, marca
             }
             redibujarPolyline();
         }
+
+        // Dentro de manejarMensaje(), junto a los otros if:
+
+        if (datos.tipo === 'setModoMapa') {
+          modoMapa = datos.valor; // 'ruta' o 'paradas'
+        }
+
+        if (datos.tipo === 'eliminarParada') {
+         var idBuscado = String(datos.id);
+            for (var i = 0; i < marcadoresParada.length; i++) {
+             if (marcadoresParada[i].id === idBuscado) {
+             map.removeLayer(marcadoresParada[i].marcador);
+             marcadoresParada.splice(i, 1);
+             break;
+            }
+    }
+    puntosParada = puntosParada.filter(function(p) { return String(p.id) !== idBuscado; });
+}
+
+if (datos.tipo === 'limpiarParadas') {
+    limpiarParadas();
+}
 
         if (datos.tipo === 'eliminarPunto') {
             var idBuscado = String(datos.id);
@@ -158,6 +204,7 @@ export const generarHtmlMapa = ({ centroInicial, circulosJS, marcadoresJS, marca
 
         if (datos.tipo === 'limpiarTodo') {
             limpiarTodosLosPuntos();
+            limpiarParadas();
         }
     }
 
@@ -166,7 +213,26 @@ export const generarHtmlMapa = ({ centroInicial, circulosJS, marcadoresJS, marca
 
     map.on('click', function(e) {
         if (!editando || procesandoClick) return;
-        procesandoClick = true;
+
+         // ── MODO PARADAS (paso 4) ────────────────────────────────────── 
+
+         if (modoMapa === 'paradas') {
+            var lat = e.latlng.lat;
+            var lon = e.latlng.lng;
+            var nuevoId = String(Date.now());
+            agregarMarcadorRojo(nuevoId, lat, lon);
+            puntosParada.push({ id: nuevoId, lat: lat, lon: lon });
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+                tipo: 'nuevaParada',
+                id: nuevoId,    
+                lat: lat,
+                lon: lon
+            }));
+
+            return; // no cae al modo ruta
+        }
+            // ── MODO RUTA (paso 3) — código existente sin cambios ──────────
+            procesandoClick = true;
 
         var lat = e.latlng.lat;
         var lon = e.latlng.lng;
