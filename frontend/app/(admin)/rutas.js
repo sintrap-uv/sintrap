@@ -12,6 +12,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import theme from "../../constants/theme";
+import Header from "../../components/Header";
 
 const T = theme.lightMode;
 
@@ -70,13 +71,13 @@ export default function TodasLasRutasScreen() {
       // Procesar datos
       const rutasConDetalles = rutasData.map(ruta => {
         const asignacionesRuta = asignaciones?.filter(a => a.ruta_id === ruta.id) || [];
-        
+
         const turnos = asignacionesRuta.map(asig => {
           const capacidad = asig.vehiculos?.tipo_vehiculo?.capacidad_max || 0;
           const key = `${ruta.id}_${asig.tipo_turno_id}`;
           const usuariosEnTurno = conteoUsuarios[key] || 0;
           const porcentaje = capacidad > 0 ? Math.round((usuariosEnTurno / capacidad) * 100) : 0;
-          
+
           return {
             id: asig.tipo_turno_id,
             nombre: asig.tipos_turno?.nombre,
@@ -118,23 +119,24 @@ export default function TodasLasRutasScreen() {
           Ruta {ruta.numero_ruta} · {ruta.nombre}
         </Text>
       </View>
-      
+
       <Text style={styles.turnosTitulo}>Turnos y vehículos asignados:</Text>
-      
+
       {ruta.turnos.length > 0 ? (
         ruta.turnos.map((turno, idx) => {
           const colorPorcentaje = turno.porcentaje >= 90 ? "#EF4444" : turno.porcentaje >= 70 ? "#F97316" : "#22C55E";
-          
+
           return (
+
             <View key={idx} style={styles.turnoCard}>
               <View style={styles.turnoHeader}>
                 <MaterialCommunityIcons name="clock-outline" size={16} color="#6B7280" />
                 <Text style={styles.turnoNombre}>{turno.nombre}</Text>
                 <Text style={styles.turnoHorario}>
-                  {turno.hora_inicio?.slice(0,5)} - {turno.hora_fin?.slice(0,5)}
+                  {turno.hora_inicio?.slice(0, 5)} - {turno.hora_fin?.slice(0, 5)}
                 </Text>
               </View>
-              
+
               {turno.vehiculo ? (
                 <>
                   <View style={styles.vehiculoInfo}>
@@ -142,7 +144,7 @@ export default function TodasLasRutasScreen() {
                     <Text style={styles.vehiculoPlaca}>{turno.vehiculo.placa}</Text>
                     <Text style={styles.vehiculoCapacidad}>Cap: {turno.capacidad} personas</Text>
                   </View>
-                  
+
                   <View style={styles.ocupacionInfo}>
                     <Text style={styles.usuariosTexto}>
                       {turno.usuariosAsignados} / {turno.capacidad} usuarios
@@ -158,8 +160,8 @@ export default function TodasLasRutasScreen() {
               ) : (
                 <Text style={styles.sinVehiculo}>Sin vehículo asignado</Text>
               )}
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.asignarBtn}
                 onPress={() => router.push(`/(admin)/asignar-recursos?id=${ruta.id}`)}
               >
@@ -173,7 +175,7 @@ export default function TodasLasRutasScreen() {
           <Text style={styles.turnoVacioText}>
             No hay turnos configurados. Asigna un vehículo para crear un turno.
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.asignarBtn}
             onPress={() => router.push(`/(admin)/asignar-recursos?id=${ruta.id}`)}
           >
@@ -194,11 +196,11 @@ export default function TodasLasRutasScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.tituloContainer}>
-        <Text style={styles.tituloPrincipal}>Todas las Rutas</Text>
-        <Text style={styles.subtitulo}>{rutas.length} rutas activas</Text>
-      </View>
-      
+      <Header
+        titulo="Todas las Rutas"
+        subtitulo= {`${rutas.length} rutas activas `} 
+      />
+
       <FlatList
         data={rutas}
         keyExtractor={(item) => item.id.toString()}
@@ -206,8 +208,8 @@ export default function TodasLasRutasScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={true}
         refreshControl={
-          <RefreshControl 
-            refreshing={refrescando} 
+          <RefreshControl
+            refreshing={refrescando}
             onRefresh={() => cargarRutas(true)}
             colors={[T.Button.primary.background]}
           />
@@ -220,25 +222,15 @@ export default function TodasLasRutasScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: T.background },
   centrado: { flex: 1, justifyContent: "center", alignItems: "center" },
-  
+
   tituloContainer: {
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 8,
   },
-  tituloPrincipal: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: T.text.primary,
-  },
-  subtitulo: {
-    fontSize: 14,
-    color: T.text.secondary,
-    marginTop: 4,
-  },
-  
+
   listContent: { padding: 16, paddingBottom: 32, gap: 16 },
-  
+
   rutaCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -258,10 +250,10 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F3F4F6",
   },
   rutaDot: { width: 12, height: 12, borderRadius: 6, marginRight: 10 },
-  rutaNombre: { 
-    fontSize: 16, 
-    fontWeight: "600", 
-    color: T.text.primary, 
+  rutaNombre: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: T.text.primary,
     flex: 1,
   },
   turnosTitulo: {
@@ -321,8 +313,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 4,
   },
-  barraRelleno: { 
-    height: 6, 
+  barraRelleno: {
+    height: 6,
     borderRadius: 3,
   },
   porcentajeTexto: {
@@ -351,9 +343,9 @@ const styles = StyleSheet.create({
     padding: 10,
     alignItems: "center",
   },
-  asignarBtnText: { 
-    color: "#fff", 
-    fontWeight: "600", 
+  asignarBtnText: {
+    color: "#fff",
+    fontWeight: "600",
     fontSize: 13,
   },
 });

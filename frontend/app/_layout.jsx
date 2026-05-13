@@ -35,7 +35,7 @@ function AppConToast() {
       <NotificacionToast 
         visible={toast.visible}
         mensaje={toast.message}
-        tipo={toast.type}
+        tipo={toast.tipo}
         alOcultar={hideToast}
       />
     </>

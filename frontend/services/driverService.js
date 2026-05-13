@@ -177,3 +177,4 @@ export async function toggleDriverStatus(conductorId, estadoActual) {
 
   return { data: data ?? null, error: error ?? null };
 }
+

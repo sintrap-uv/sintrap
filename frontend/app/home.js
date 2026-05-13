@@ -10,7 +10,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { BottomNavBar } from "../components/BottomNavBar";
 import BotonesFlotantes from "../components/BotonesFlotantes";
-import Header from "../components/Header";
 import { getProfile } from "../services/profileService";
 import { getCurrentUser, signOut } from "../services/auth";
 
@@ -85,7 +84,6 @@ export default function Home() {
       },
       crear_Ruta: { titulo: "Crear Ruta", subtitulo: "Registra tu ruta" },
       graficas: { titulo: "Estadisticas", subtitulo: "Actividad del sistema" },
-      mapa_colaboradores: { titulo: 'Mapa de colaboradores', subtitulo: 'Visualiza los grupos' },
       configurar_buses: { titulo: 'Configurar buses', subtitulo: 'Punto de salida' },
     },
     conductor: {
@@ -191,7 +189,7 @@ export default function Home() {
 
        crear_Ruta: () => (<Bienvenida onNavegar={(tab) => setTabActivo(tab)} />
       ),
-      mapa_colaboradores: () => <MapaColaboradores />,
+      mapa_colaboradores: () => <MapaColaboradores key={tabActivo} />,
       configurar_buses: () => <ConfiguracionBuses onNavegar={(tab) => setTabActivo(tab)} />,
       crear_Conductor: () => <ConductoresScreen />,
       crear_Bus: () => <RegistrarVehiculo />,
@@ -322,30 +320,7 @@ export default function Home() {
     <View style={styles.container}>
       {/* ── Header fijo (siempre visible) ──────────────────── */}
 
-      {tabActivo !== "perfil" && tabActivo !== "inicio" && (
-        <Header
-          titulo={
-            HEADER_CONFIGS[perfil?.rol ?? "usuario"][tabActivo]?.titulo ??
-            "Inicio"
-          }
-          subtitulo={
-            HEADER_CONFIGS[perfil?.rol ?? "usuario"][tabActivo]?.subtitulo ?? ""
-          }
-          mode="light"
-          iconoDerecha={
-            perfil?.rol === "administrador" || perfil?.rol === "conductor" ? (
-              <TouchableOpacity onPress={() => setTabActivo("perfil")}>
-                <Ionicons name="settings-outline" size={28} color="#FFFFFF" />
-              </TouchableOpacity>
-            ) : null}
-            showBack={tabActivo === "mapa_colaboradores" || tabActivo === "configurar_buses" } 
-            onBack={()=>{
-              if(tabActivo === 'configurar_buses') setTabActivo('inicio')
-              else if(tabActivo === "mapa_colaboradores") setTabActivo("rutas");
-              else setTabActivo('inicio')}
-            }
-        />
-      )}
+   
 
       {/* ── Área de contenido (cambia según el tab) ─────────── */}
       <View style={styles.contenido}>{renderContenido()}</View>
