@@ -179,20 +179,20 @@ const ProfileCard = ({
           <View style={styles.card}>
             <MenuItem
               icon={<Ionicons name="people-outline" size={22} color="#2563EB" />}
-              label="Gestión de usuarios"
-              onPress={onManageUsers}
+              label="Gestión de conductores"
+              onPress={() => router.push("/(admin)/conductores")} 
             />
             <Divider />
             <MenuItem
               icon={<Ionicons name="bar-chart-outline" size={22} color="#2563EB" />}
               label="Reportes"
-              onPress={onReports}
+              onPress={() => router.push("/(admin)/estadisticas")}
             />
             <Divider />
             <MenuItem
               icon={<MaterialCommunityIcons name="map-marker-path" size={22} color="#2563EB" />}
               label="Gestión de rutas"
-              onPress={onManageRoutes}
+              onPress={() => router.push("/(admin)/rutas")}
             />
           </View>
         </>
@@ -206,13 +206,13 @@ const ProfileCard = ({
             <MenuItem
               icon={<Ionicons name="bus-outline" size={22} color="#D97706" />}
               label="Mi vehículo"
-              onPress={onMyVehicle}
+              onPress={() => router.push("/(conductor)/mis-buses")}
             />
             <Divider />
             <MenuItem
               icon={<MaterialCommunityIcons name="map-marker-path" size={22} color="#D97706" />}
               label="Rutas asignadas"
-              onPress={onAssignedRoutes}
+              onPress={() => router.push("/(conductor)/DashboardConductor")} 
             />
             <Divider />
             <TouchableOpacity
@@ -245,7 +245,7 @@ const ProfileCard = ({
         <MenuItem
           icon={<Ionicons name="bus-outline" size={22} color={t.icon.active} />}
           label="Historial de viajes"
-          onPress={onTripHistory}
+          onPress={() => router.push("/(usuario)/historial-viajes")}
         />
         <Divider />
         <MenuItem
