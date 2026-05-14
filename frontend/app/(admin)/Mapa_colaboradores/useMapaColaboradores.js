@@ -34,7 +34,7 @@ export const useMapaColaboradores = () => {
     const [diasTipo, setDiasTipo] = useState('entre_semana');
     const [conductoresDisponibles, setConductoresDisponibles] = useState([]);
     const [vehiculosDisponibles, setVehiculosDisponibles] = useState([]);
-
+    const [guardando, setGuardando] = useState(false);
     //Esto nos va servir para acomadar la hora que vaya poniendo el admin asiganarle un turno como en la tabla de supabase
     // Detecta el turno según la hora de inicio
     const detectarTurno = (hora) => {
@@ -98,8 +98,8 @@ export const useMapaColaboradores = () => {
         setGrupos(agruparPorCercania(datos, 0.3));
         setEmpresaUbicacion(await obtenerUbicacionBuses());
 
-      //  const { data: listaConductores } = await getAllDrivers();
-       // const listaVehiculos = await obtenerVehiculos();
+        //  const { data: listaConductores } = await getAllDrivers();
+        // const listaVehiculos = await obtenerVehiculos();
         setCargando(false);
 
         const { data: listaTurnos } = await supabase.from('tipos_turno').select('*');
@@ -138,12 +138,25 @@ export const useMapaColaboradores = () => {
     const eliminarPunto = (id) => {
         // CORREGIDO: comparar siempre como string en ambos lados
         const idStr = String(id);
-        const nuevosPuntos = puntosRuta.filter(p => String(p.id) !== idStr);
+
+        const indice = puntosRuta.findIndex(p => String(p.id) === idStr);
+        if (indice === -1) return;
+
+        // Eliminar ese punto Y todos los que vienen después
+        const puntosAEliminar = puntosRuta.slice(indice);
+        const nuevosPuntos = puntosRuta.slice(0, indice);
+
         setPuntosRuta(nuevosPuntos);
 
+        // Decirle al mapa que elimine todos esos puntos
+        puntosAEliminar.forEach(p => {
+            enviarAlMapa({ tipo: 'eliminarPunto', id: String(p.id) });
+        });
 
-        enviarAlMapa({ tipo: 'eliminarPunto', id: idStr });
-        showInfo('Punto eliminado');
+        showInfo(puntosAEliminar.length > 1
+            ? `Se eliminaron ${puntosAEliminar.length} puntos para mantener consistencia`
+            : 'Punto eliminado'
+        );
     };
     const limpiarPuntos = () => {
         if (!puntosRuta.length) { showInfo('No hay puntos para limpiar'); return; }
@@ -185,6 +198,8 @@ export const useMapaColaboradores = () => {
         if (!puntosRuta.length) { showWarning('Debes seleccionar al menos un punto'); return; }
         if (!conductorId) { showError("Debes seleccionar un conductor"); return; }
         if (!vehiculoId) { showError("Debes seleccionar un vehículo"); return; }
+
+        setGuardando(true); //se activa el spinner
         try {
             await guardarRutaCompleta(
                 nombreRuta, numeroRuta,
@@ -193,10 +208,8 @@ export const useMapaColaboradores = () => {
                 turnoId, puntosParada, diasTipo
             );
 
-            console.log('✅ guardarRutaCompleta terminó sin error');
             //MOstrarmos el mensaje de exito 
             showSuccess(`Ruta "${nombreRuta}" guardada exitosamente`);
-            console.log('✅ showSuccess llamado');
             // limpiar estados...
             setNumeroRuta("");
             setNombreRuta("");
@@ -216,8 +229,9 @@ export const useMapaColaboradores = () => {
                 showError(`Ya existe una ruta con el número ${numeroRuta}`);
             } else {
                 showError(error.message || 'Error al guardar la ruta');
-                console.error('❌ Error completo:', error);
             }
+        } finally {
+            setGuardando(false); //se desactiva el spinner
         }
     };
 
@@ -238,7 +252,7 @@ export const useMapaColaboradores = () => {
             }
         } catch { /* mensaje no JSON */ }
     };
- 
+
     return {
         colaboradores, grupos, cargando,
         modoEdicion, setModoEdicion,
@@ -267,5 +281,6 @@ export const useMapaColaboradores = () => {
         verificarConflictoHorarioVehiculo,
         conductores: conductoresDisponibles,  // ← antes eran todos los conductores
         vehiculos: vehiculosDisponibles,
+        guardando,
     };
 };  

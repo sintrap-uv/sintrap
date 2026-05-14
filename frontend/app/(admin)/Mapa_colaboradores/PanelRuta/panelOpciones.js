@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { View, Text, TouchableOpacity, Animated, PanResponder, Keyboard } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import theme from "../../../../constants/theme";
+import { ActivityIndicator } from 'react-native';
 import s from "./panelRutaStyles"
 import { Progreso, Paso1, Paso2, Paso3, Paso4, PASOS } from "./pasoComponentes";
 
@@ -32,6 +33,7 @@ const PanelRuta = ({
     verificarNumeroRuta,
     verificarConflictoHorarioVehiculo,
     verificarEstadoVehiculo,
+    guardando
 }) => {
     const [errores, setErrores] = useState({});
     const [mostrarPickerInicio, setMostrarPickerInicio] = useState(false);
