@@ -1,15 +1,37 @@
 // MapaColaboradores.jsx
-import { View, Text, ActivityIndicator, TouchableOpacity } from "react-native";
+import { useState, useEffect } from "react";
+import Header from "../../../components/Header";
+import {
+    View, Text, ActivityIndicator,
+    TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard
+} from "react-native"
 import { WebView } from "react-native-webview";
 import theme from "../../../constants/theme";
 import { useMapaColaboradores } from "./useMapaColaboradores";
 import { generarHtmlMapa } from "./mapaHTML";
-import PanelRuta from "./PanelRuta";
+import PanelRuta from "./PanelRuta/panelOpciones";
 import { styles } from "./MapaColaboradores.styles";
 
 const T = theme.lightMode;
 
 const MapaColaboradores = () => {
+
+    const [paso, setPaso] = useState(1);
+    const [panelColapsado, setPanelColapsado] = useState(false);
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+
+    useEffect(() => {
+        const mostrar = Keyboard.addListener('keyboardDidShow', (e) => {
+            setKeyboardHeight(e.endCoordinates.height);
+        });
+        const ocultar = Keyboard.addListener('keyboardDidHide', () => {
+            setKeyboardHeight(0);
+        });
+        return () => { mostrar.remove(); ocultar.remove(); };
+    }, []);
+
+
     const {
         colaboradores, grupos, cargando,
         modoEdicion, setModoEdicion,
@@ -19,13 +41,31 @@ const MapaColaboradores = () => {
         panelVisible, setPanelVisible,
         webViewRef, onMensajeMapa,
         handleRutaOptima, eliminarPunto, limpiarPuntos, guardarRuta,
-        showInfo,
-        conductores, vehiculos,        // ← agrega esto
-        conductorId, setConductorId,
+        showInfo, showError, showWarning,
+        conductores, vehiculos,
+        conductorId, handleConductorChange,
         vehiculoId, setVehiculoId,
         horaInicio, setHoraInicio,
         horaFin, setHoraFin,
+        sincronizarModoMapa,
+        puntosParada,
+        eliminarParada,
+        limpiarParadas,
+        turnoId, setTurnoId,
+        turnos,
+        diasTipo, setDiasTipo,
+        handleHoraInicioChange,
+        verificarNumeroRuta,
+        verificarEstadoVehiculo,
+        verificarConflictoHorarioVehiculo,
+
     } = useMapaColaboradores();
+
+    const handleSetModoEdicion = (valor) => {
+        if (!valor) setPaso(1);
+        setModoEdicion(valor);
+    };
+
 
     const circulosJS = grupos.map(g =>
         `L.circle([${g.centro.lat}, ${g.centro.lon}], { radius: 300, color: 'green', fillColor: '#22C55E', fillOpacity: 0.2 }).addTo(map);`
@@ -52,10 +92,24 @@ const MapaColaboradores = () => {
         </View>
     );
 
+    const esModoMapa = paso === 3 || paso === 4;
+
+    // El mapa ocupa toda la pantalla si: no hay modo edición, O estamos en paso 3
+    // const mapaOcupaTodo = !modoEdicion || esModoMapa;
+
+    const flexMapa = 1;
+
     return (
         <View style={[styles.mapaContenedor, { backgroundColor: T.background }]}>
-            <View style={styles.mapaWrapper}>
+            <Header
+                titulo="Mapa de colaboradores"
+                subtitulo="Gestión de rutas"
+                showBack={true}
+            />
+            {/* Mapa — se encoge cuando aparece el teclado */}
+            <View style={{ flex: flexMapa }}>
                 <WebView
+                    key={colaboradores.length}
                     ref={webViewRef}
                     source={{ html: htmlMapa }}
                     javaScriptEnabled={true}
@@ -71,12 +125,17 @@ const MapaColaboradores = () => {
                     }}
                     onMessage={onMensajeMapa}
                 />
+
                 <View style={styles.botonesFlotantes}>
                     <View style={styles.botonesContainer}>
                         {!modoEdicion && (
                             <TouchableOpacity
                                 style={[styles.botonFlotanteCrear, { backgroundColor: T.Button.primary.background }]}
-                                onPress={() => { setModoEdicion(true); showInfo('Modo edición activado - Toca el mapa para agregar puntos'); }}>
+                                onPress={() => {
+                                    setModoEdicion(true);
+                                    setPanelVisible(true);
+                                    showInfo('Completa los pasos para trazar tu ruta');
+                                }}>
                                 <Text style={{ color: T.Button.primary.Text, fontWeight: 'bold' }}>Crear ruta</Text>
                             </TouchableOpacity>
                         )}
@@ -98,27 +157,53 @@ const MapaColaboradores = () => {
                 )}
             </View>
 
+            {/* Panel — sube cuando aparece el teclado */}
             {modoEdicion && panelVisible && (
-                <PanelRuta
-                    nombreRuta={nombreRuta} setNombreRuta={setNombreRuta}
-                    numeroRuta={numeroRuta} setNumeroRuta={setNumeroRuta}
-                    puntosRuta={puntosRuta} eliminarPunto={eliminarPunto}
-                    limpiarPuntos={limpiarPuntos} guardarRuta={guardarRuta}
-                    setPanelVisible={setPanelVisible} setModoEdicion={setModoEdicion}
-                    conductores={conductores} vehiculos={vehiculos}
-                    conductorId={conductorId} setConductorId={setConductorId}
-                    vehiculoId={vehiculoId} setVehiculoId={setVehiculoId}
-                    horaInicio={horaInicio} setHoraInicio={setHoraInicio}
-                    horaFin={horaFin} setHoraFin={setHoraFin}
-                />
+                <View style={{
+                    position: 'absolute',
+                    bottom: esModoMapa ? 0 : keyboardHeight,  // ← sube solo en pasos 1 y 2
+                    left: 0,
+                    right: 0,
+                }}>
+                    <PanelRuta
+                        nombreRuta={nombreRuta} setNombreRuta={setNombreRuta}
+                        numeroRuta={numeroRuta} setNumeroRuta={setNumeroRuta}
+                        puntosRuta={puntosRuta} eliminarPunto={eliminarPunto}
+                        limpiarPuntos={limpiarPuntos} guardarRuta={guardarRuta}
+                        setPanelVisible={setPanelVisible} setModoEdicion={setModoEdicion}
+                        conductores={conductores} vehiculos={vehiculos}
+                        conductorId={conductorId} handleConductorChange={handleConductorChange}
+                        vehiculoId={vehiculoId} setVehiculoId={setVehiculoId}
+                        horaInicio={horaInicio} setHoraInicio={setHoraInicio}
+                        horaFin={horaFin} setHoraFin={setHoraFin}
+                        showError={showError} showWarning={showWarning}
+                        panelColapsado={panelColapsado}
+                        setPanelColapsado={setPanelColapsado}
+                        sincronizarModoMapa={sincronizarModoMapa}
+                        paso={paso}
+                        setPaso={setPaso}
+                        puntosParada={puntosParada}
+                        eliminarParada={eliminarParada}
+                        limpiarParadas={limpiarParadas}
+                        turnoId={turnoId} setTurnoId={setTurnoId}
+                        turnos={turnos}
+                        diasTipo={diasTipo} setDiasTipo={setDiasTipo}
+                        handleHoraInicioChange={handleHoraInicioChange}
+                        verificarNumeroRuta={verificarNumeroRuta}
+                        verificarEstadoVehiculo={verificarEstadoVehiculo}
+                        verificarConflictoHorarioVehiculo={verificarConflictoHorarioVehiculo}
+
+                    />
+                </View>
             )}
 
-            {modoEdicion && !panelVisible && (
+            {modoEdicion && !panelVisible && !esModoMapa && (
                 <TouchableOpacity style={styles.botonMostrarPanel} onPress={() => setPanelVisible(true)}>
                     <Text style={styles.textoMostrarPanel}>Mostrar panel</Text>
                 </TouchableOpacity>
             )}
         </View>
+
     );
 };
 
