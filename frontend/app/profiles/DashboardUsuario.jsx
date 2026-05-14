@@ -4,16 +4,20 @@ import {
   ActivityIndicator, RefreshControl, StyleSheet, Linking, Image,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { supabase } from "../../services/supabase";
 import theme from "../../constants/theme";
 import Header from "../../components/Header";
-import {useRouter} from "expo-router";
 import {
   getDashboardUsuario, calcularETA,
   marcarNotifLeida, formatearHora,
 } from "../../services/dashboardUsuarioService";
 
 const T = theme.lightMode;
+
+// ─── Nombre legible del turno ─────────────────────────────────────────────
+const nombreTurno = (t) =>
+  ({ manana: "Mañana", tarde: "Tarde", noche: "Noche" })[t] ?? t;
 
 // ─── Config notificaciones ────────────────────────────────────────────────
 const NOTIF_CONFIG = {
@@ -28,10 +32,10 @@ const NOTIF_CONFIG = {
 
 // ─── Config estado del servicio ───────────────────────────────────────────
 const ESTADO_CONFIG = {
-  en_ruta:       { label: "En ruta",       color: "#16A34A", bg: "#DCFCE7", dot: "#16A34A" },
-  proximamente:  { label: "Próximamente",  color: "#D97706", bg: "#FEF3C7", dot: "#D97706" },
-  disponible:    { label: "Disponible",    color: "#3B82F6", bg: "#DBEAFE", dot: "#3B82F6" },
-  sin_servicio:  { label: "Sin servicio",  color: "#6B7280", bg: "#F3F4F6", dot: "#9CA3AF" },
+  en_ruta:      { label: "En ruta",      color: "#16A34A", bg: "#DCFCE7", dot: "#16A34A" },
+  proximamente: { label: "Próximamente", color: "#D97706", bg: "#FEF3C7", dot: "#D97706" },
+  disponible:   { label: "Disponible",   color: "#3B82F6", bg: "#DBEAFE", dot: "#3B82F6" },
+  sin_servicio: { label: "Sin servicio", color: "#6B7280", bg: "#F3F4F6", dot: "#9CA3AF" },
 };
 
 // ─── Chip estado bus ──────────────────────────────────────────────────────
@@ -48,7 +52,7 @@ function ChipEstadoBus({ enRuta, etaMinutos }) {
     <View style={[s.chip, { backgroundColor: bg }]}>
       <View style={[s.chipDot, { backgroundColor: color }]} />
       <Text style={[s.chipTexto, { color }]}>
-        {etaMinutos <= 2 ? "Llegando ahora" : `~${etaMinutos} min`}
+        {etaMinutos <= 2 ? "Llegando ahora" : ~$`{etaMinutos} min`}
       </Text>
     </View>
   );
@@ -61,19 +65,33 @@ function ItemParada({ parada, esOrigen, esDestino, esPasada, esActual }) {
   return (
     <View style={s.paradaFila}>
       <View style={s.paradaConector}>
-        <View style={[s.paradaPunto, { backgroundColor: colorPunto, borderColor: esActual ? "#BFDBFE" : "transparent", borderWidth: esActual ? 3 : 0 }]} />
+        <View style={[s.paradaPunto, {
+          backgroundColor: colorPunto,
+          borderColor: esActual ? "#BFDBFE" : "transparent",
+          borderWidth: esActual ? 3 : 0,
+        }]} />
         {!esDestino && <View style={[s.paradaLinea, { backgroundColor: colorLinea }]} />}
       </View>
       <View style={s.paradaContenido}>
         <View style={s.paradaFila2}>
-          <Text style={[s.paradaNombre, { color: esActual ? "#1D4ED8" : esPasada ? T.text.secondary : T.text.primary, fontWeight: esActual || esOrigen || esDestino ? "600" : "400" }]}>
+          <Text style={[s.paradaNombre, {
+            color: esActual ? "#1D4ED8" : esPasada ? T.text.secondary : T.text.primary,
+            fontWeight: esActual || esOrigen || esDestino ? "600" : "400",
+          }]}>
             {parada.nombre}
           </Text>
           {esOrigen  && <View style={[s.badge, { backgroundColor: "#DCFCE7" }]}><Text style={[s.badgeTexto, { color: "#15803D" }]}>Tu parada</Text></View>}
           {esDestino && <View style={[s.badge, { backgroundColor: "#FEE2E2" }]}><Text style={[s.badgeTexto, { color: "#991B1B" }]}>Destino</Text></View>}
-          {esActual  && <View style={[s.badge, { backgroundColor: "#DBEAFE" }]}><Text style={[s.badgeTexto, { color: "#1D4ED8" }]}>🚌 Bus aquí</Text></View>}
+          {/* "Bus aquí" solo se muestra si es la parada actual Y NO es el destino */}
+          {esActual && !esDestino && (
+            <View style={[s.badge, { backgroundColor: "#DBEAFE" }]}>
+              <Text style={[s.badgeTexto, { color: "#1D4ED8" }]}>🚌 Bus aquí</Text>
+            </View>
+          )}
         </View>
-        {parada.eta > 0 && <Text style={[s.paradaETA, { color: "#9CA3AF" }]}>{parada.eta} min desde inicio</Text>}
+        {parada.eta > 0 && (
+          <Text style={[s.paradaETA, { color: "#9CA3AF" }]}>{parada.eta} min desde inicio</Text>
+        )}
       </View>
     </View>
   );
@@ -100,7 +118,6 @@ function TarjetaVehiculo({ bus, turnoHoy }) {
   const conductor = turnoHoy?.conductor ?? bus.conductor ?? null;
   const enCurso   = turnoHoy?.estado === "en_curso";
 
-  // Porcentaje de ocupación
   const pctOcupacion = bus.capacidad > 0
     ? Math.min(100, Math.round(((bus.capacidad - bus.asientosDisponibles) / bus.capacidad) * 100))
     : 0;
@@ -112,7 +129,6 @@ function TarjetaVehiculo({ bus, turnoHoy }) {
       <View style={s.vehiculoHeader}>
         <Ionicons name="bus-outline" size={18} color={T.text.secondary} />
         <Text style={s.vehiculoTitulo}>Vehículo asignado</Text>
-        {/* Chip estado */}
         <View style={[s.chip, { backgroundColor: estadoCfg.bg, marginLeft: "auto" }]}>
           <View style={[s.chipDot, { backgroundColor: estadoCfg.dot }]} />
           <Text style={[s.chipTexto, { color: estadoCfg.color }]}>{estadoCfg.label}</Text>
@@ -174,13 +190,11 @@ function TarjetaVehiculo({ bus, turnoHoy }) {
         </View>
       </View>
 
-      {/* Divisor */}
       <View style={s.divisor} />
 
       {/* Conductor */}
       {conductor ? (
         <View style={s.conductorWrap}>
-          {/* Avatar */}
           {conductor.avatar_url ? (
             <Image source={{ uri: conductor.avatar_url }} style={s.avatar} />
           ) : (
@@ -188,15 +202,12 @@ function TarjetaVehiculo({ bus, turnoHoy }) {
               <Ionicons name="person-outline" size={22} color={T.text.secondary} />
             </View>
           )}
-
           <View style={{ flex: 1 }}>
             <Text style={s.conductorNombre}>{conductor.nombre}</Text>
             {conductor.cedula && (
               <Text style={s.conductorCedula}>CC {conductor.cedula}</Text>
             )}
           </View>
-
-          {/* Botón llamar — solo si el turno está en curso */}
           {enCurso && conductor.celular && (
             <View style={s.contactoBtns}>
               <TouchableOpacity
@@ -229,6 +240,7 @@ function TarjetaVehiculo({ bus, turnoHoy }) {
 // ─── Dashboard principal ──────────────────────────────────────────────────
 export default function DashboardUsuario() {
   const router = useRouter();
+
   const [userId,      setUserId]      = useState(null);
   const [datos,       setDatos]       = useState(null);
   const [sinRuta,     setSinRuta]     = useState(false);
@@ -265,7 +277,8 @@ export default function DashboardUsuario() {
     ? calcularETA(datos.bus.ubicacion.distancia_metros, datos.bus.velocidad)
     : null;
 
-  const paradaActualOrden = datos?.bus?.enRuta ? 3 : null;
+  // paradaActualOrden en null hasta que haya lógica real de posición GPS
+  const paradaActualOrden = null;
 
   if (cargando) {
     return (
@@ -286,11 +299,15 @@ export default function DashboardUsuario() {
         <View style={s.centrado}>
           <MaterialCommunityIcons name="bus-stop" size={64} color="#D1D5DB" />
           <Text style={s.sinRutaTitulo}>Sin ruta asignada</Text>
-          <Text style={s.sinRutaSub}>El administrador aún no te ha asignado una ruta de servicio.</Text>
+          <Text style={s.sinRutaSub}>
+            El administrador aún no te ha asignado una ruta de servicio.
+          </Text>
         </View>
       </View>
     );
   }
+
+  if (!datos) return null;
 
   const { asignacion, paradas, bus, turnoHoy, notificaciones } = datos;
 
@@ -301,7 +318,11 @@ export default function DashboardUsuario() {
         subtitulo={`Ruta ${asignacion.numeroRuta} · ${asignacion.paradaOrigen.nombre}`}
         mode="light"
         iconoDerecha={
-          <TouchableOpacity onPress={() => router.push("/Notificaciones")} style={{ position: "relative" }}>
+          // ── Cambio 1: campana navega a pantalla de notificaciones ──
+          <TouchableOpacity
+            onPress={() => router.push("/notificaciones")}
+            style={{ position: "relative" }}
+          >
             <Ionicons name="notifications-outline" size={24} color="#fff" />
             {notificaciones.length > 0 && (
               <View style={s.badgeNotif}>
@@ -354,7 +375,6 @@ export default function DashboardUsuario() {
               </View>
             </View>
           )}
-          
 
           {bus && (
             <View style={s.heroBusDatos}>
@@ -413,12 +433,17 @@ export default function DashboardUsuario() {
         </View>
 
         {/* ── 4. HORARIO HOY ──────────────────────────────────── */}
+        {/* Cambio 3: horario más explícito con nombre del turno */}
         <View style={s.seccion}>
           <Text style={s.tituloSeccion}>Horario de hoy</Text>
           <View style={s.horarioCard}>
             <View style={s.horarioFila}>
               <Ionicons name="time-outline" size={16} color={T.text.secondary} />
               <Text style={s.horarioTexto}>
+                {turnoHoy?.nombre_turno
+                  ? `Turno ${nombreTurno(turnoHoy.nombre_turno)} · `
+                  : "Horario de ruta · "
+                }
                 {formatearHora(asignacion.horarioInicio ?? "06:00:00")} — {formatearHora(asignacion.horarioFin ?? "08:00:00")}
               </Text>
               {turnoHoy?.estado === "en_curso" && (
@@ -431,7 +456,18 @@ export default function DashboardUsuario() {
             {turnoHoy?.conductor && (
               <View style={s.horarioFila}>
                 <Ionicons name="person-outline" size={16} color={T.text.secondary} />
-                <Text style={s.horarioTexto}>Conductor: {turnoHoy.conductor.nombre}</Text>
+                <Text style={s.horarioTexto}>
+                  Conductor: {turnoHoy.conductor.nombre}
+                </Text>
+              </View>
+            )}
+            {/* Estado del turno si no está en curso */}
+            {turnoHoy && turnoHoy.estado !== "en_curso" && (
+              <View style={s.horarioFila}>
+                <Ionicons name="information-circle-outline" size={16} color={T.text.secondary} />
+                <Text style={s.horarioTexto}>
+                  Estado: {turnoHoy.estado === "programado" ? "Programado" : turnoHoy.estado}
+                </Text>
               </View>
             )}
           </View>
@@ -441,34 +477,37 @@ export default function DashboardUsuario() {
         <View style={s.seccion}>
           <Text style={s.tituloSeccion}>Recorrido</Text>
           <View style={s.paradasCard}>
-            {paradas.map((parada, i) => (
+            {paradas.map((parada) => (
               <ItemParada
                 key={parada.id}
                 parada={parada}
                 esOrigen={parada.id === asignacion.paradaOrigen.id}
                 esDestino={parada.id === asignacion.paradaDestino.id}
-                esActual={parada.orden === paradaActualOrden}
-                esPasada={paradaActualOrden ? parada.orden < paradaActualOrden : false}
+                esActual={paradaActualOrden !== null && parada.orden === paradaActualOrden}
+                esPasada={paradaActualOrden !== null && parada.orden < paradaActualOrden}
               />
             ))}
           </View>
         </View>
 
-        
-                {/* ── 6. NOTIFICACIONES ───────────────────────────────── */}
+        {/* ── 6. NOTIFICACIONES ───────────────────────────────── */}
         {notificaciones.length > 0 && (
           <View style={s.seccion}>
             <View style={s.notifHeader}>
               <Text style={s.tituloSeccion}>Avisos</Text>
-              <TouchableOpacity onPress={() => console.log("Ver todas")}>
+              <TouchableOpacity onPress={() => router.push("/NotificacionesUsuarios")}>
                 <Text style={s.verTodas}>Ver todas</Text>
               </TouchableOpacity>
             </View>
             {notificaciones.map((notif) => {
               const cfg = NOTIF_CONFIG[notif.tipo] ?? NOTIF_CONFIG.sistema;
               return (
-                <TouchableOpacity key={notif.id} style={s.notifItem} activeOpacity={0.8}
-                  onPress={() => marcarNotifLeida(notif.id)}>
+                <TouchableOpacity
+                  key={notif.id}
+                  style={s.notifItem}
+                  activeOpacity={0.8}
+                  onPress={() => marcarNotifLeida(notif.id)}
+                >
                   <View style={[s.notifIcono, { backgroundColor: cfg.bg }]}>
                     <MaterialCommunityIcons name={cfg.icono} size={18} color={cfg.color} />
                   </View>
@@ -534,36 +573,26 @@ const s = StyleSheet.create({
   seccion:       { gap: 10 },
   tituloSeccion: { fontSize: 13, fontWeight: "600", color: T.text.secondary, textTransform: "uppercase", letterSpacing: 0.8 },
 
-  // ── Tarjeta vehículo ──────────────────────────────────────────────────
+  // Tarjeta vehículo
   vehiculoCard: {
     backgroundColor: "#fff", borderRadius: 16, padding: 16, gap: 14,
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
   },
-  vehiculoHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  vehiculoTitulo: { fontSize: 13, fontWeight: "600", color: T.text.secondary, textTransform: "uppercase", letterSpacing: 0.5 },
-
-  // Placa
-  placaWrap:  { alignItems: "center", paddingVertical: 8 },
-  placaTexto: { fontSize: 32, fontWeight: "800", color: T.text.primary, letterSpacing: 4 },
-
-  // Info vehículo
-  vehiculoInfo:    { gap: 10 },
-  vehiculoInfoRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  infoIconCircle:  { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-  infoLabel:       { fontSize: 11, color: T.text.tertiary, textTransform: "uppercase", letterSpacing: 0.5 },
-  infoValue:       { fontSize: 14, fontWeight: "600", color: T.text.primary, marginTop: 1 },
-
-  // Barra ocupación
-  barraHeader:  { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
-  barraLabel:   { fontSize: 12, color: T.text.secondary },
-  barraFondo:   { height: 8, backgroundColor: "#F1F5F9", borderRadius: 4, overflow: "hidden" },
-  barraRelleno: { height: 8, borderRadius: 4 },
-
-  // Divisor
-  divisor: { height: 1, backgroundColor: T.cards.border },
-
-  // Conductor
+  vehiculoHeader:     { flexDirection: "row", alignItems: "center", gap: 8 },
+  vehiculoTitulo:     { fontSize: 13, fontWeight: "600", color: T.text.secondary, textTransform: "uppercase", letterSpacing: 0.5 },
+  placaWrap:          { alignItems: "center", paddingVertical: 8 },
+  placaTexto:         { fontSize: 32, fontWeight: "800", color: T.text.primary, letterSpacing: 4 },
+  vehiculoInfo:       { gap: 10 },
+  vehiculoInfoRow:    { flexDirection: "row", alignItems: "center", gap: 12 },
+  infoIconCircle:     { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  infoLabel:          { fontSize: 11, color: T.text.tertiary, textTransform: "uppercase", letterSpacing: 0.5 },
+  infoValue:          { fontSize: 14, fontWeight: "600", color: T.text.primary, marginTop: 1 },
+  barraHeader:        { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
+  barraLabel:         { fontSize: 12, color: T.text.secondary },
+  barraFondo:         { height: 8, backgroundColor: "#F1F5F9", borderRadius: 4, overflow: "hidden" },
+  barraRelleno:       { height: 8, borderRadius: 4 },
+  divisor:            { height: 1, backgroundColor: T.cards.border },
   conductorWrap:      { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar:             { width: 48, height: 48, borderRadius: 24, backgroundColor: "#F1F5F9" },
   avatarPlaceholder:  { width: 48, height: 48, borderRadius: 24, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center" },

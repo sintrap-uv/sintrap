@@ -2,16 +2,12 @@
 
 /**
  * Obtiene toda la información del dashboard del usuario.
- * Estrategia: dos fases paralelas para evitar joins anidados frágiles.
- *
- * FASE 1 — datos estáticos (ruta, paradas, horario, notifs): Promise.all
- * FASE 2 — datos en tiempo real (posición bus): siempre via RPC SECURITY DEFINER
- *
  * @param {string} userId - UUID del usuario autenticado
  */
 export async function getDashboardUsuario(userId) {
   try {
     // ── FASE 1A: Ruta asignada ─────────────────────────────────────────
+    // limit(1) por si el usuario tiene más de una ruta activa
     const { data: asignacion, error: eAsig } = await supabase
       .from("usuario_ruta")
       .select(`
@@ -22,6 +18,7 @@ export async function getDashboardUsuario(userId) {
       `)
       .eq("usuario_id", userId)
       .eq("activa", true)
+      .limit(1)
       .maybeSingle();
 
     if (eAsig) throw eAsig;
@@ -42,14 +39,13 @@ export async function getDashboardUsuario(userId) {
         .eq("ruta_id", rutaId)
         .order("orden"),
 
-      // Vehículo con tipo y conductor completo
+      // Vehículo — conductor se toma del turno, no del join aquí
       // NOTA: no se usa la columna "capacidad" — viene de tipo_vehiculo
       supabase
         .from("vehiculos")
         .select(`
           id, placa, activo,
-          tipo_vehiculo:tipo_vehiculo_id ( id, nombre, capacidad_max ),
-          conductor:conductor_id ( id, nombre, cedula, celular, avatar_url )
+          tipo_vehiculo:tipo_vehiculo_id ( id, nombre, capacidad_max )
         `)
         .eq("ruta_id", rutaId)
         .eq("activo", true)
@@ -62,7 +58,7 @@ export async function getDashboardUsuario(userId) {
           nombre_turno, hora_inicio, hora_fin,
           turnos (
             id, estado, hora_inicio_real,
-            conductor:conductor_id ( nombre, celular, cedula, avatar_url )
+            conductor:conductor_id ( id, nombre, cedula, celular, avatar_url )
           )
         `)
         .eq("ruta_id", rutaId)
@@ -80,7 +76,7 @@ export async function getDashboardUsuario(userId) {
     if (eParadas)  throw eParadas;
     if (eHorarios) throw eHorarios;
 
-    // ── Contar usuarios asignados a esta ruta (para asientos disponibles)
+    // ── Contar usuarios asignados a esta ruta ─────────────────────────
     const { count: usuariosEnRuta } = await supabase
       .from("usuario_ruta")
       .select("*", { count: "exact", head: true })
@@ -107,15 +103,15 @@ export async function getDashboardUsuario(userId) {
       .find((t) => t.estado === "en_curso") ?? null;
 
     // ── Capacidad y asientos disponibles ──────────────────────────────
-    const capacidadMax   = vehiculoData?.tipo_vehiculo?.capacidad_max ?? 0;
-    const asientosOcupados  = usuariosEnRuta ?? 0;
+    const capacidadMax        = vehiculoData?.tipo_vehiculo?.capacidad_max ?? 0;
+    const asientosOcupados    = usuariosEnRuta ?? 0;
     const asientosDisponibles = Math.max(0, capacidadMax - asientosOcupados);
 
     // ── Estado del servicio ───────────────────────────────────────────
     let estadoServicio = "sin_servicio";
-    if (turnoHoy?.estado === "en_curso")    estadoServicio = "en_ruta";
+    if (turnoHoy?.estado === "en_curso")        estadoServicio = "en_ruta";
     else if (turnoHoy?.estado === "programado") estadoServicio = "proximamente";
-    else if (vehiculoData?.activo)          estadoServicio = "disponible";
+    else if (vehiculoData?.activo)              estadoServicio = "disponible";
 
     return {
       success: true,
@@ -138,17 +134,17 @@ export async function getDashboardUsuario(userId) {
         })),
         bus: vehiculoData
           ? {
-              placa:     vehiculoData.placa,
-              tipo:      vehiculoData.tipo_vehiculo?.nombre ?? "Buseta",
-              capacidad: capacidadMax,
+              placa:             vehiculoData.placa,
+              tipo:              vehiculoData.tipo_vehiculo?.nombre ?? "Buseta",
+              capacidad:         capacidadMax,
               asientosDisponibles,
               estadoServicio,
-              enRuta:    busUbicacion?.en_ruta   ?? false,
-              velocidad: Number(busUbicacion?.velocidad ?? 0),
-              ubicacion: busUbicacion ?? null,
+              enRuta:            busUbicacion?.en_ruta   ?? false,
+              velocidad:         Number(busUbicacion?.velocidad ?? 0),
+              ubicacion:         busUbicacion ?? null,
               ultimaActualizacion: busUbicacion?.updated_at ?? null,
-              // Conductor desde el vehículo
-              conductor: vehiculoData.conductor ?? null,
+              // Conductor viene del turno activo
+              conductor:         turnoHoy?.conductor ?? null,
             }
           : null,
         turnoHoy,
@@ -188,3 +184,4 @@ export function formatearHora(hora) {
   const hora12  = h % 12 === 0 ? 12 : h % 12;
   return `${hora12}:${String(m).padStart(2, "0")} ${periodo}`;
 }
+``
