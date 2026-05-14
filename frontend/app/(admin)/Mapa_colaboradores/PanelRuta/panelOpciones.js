@@ -285,14 +285,10 @@ const PanelRuta = ({
                         <Ionicons name="arrow-forward" size={16} color="white" />
                     </TouchableOpacity>
                 ) : (
-                    guardando ? (
-                        <ActivityIndicator size="small" color="#16a34a" />
-                    ) : (
-                        <TouchableOpacity style={s.botonGuardar} onPress={guardarRuta}>
-                            <Ionicons name="checkmark-circle" size={16} color="white" />
-                            <Text style={s.textoGuardar}>Guardar ruta</Text>
-                        </TouchableOpacity>
-                    )
+                    <TouchableOpacity style={s.botonGuardar} onPress={guardarRuta}>
+                        <Ionicons name="checkmark-circle" size={16} color="white" />
+                        <Text style={s.textoGuardar}>Guardar ruta</Text>
+                    </TouchableOpacity>
                 )}
             </View>
         </Animated.View>
