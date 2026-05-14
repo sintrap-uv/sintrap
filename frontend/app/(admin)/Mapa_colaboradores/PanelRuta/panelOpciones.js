@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { View, Text, TouchableOpacity, Animated, PanResponder, Keyboard } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import theme from "../../../../constants/theme";
+import { ActivityIndicator } from 'react-native';
 import s from "./panelRutaStyles"
 import { Progreso, Paso1, Paso2, Paso3, Paso4, PASOS } from "./pasoComponentes";
 
@@ -32,6 +33,7 @@ const PanelRuta = ({
     verificarNumeroRuta,
     verificarConflictoHorarioVehiculo,
     verificarEstadoVehiculo,
+    guardando
 }) => {
     const [errores, setErrores] = useState({});
     const [mostrarPickerInicio, setMostrarPickerInicio] = useState(false);
@@ -283,10 +285,14 @@ const PanelRuta = ({
                         <Ionicons name="arrow-forward" size={16} color="white" />
                     </TouchableOpacity>
                 ) : (
-                    <TouchableOpacity style={s.botonGuardar} onPress={guardarRuta}>
-                        <Ionicons name="checkmark-circle" size={16} color="white" />
-                        <Text style={s.textoGuardar}>Guardar ruta</Text>
-                    </TouchableOpacity>
+                    guardando ? (
+                        <ActivityIndicator size="small" color="#16a34a" />
+                    ) : (
+                        <TouchableOpacity style={s.botonGuardar} onPress={guardarRuta}>
+                            <Ionicons name="checkmark-circle" size={16} color="white" />
+                            <Text style={s.textoGuardar}>Guardar ruta</Text>
+                        </TouchableOpacity>
+                    )
                 )}
             </View>
         </Animated.View>

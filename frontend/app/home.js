@@ -56,44 +56,6 @@ export default function Home() {
     cargarPerfil();
   }, []);
 
-  const HEADER_CONFIGS = {
-    usuario: {
-      inicio: {
-        titulo: `Hola ${perfil?.nombre ?? "Usuario"}`,
-        subtitulo: "¿a donde vamos hoy?",
-      },
-      favoritos: { titulo: "Mis Favoritos" },
-      rutas: { titulo: "Rutas" },
-      perfil: { titulo: "Mi Perfil" },
-    },
-    administrador: {
-      inicio: {
-        titulo: "Panel Administrativo",
-        subtitulo: "Gestion rutas y buses",
-      },
-      rutas: {
-        titulo: "Gestion de rutas",
-        subtitulo: "Administrar las rutas del sistema",
-      },
-      crear: { titulo: "Crear Ruta", subtitulo: "Gestion de rutas" },
-      buses: { titulo: "Buses", subtitulo: "Gestion de buses" },
-      crear_Bus: { titulo: "Crear bus", subtitulo: "Registro de unidad" },
-      crear_Conductor: {
-        titulo: "Crear Conductor",
-        subtitulo: "Registro de personal",
-      },
-      crear_Ruta: { titulo: "Crear Ruta", subtitulo: "Registra tu ruta" },
-      graficas: { titulo: "Estadisticas", subtitulo: "Actividad del sistema" },
-      configurar_buses: { titulo: 'Configurar buses', subtitulo: 'Punto de salida' },
-    },
-    conductor: {
-      inicio: { titulo: "Panel conductor" },
-      rutas: { titulo: "Gestion de rutas" },
-      crear: { titulo: "Crear Ruta" },
-      buses: { titulo: "Buses" },
-    },
-  };
-
   const probarAgrupacion = async () => {
     setCargandoPrueba(true);
 

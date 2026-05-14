@@ -58,6 +58,7 @@ const MapaColaboradores = () => {
         verificarNumeroRuta,
         verificarEstadoVehiculo,
         verificarConflictoHorarioVehiculo,
+        guardando
 
     } = useMapaColaboradores();
 
@@ -192,6 +193,7 @@ const MapaColaboradores = () => {
                         verificarNumeroRuta={verificarNumeroRuta}
                         verificarEstadoVehiculo={verificarEstadoVehiculo}
                         verificarConflictoHorarioVehiculo={verificarConflictoHorarioVehiculo}
+                        guardando={guardando}
 
                     />
                 </View>
