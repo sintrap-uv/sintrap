@@ -113,10 +113,10 @@ export const generarHtmlMapa = ({ centroInicial, circulosJS, marcadoresJS, marca
         }
         puntosGuardados = [];
         marcadoresRuta = [];
-        marcadoresParada = [];
         segmentosRuta = []; 
         puntoAnteriorLat = EMPRESA_LAT;
         puntoAnteriorLon = EMPRESA_LON;
+        limpiarParadas();
         redibujarPolyline();
     }
 
