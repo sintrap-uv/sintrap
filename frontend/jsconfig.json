@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "jsx": "react-native",
+    "checkJs": false
+  },
+  "include": [
+    "**/*.js",
+    "**/*.jsx",
+    "jest.setup.js",
+    "tests/**/*"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

@@ -21,6 +21,17 @@ export async function getTiposVehiculo() {
   if (error) throw error;
   return data;
 }
+  export async function obtenerVehiculos() {
+    const {data, error} = await supabase
+    .from('vehiculos')
+    .select('id, placa, conductor_id')
+    .eq('activo', true)
+    .order('placa', {ascending : true});
+
+    if(error) throw error;
+    return data;
+    
+  }
 
 // Registrar un nuevo vehículo
 // NOTA: no se usa la columna "capacidad" — esa info viene de tipo_vehiculo
@@ -40,4 +51,5 @@ export async function registerVehicle(vehicleData) {
 
   if (error) throw error;
   return data;
+
 }

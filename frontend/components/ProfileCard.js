@@ -16,6 +16,9 @@ import ResetPassword from "../app/profiles/resetPassword";
 import NotificacionesAdmin from "../app/(notificaciones)/NotificacionesAdmin";
 import NotificacionesUsuario from "../app/(notificaciones)/NotificacionesUsuarios";
 import Header from "./Header";
+import ResetPassword from "../app/profiles/resetPassword";
+import NotificacionesAdmin from "../app/(notificaciones)/NotificacionesAdmin";
+import NotificacionesUsuario from "../app/(notificaciones)/NotificacionesUsuarios";
 import { useRouter } from "expo-router";
 
 const t = theme.lightMode;

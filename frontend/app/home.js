@@ -22,6 +22,7 @@ import RegistrarVehiculo from "./(admin)/registrar-vehiculo";
 import VehiculosScreen from "./(admin)/vehiculos"
 import MisBusesScreen from "./(conductor)/mis-buses";
 import Bienvenida from "./(admin)/bienvenida-empresa";
+import EstadisticasScreen from "./(admin)/estadisticas";
 
 import DashboardAdmin from "./(admin)/DashboardAdmin";
 import DashboardUsuario from "./profiles/DashboardUsuario";
@@ -31,6 +32,7 @@ import MapaColaboradores from "./(admin)/Mapa_colaboradores/mapa-Colaboradores";
 import ConfiguracionBuses from "./(admin)/configurar-buses";
 import { ObtenerDireccionUsuario } from "../services/geocalizacion";
 import CajaDireccion from "../components/ModalDireccion";
+import TodasLasRutasScreen from "./(admin)/rutas";
 
 
 
@@ -180,16 +182,13 @@ export default function Home() {
       // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
 
       inicio: () => <DashboardAdmin />,
-      rutas: () => (
-        <TabPendiente nombre="Gestión de rutas" icono="map-outline" />
-      ),
+      rutas: () => <TodasLasRutasScreen />,
       crear: () => (
         <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />
       ),
       buses: () => <VehiculosScreen />, //para mostrar los buses
-      graficas: () => (
-        <TabPendiente nombre="Estadísticas" icono="bar-chart-outline" />
-      ),
+      graficas: () => <EstadisticasScreen />,
+
        crear_Ruta: () => (<Bienvenida onNavegar={(tab) => setTabActivo(tab)} />
       ),
       mapa_colaboradores: () => <MapaColaboradores />,
