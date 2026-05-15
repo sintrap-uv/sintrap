@@ -114,16 +114,33 @@ export default function Login() {
 
   const onPressIn  = () => Animated.spring(btnScale, { toValue: 0.97, useNativeDriver: true }).start();
   const onPressOut = () => Animated.spring(btnScale, { toValue: 1,    useNativeDriver: true }).start();
-
+   
+  const isValidEmail = (email) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+  
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      alert("Por favor completa todos los campos.");
-      return;
-    }
+     if (!email.trim() || !password.trim()) {
+  alert("Por favor completa todos los campos.");
+  return;
+}
+
+if (!isValidEmail(email)) {
+  alert("Ingresa un correo electrónico válido.");
+  return;
+}
     setLoading(true);
     try {
       const { data, error } = await signIn(email.trim(), password);
-      if (error) alert("Error al iniciar sesión: " + error.message);
+       if (error) {
+  let mensaje = "Ocurrió un error al iniciar sesión.";
+
+  if (error.message.includes("Invalid login credentials")) {
+    mensaje = "Correo o contraseña incorrectos.";
+  }
+
+  alert(mensaje);
+}
       else router.replace("/home");
     } finally {
       setLoading(false);
@@ -138,11 +155,13 @@ export default function Login() {
       <View style={s.circle1} pointerEvents="none" />
       <View style={s.circle2} pointerEvents="none" />
 
-      <ScrollView
-        contentContainerStyle={s.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+       <ScrollView
+         contentContainerStyle={s.scroll}
+         keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
+          contentInsetAdjustmentBehavior="always"
+        >
         {/* ── Logo ── */}
         <View style={s.logoArea}>
           {/* Glow verde detrás del logo */}
@@ -264,9 +283,10 @@ const s = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
+    paddingTop: 70,
     paddingHorizontal: 24,
-    paddingVertical: 52,
+    paddingBottom: 40,
   },
 
   // Logo
