@@ -1,7 +1,5 @@
 import { supabase } from "./supabase";
 import { notificarConductorAsignado } from "./notificacionesServices";
-
-
 //FUncion para guardar la ruta completa 
 //Guardamos lo que viene siendo las paradas el trayecto el conductor asignado con el bus 
 //
@@ -91,7 +89,7 @@ export const guardarRutaCompleta = async (
                 hora_inicio: horaInicio,
                 hora_fin: horaFin,
                 vehiculo_id: vehiculoId,
-                tipo_turno_id: turno_id,     
+                tipo_turno_id: turno_id,
                 ...dias,
                 activo: true
             });
