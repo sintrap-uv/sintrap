@@ -150,29 +150,32 @@ export async function getRutasCercanas(usuarioId, radioMetros = 500) {
 
     // 4.5 Obtener todos los IDs de vehículos y turnos
     const vehiculoIds = new Set();
-    const turnoIds = new Set();
-
     for (const rp of rutaParadas) {
-      if (rp.rutas && rp.rutas.ruta_horarios && Array.isArray(rp.rutas.ruta_horarios)) {
-        for (const horario of rp.rutas.ruta_horarios) {
-          if (horario.vehiculo_id) vehiculoIds.add(horario.vehiculo_id);
-          if (horario.turno_id) turnoIds.add(horario.turno_id);
-        }
+      for (const horario of rp.rutas?.ruta_horarios ?? []) {
+        if (horario.vehiculo_id) vehiculoIds.add(horario.vehiculo_id);
       }
     }
+
 
 
     // 4.6 Traer datos completos de vehículos
     let vehiculosMap = new Map();
     if (vehiculoIds.size > 0) {
-      const { data: vehiculosData, error: errorVehiculos } = await supabase
+      const { data: vehiculosData } = await supabase
         .from("vehiculos")
-        .select("id, placa")
+        .select(`
+            id,
+            placa,
+            activo,
+            profiles (
+                id,
+                nombre,
+                celular
+            )
+        `)
         .in("id", [...vehiculoIds]);
 
-      if (errorVehiculos) {
-        console.error(" Error en consulta de vehículos:", errorVehiculos.message);
-      } else {
+      if (vehiculosData) {
         vehiculosMap = new Map(vehiculosData.map(v => [v.id, v]));
       }
     }
