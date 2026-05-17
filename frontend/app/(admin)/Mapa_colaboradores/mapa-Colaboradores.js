@@ -53,7 +53,7 @@ const MapaColaboradores = () => {
         limpiarParadas,
         turnoId, setTurnoId,
         turnos,
-        diasTipo, setDiasTipo,
+        diasSeleccionados, setDiasSeleccionados,
         handleHoraInicioChange,
         verificarNumeroRuta,
         verificarEstadoVehiculo,
@@ -73,7 +73,7 @@ const MapaColaboradores = () => {
     ).join("\n");
 
     const marcadoresJS = colaboradores.map(c =>
-        `L.marker([${c.ubicacion_usuario.latidud}, ${c.ubicacion_usuario.longitud}]).bindPopup('${c.nombre || 'Colaborador'}').addTo(map);`
+        `L.marker([${c.latitud}, ${c.longitud}]).bindPopup('${c.profiles?.nombre || 'Colaborador'}').addTo(map);`
     ).join("\n");
 
     const marcadorEmpresa = empresaUbicacion
@@ -188,7 +188,7 @@ const MapaColaboradores = () => {
                         limpiarParadas={limpiarParadas}
                         turnoId={turnoId} setTurnoId={setTurnoId}
                         turnos={turnos}
-                        diasTipo={diasTipo} setDiasTipo={setDiasTipo}
+                        diasSeleccionados={diasSeleccionados} setDiasSeleccionados={setDiasSeleccionados}
                         handleHoraInicioChange={handleHoraInicioChange}
                         verificarNumeroRuta={verificarNumeroRuta}
                         verificarEstadoVehiculo={verificarEstadoVehiculo}

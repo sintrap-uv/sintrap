@@ -10,6 +10,7 @@ import { supabase } from "../../../services/supabase";
 import { verificarEstadoVehiculo, verificarConflictoHorarioVehiculo } from '../../../services/rutaServices';
 import { getVehiculosDisponibles, getConductoresDisponibles, getVehiculoPorConductor } from "../../../services/vehicleService";
 
+
 export const useMapaColaboradores = () => {
     const [colaboradores, setColaboradores] = useState([]);
     const [grupos, setGrupos] = useState([]);
@@ -31,10 +32,13 @@ export const useMapaColaboradores = () => {
     const [turnoId, setTurnoId] = useState(null);
     const [turnos, setTurnos] = useState([]);
     const [puntosParada, setPuntosParada] = useState([]);
-    const [diasTipo, setDiasTipo] = useState('entre_semana');
     const [conductoresDisponibles, setConductoresDisponibles] = useState([]);
     const [vehiculosDisponibles, setVehiculosDisponibles] = useState([]);
     const [guardando, setGuardando] = useState(false);
+    const [diasSeleccionados, setDiasSeleccionados] = useState({
+        lunes: true, martes: true, miercoles: true,
+        jueves: true, viernes: true, sabado: false, domingo: false,
+    })
     //Esto nos va servir para acomadar la hora que vaya poniendo el admin asiganarle un turno como en la tabla de supabase
     // Detecta el turno según la hora de inicio
     const detectarTurno = (hora) => {
@@ -97,9 +101,6 @@ export const useMapaColaboradores = () => {
         setColaboradores(datos);
         setGrupos(agruparPorCercania(datos, 0.3));
         setEmpresaUbicacion(await obtenerUbicacionBuses());
-
-        //  const { data: listaConductores } = await getAllDrivers();
-        // const listaVehiculos = await obtenerVehiculos();
         setCargando(false);
 
         const { data: listaTurnos } = await supabase.from('tipos_turno').select('*');
@@ -205,7 +206,7 @@ export const useMapaColaboradores = () => {
                 nombreRuta, numeroRuta,
                 puntosRuta, conductorId,
                 vehiculoId, horaInicio, horaFin,
-                turnoId, puntosParada, diasTipo
+                turnoId, puntosParada, diasSeleccionados
             );
 
             //MOstrarmos el mensaje de exito 
@@ -219,7 +220,7 @@ export const useMapaColaboradores = () => {
             setVehiculoId(null);
             setTurnoId(null)
             setModoEdicion(false)
-            setDiasTipo('entre_semana');
+            setDiasSeleccionados({ lunes: true, martes: true, miercoles: true, jueves: true, viernes: true, sabado: false, domingo: false });
             enviarAlMapa({ tipo: 'limpiarTodo' });
 
 
@@ -274,7 +275,7 @@ export const useMapaColaboradores = () => {
         puntosParada,
         eliminarParada,
         limpiarParadas,
-        diasTipo, setDiasTipo,
+        diasSeleccionados, setDiasSeleccionados,
         handleHoraInicioChange,
         verificarNumeroRuta: verificarNumeroRutaExistente,
         verificarEstadoVehiculo,

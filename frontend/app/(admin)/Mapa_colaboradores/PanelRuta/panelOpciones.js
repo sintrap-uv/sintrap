@@ -6,6 +6,7 @@ import { ActivityIndicator } from 'react-native';
 import s from "./panelRutaStyles"
 import { Progreso, Paso1, Paso2, Paso3, Paso4, PASOS } from "./pasoComponentes";
 
+
 const T = theme.lightMode;
 
 const PanelRuta = ({
@@ -28,7 +29,7 @@ const PanelRuta = ({
     limpiarParadas,
     turnoId, setTurnoId,
     turnos,
-    diasTipo, setDiasTipo,
+    diasSeleccionados, setDiasSeleccionados,
     handleHoraInicioChange,
     verificarNumeroRuta,
     verificarConflictoHorarioVehiculo,
@@ -243,8 +244,8 @@ const PanelRuta = ({
                     setHoraFin={setHoraFin}
                     turnoId={turnoId}
                     turnos={turnos}
-                    diasTipo={diasTipo}
-                    setDiasTipo={setDiasTipo}
+                    diasTipo={diasSeleccionados}
+                    setDiasTipo={setDiasSeleccionados}
                     errores={errores}
                     mostrarPickerInicio={mostrarPickerInicio}
                     setMostrarPickerInicio={setMostrarPickerInicio}
