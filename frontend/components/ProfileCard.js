@@ -50,6 +50,7 @@ const ProfileCard = ({
   onAssignedRoutes,
   onToggleService,
   serviceActive = true,
+  onBack,
 }) => {
 
   const router = useRouter();
@@ -148,7 +149,21 @@ const ProfileCard = ({
 
       {/* ── Header del proyecto + avatar sobresaliendo ── */}
       <View style={styles.headerContainer}>
+        <View style={styles.headerWrapper}></View>
+        <TouchableOpacity
+          onPress={() => {
+            if (onBack) {
+              onBack();
+          }else {
+            router.back();
+          }
+        }}
+        style={styles.backButtonHeader}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
         <Header titulo="" subtitulo="" mode="light" />
+
         {/* Avatar encima del header sobresaliendo */}
         <View style={styles.avatarWrapper}>
           {avatarUri ? (
@@ -329,6 +344,17 @@ const styles = StyleSheet.create({
   headerContainer: {
     position: "relative",
     alignItems: "center",
+  },
+    headerWrapper: {
+    width: "100%",
+    position: "relative",
+  },
+  backButtonHeader: {
+    position: "absolute",
+    left: 20,
+    top: 70,
+    zIndex: 10,
+    padding: 8,
   },
   avatarWrapper: {
     position: "absolute",

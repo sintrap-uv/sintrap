@@ -399,7 +399,7 @@ export default function DashboardAdmin() {
 
             <TouchableOpacity
               style={styles.accionBtn}
-              onPress={() => router.push("/(admin)/EnviarAviso")}
+              onPress={() => router.push("/(admin)/Mapa_colaboradores/mapa-Colaboradores")}
               activeOpacity={0.8}
             >
               <View style={[styles.accionIcono, { backgroundColor: "#FEE2E2" }]}>

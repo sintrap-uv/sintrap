@@ -8,61 +8,24 @@ export default function AdminLayout() {
   const router = useRouter();
 
   const ruta = segments[segments.length - 1];
-
-  let titulo = "Administrador";
-  let subtitulo = "Panel Principal";
-  let mode = "light";
-  let iconsName = "arrow-back-outline";
-  let mostrarHeader = true;
-
-  if (ruta === "registrar-vehiculo") {
-    titulo = "Registrar Bus";
-    subtitulo = "Agregar un nuevo Bus";
-  }
-
-  if (ruta === "DashboardAdmin") {
-    titulo = "Dashboard";
-    subtitulo = "Bienvenido";
-    iconsName = "settings-outline";
-  }
-
-  if (ruta === "rutas") {
-    titulo = "Gestión de Rutas";
-    subtitulo = "Administra las rutas del sistema";
-  }
-
-  if (ruta === "asignar-recursos") {
-    mostrarHeader = false; // La pantalla de asignación tiene su propio header
-  }
-
-  if (ruta === "conductores") {
-    titulo = "Conductores";
-    subtitulo = "Gestión de conductores";
-  }
+  const mostrarHeader = ruta === "DashboardAdmin";
 
   return (
     <>
       {mostrarHeader && (
         <Header
-          titulo={titulo}
-          subtitulo={subtitulo}
-          mode={mode}
+          titulo="Panel Administrador"
+          subtitulo="Gestiona rutas y buses"
+          mode="light"
           iconoDerecha={
             <TouchableOpacity onPress={() => router.replace('/home')}>
-              <Ionicons name={iconsName} size={36} color="#fff" />
+              <Ionicons name="settings-outline" size={36} color="#fff" />
             </TouchableOpacity>
           }
         />
       )}
-  
-      <Stack
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-        <Stack.Screen name="asignar-recursos" options={{ headerShown: false }} />
-        <Stack.Screen name="rutas" options={{ headerShown: false }} />
-      </Stack>
+
+      <Stack screenOptions={{ headerShown: false }} />
     </>
   );
 }

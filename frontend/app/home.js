@@ -176,6 +176,7 @@ export default function Home() {
           onManageUsers={() => console.log("Gestión usuarios")}
           onReports={() => console.log("Reportes")}
           onManageRoutes={() => console.log("Gestión rutas")}
+          onBack={() => setTabActivo("inicio")}
         />
       ),
     },
@@ -212,6 +213,7 @@ export default function Home() {
           onAssignedRoutes={() => console.log("Rutas asignadas")}
           serviceActive={serviceActive}
           onToggleService={() => setServiceActive((prev) => !prev)}
+          onBack={() => setTabActivo("inicio")}
         />
       ),
     },
@@ -242,6 +244,7 @@ export default function Home() {
           onSettings={() => console.log("Configuración")}
           onChangePassword={() => console.log("Cambiar contraseña")}
           onLogout={handleLogout}
+          onBack={() => setTabActivo("inicio")}
         />
       ),
     },
