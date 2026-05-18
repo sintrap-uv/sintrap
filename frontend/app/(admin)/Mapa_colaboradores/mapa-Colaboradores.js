@@ -58,6 +58,7 @@ const MapaColaboradores = () => {
         verificarNumeroRuta,
         verificarEstadoVehiculo,
         verificarConflictoHorarioVehiculo,
+        guardando
 
     } = useMapaColaboradores();
 
@@ -192,15 +193,23 @@ const MapaColaboradores = () => {
                         verificarNumeroRuta={verificarNumeroRuta}
                         verificarEstadoVehiculo={verificarEstadoVehiculo}
                         verificarConflictoHorarioVehiculo={verificarConflictoHorarioVehiculo}
+                        guardando={guardando}
 
                     />
                 </View>
             )}
 
             {modoEdicion && !panelVisible && !esModoMapa && (
+
                 <TouchableOpacity style={styles.botonMostrarPanel} onPress={() => setPanelVisible(true)}>
                     <Text style={styles.textoMostrarPanel}>Mostrar panel</Text>
                 </TouchableOpacity>
+            )}
+            {guardando && (
+                <View style={styles.loadingOverlay}>
+                    <ActivityIndicator size="large" color="#22C55E" />
+                    <Text style={styles.loadingText}>Guardando ruta...</Text>
+                </View>
             )}
         </View>
 
