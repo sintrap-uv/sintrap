@@ -5,10 +5,10 @@ const T = theme.lightMode;
 
 const DIAS = [
     { key: "lunes", label: "L" },
-    { key: "martes", label: "M  " },
-    { key: "miercoles", label: "M" },
+    { key: "martes", label: "M" },
+    { key: "miercoles", label: "X" },
     { key: "jueves", label: "J" },
-    { key: "viernes", label: " V" },
+    { key: "viernes", label: "V" },
     { key: "sabado", label: "S" },
     { key: "domingo", label: "D" }
 

@@ -2,13 +2,15 @@
 import { useState, useEffect, useRef } from "react";
 import { ubicacionColaboradores } from "../../../services/colaboradores";
 import { agruparPorCercania } from "../../../services/zonas";
-import { guardarRutaCompleta } from "../../../services/rutaServices";
+import { guardarRutaCompleta, getRutasConTrayecto } from "../../../services/rutaServices";
 import { obtenerUbicacionBuses } from "../../../services/salidaBuses";
 import { generarRutaOptima } from "./rutaUtils";
 import { useToast } from "../../../context/ToastContext";
 import { supabase } from "../../../services/supabase";
 import { verificarEstadoVehiculo, verificarConflictoHorarioVehiculo } from '../../../services/rutaServices';
-import { getVehiculosDisponibles, getConductoresDisponibles, getVehiculoPorConductor } from "../../../services/vehicleService";
+import { getVehiculosDisponibles, getVehiculoPorConductor } from "../../../services/vehicleService";
+import { getConductoresDisponibles } from "../../../services/driverService";
+
 
 
 export const useMapaColaboradores = () => {
@@ -31,6 +33,7 @@ export const useMapaColaboradores = () => {
     const [horaFin, setHoraFin] = useState("18:00");
     const [turnoId, setTurnoId] = useState(null);
     const [turnos, setTurnos] = useState([]);
+    const [rutasExistentes, setRutasExistentes] = useState([]);//Mostramos la ruta con trayecto 
     const [puntosParada, setPuntosParada] = useState([]);
     const [conductoresDisponibles, setConductoresDisponibles] = useState([]);
     const [vehiculosDisponibles, setVehiculosDisponibles] = useState([]);
@@ -41,33 +44,66 @@ export const useMapaColaboradores = () => {
     })
     //Esto nos va servir para acomadar la hora que vaya poniendo el admin asiganarle un turno como en la tabla de supabase
     // Detecta el turno según la hora de inicio
-    const detectarTurno = (hora) => {
+    const detectarTurno = (horaInicio, horaFin) => {
         if (!turnos.length) return;
-        const [h] = hora.split(':').map(Number);
+
+        const [hInicio] = horaInicio.split(':').map(Number);
+        const [hFin] = horaFin.split(':').map(Number);
 
         let nombreTurno;
-        if (h >= 6 && h < 14) nombreTurno = 'mañana';
-        else if (h >= 14 && h < 22) nombreTurno = 'tarde';
-        else nombreTurno = 'noche';
+
+        // Detectar según el rango horario completo
+        if (hInicio >= 6 && hFin <= 12) {
+            nombreTurno = 'mañana';
+        } else if (hInicio >= 12 && hFin <= 18) {
+            nombreTurno = 'tarde';
+        } else if (hInicio >= 18 || hFin <= 6) {
+            nombreTurno = 'noche';
+        } else {
+            // Fallback: usar solo hora de inicio si los rangos no están claros
+            if (hInicio >= 6 && hInicio < 12) nombreTurno = 'mañana';
+            else if (hInicio >= 12 && hInicio < 18) nombreTurno = 'tarde';
+            else nombreTurno = 'noche';
+        }
 
         const turnoEncontrado = turnos.find(t =>
             t.nombre.toLowerCase().includes(nombreTurno)
         );
-        if (turnoEncontrado) setTurnoId(turnoEncontrado.id);
+
+        if (turnoEncontrado) {
+            setTurnoId(turnoEncontrado.id);
+        }
     };
 
+    // Actualizar handleHoraInicioChange y handleHoraFinChange
     const handleHoraInicioChange = (hora) => {
         setHoraInicio(hora);
-        detectarTurno(hora);
-        cargarDisponibles(hora)
+        // Pasar ambas horas para detectar el turno correctamente
+        detectarTurno(hora, horaFin);
+        cargarDisponibles(hora, horaFin, diasSeleccionados);
+    };
+
+    const handleHoraFinChange = (hora) => {
+        setHoraFin(hora);
+        detectarTurno(horaInicio, hora);
+        cargarDisponibles(horaInicio, hora, diasSeleccionados);
+    };
+    const handleDiasChange = (nuevosDias) => {
+        setDiasSeleccionados(nuevosDias);
+        cargarDisponibles(horaInicio, horaFin, nuevosDias);
     };
 
     // Función para cargar disponibles según la hora
-    const cargarDisponibles = async (hora) => {
-        if (!hora) return;
+    const cargarDisponibles = async (
+        inicio = horaInicio,
+        fin = horaFin,
+        dias = diasSeleccionados
+    ) => {
+        if (!inicio || !fin) return;
+
         try {
-            const vehiculos = await getVehiculosDisponibles(hora);
-            const conductores = await getConductoresDisponibles(hora);
+            const vehiculos = await getVehiculosDisponibles(inicio, fin, dias);
+            const conductores = await getConductoresDisponibles(inicio, fin, dias);
             setVehiculosDisponibles(vehiculos);
             setConductoresDisponibles(conductores);
 
@@ -75,7 +111,7 @@ export const useMapaColaboradores = () => {
             if (conductorId && !conductores.some(c => c.id === conductorId)) {
                 setConductorId(null);
                 setVehiculoId(null);
-                showWarning('El conductor seleccionado ya no está disponible para esta hora');
+                showWarning('El conductor seleccionado ya no está disponible para este horario');
             }
         } catch (error) {
             console.error('Error cargando disponibles:', error);
@@ -102,6 +138,8 @@ export const useMapaColaboradores = () => {
         setGrupos(agruparPorCercania(datos, 0.3));
         setEmpresaUbicacion(await obtenerUbicacionBuses());
         setCargando(false);
+        const { data: rutas } = await getRutasConTrayecto();
+        setRutasExistentes(rutas || []);
 
         const { data: listaTurnos } = await supabase.from('tipos_turno').select('*');
         setTurnos(listaTurnos || [])
@@ -277,7 +315,10 @@ export const useMapaColaboradores = () => {
         limpiarParadas,
         diasSeleccionados, setDiasSeleccionados,
         handleHoraInicioChange,
+        handleHoraFinChange,
+        handleDiasChange,
         verificarNumeroRuta: verificarNumeroRutaExistente,
+        rutasExistentes,
         verificarEstadoVehiculo,
         verificarConflictoHorarioVehiculo,
         conductores: conductoresDisponibles,  // ← antes eran todos los conductores

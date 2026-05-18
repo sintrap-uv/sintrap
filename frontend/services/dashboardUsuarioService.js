@@ -30,6 +30,23 @@ export function calcularETA(distanciaMetros, velocidadKmh = 30) {
 //Para mostrar horarios legibles al usuario.
 // Convierte formato 24h a 12h (ej: "18:30" → "06:30 PM").
 //----------------------------------------------------------------------------------------------------
+// NUEVA FUNCIÓN: Extrae qué días de la semana opera este horario en texto legible
+export const obtenerDiasOperacion = (horario) => {
+  if (!horario) return "";
+  const dias = [];
+  if (horario.lunes) dias.push("Lun");
+  if (horario.martes) dias.push("Mar");
+  if (horario.miercoles) dias.push("Mié");
+  if (horario.jueves) dias.push("Jue");
+  if (horario.viernes) dias.push("Vie");
+  if (horario.sabado) dias.push("Sáb");
+  if (horario.domingo) dias.push("Dom");
+
+  if (dias.length === 7) return "Todos los días";
+  if (dias.length === 5 && !horario.sabado && !horario.domingo) return "Lunes a Viernes";
+  return dias.join(" - ");
+};
+
 export function formatearHora(hora) {
   if (!hora) return "";
   const [h, m] = hora.split(":").map(Number);
@@ -77,7 +94,6 @@ async function obtenerYGuardarUbicacion(usuarioId) {
 
     return { latitud, longitud };
   } catch (error) {
-    console.error("Error obteniendo ubicación:", error);
     throw error;
   }
 }
@@ -87,8 +103,19 @@ async function obtenerYGuardarUbicacion(usuarioId) {
 export async function getRutasCercanas(usuarioId, radioMetros = 500) {
   try {
 
-    // 1. GPS → guardar en ubicacion_usuario
-    const { latitud, longitud } = await obtenerYGuardarUbicacion(usuarioId);
+    //1. vamos a utulizar la dirrecion guarda de supabaes para saber donde se encuentra el usuario 
+
+    const { data: ubicGuardada, error } = await supabase
+      .from('ubicacion_usuario')
+      .select("latitud, longitud, direccion")
+      .eq("usuario_id", usuarioId)
+      .maybeSingle();
+
+    if (error || !ubicGuardada?.latitud || !ubicGuardada?.longitud) {
+      throw new Error("El usuario no tiene una dirección guardada aún");
+    }
+
+    const { latitud, longitud } = ubicGuardada;
 
     // 2. Todas las paradas con coordenadas numéricas
     const { data: paradas, error: errorParadas } = await supabase
@@ -126,14 +153,18 @@ export async function getRutasCercanas(usuarioId, radioMetros = 500) {
           numero_ruta,
           nombre,
           color,
-          horario_inicio,
-          horario_fin,
           tarifas ( precio ),
           ruta_horarios (
             hora_inicio,
             hora_fin,
             vehiculo_id,
-            turno_id
+            lunes,
+            martes,
+            miercoles,
+            jueves,
+            viernes,
+            sabado,
+            domingo
           )
         )
       `)
@@ -161,62 +192,29 @@ export async function getRutasCercanas(usuarioId, radioMetros = 500) {
     // 4.6 Traer datos completos de vehículos
     let vehiculosMap = new Map();
     if (vehiculoIds.size > 0) {
-      const { data: vehiculosData } = await supabase
+      const respuesta = await supabase
         .from("vehiculos")
         .select(`
             id,
             placa,
             activo,
-            profiles (
-                id,
-                nombre,
-                celular
+            conductor:conductor_id (
+              id,
+              nombre,
+              celular
             )
         `)
         .in("id", [...vehiculoIds]);
+
+      // 2. Creamos la variable que tu código de más abajo está esperando para que no falle
+      const vehiculosData = respuesta.data;
 
       if (vehiculosData) {
         vehiculosMap = new Map(vehiculosData.map(v => [v.id, v]));
       }
     }
 
-    // 4.7 Traer datos completos de turnos
-    let turnosMap = new Map();
-    if (turnoIds.size > 0) {
-      const { data: turnosData, error: errorTurnos } = await supabase
-        .from("turnos")
-        .select("id, estado, conductor_id")
-        .in("id", [...turnoIds]);
 
-      if (errorTurnos) {
-        console.error(" Error en consulta de turnos:", errorTurnos.message);
-      } else {
-        turnosMap = new Map(turnosData.map(t => [t.id, t]));
-      }
-    }
-
-    // 4.8 Traer conductores
-    const conductorIds = new Set();
-    for (const turno of turnosMap.values()) {
-      if (turno.conductor_id) {
-        conductorIds.add(turno.conductor_id);
-      }
-    }
-
-
-    let conductoresMap = new Map();
-    if (conductorIds.size > 0) {
-      const { data: conductoresData, error: errorConductores } = await supabase
-        .from("profiles")
-        .select("id, nombre, celular")
-        .in("id", [...conductorIds]);
-
-      if (errorConductores) {
-        console.error(" Error en consulta de conductores:", errorConductores.message);
-      } else {
-        conductoresMap = new Map(conductoresData.map(c => [c.id, c]));
-      }
-    }
 
     // 5. Notificaciones no leídas
     const { data: notificaciones } = await supabase
@@ -243,9 +241,7 @@ export async function getRutasCercanas(usuarioId, radioMetros = 500) {
         // Obtener el horario y buscar vehículo/turno en los maps
         const horario = ruta.ruta_horarios?.[0];
         const vehiculo = horario?.vehiculo_id ? vehiculosMap.get(horario.vehiculo_id) : null;
-        const turno = horario?.turno_id ? turnosMap.get(horario.turno_id) : null;
-        const turnoActivo = turno && (turno.estado === "en_curso" || turno.estado === "programado") ? turno : null;
-        const conductor = turnoActivo?.conductor_id ? conductoresMap.get(turnoActivo.conductor_id) : null;
+        const conductor = vehiculo?.conductor ?? null;
 
         // Obtener ubicación del bus
         let busUbic = null;
@@ -269,6 +265,9 @@ export async function getRutasCercanas(usuarioId, radioMetros = 500) {
           );
           etaBus = calcularETA(distBusParada, busUbic.velocidad);
         }
+        // CALCULAR DÍAS DE OPERACIÓN
+        const diasOperacion = obtenerDiasOperacion(horario || {});
+
 
         rutasMap.set(ruta.id, {
           id: ruta.id,
@@ -279,6 +278,8 @@ export async function getRutasCercanas(usuarioId, radioMetros = 500) {
           color: ruta.color ?? "#378ADD",
           horarioInicio: horario ? formatearHora(horario.hora_inicio) : null,
           horarioFin: horario ? formatearHora(horario.hora_fin) : null,
+          diasOperacion: diasOperacion,
+          etaBus: etaBus,
           tarifa: ruta.tarifas?.[0]?.precio ?? null,
 
           paradaMasCercana: {
@@ -295,14 +296,19 @@ export async function getRutasCercanas(usuarioId, radioMetros = 500) {
           bus: vehiculo
             ? {
               placa: vehiculo.placa,
+              activo: vehiculo.activo,
               enRuta: busUbic?.en_ruta ?? false,
               velocidad: Number(busUbic?.velocidad ?? 0),
               ubicacion: busUbic ?? null,
             }
             : null,
+          conductor: conductor
+            ? {
+              nombre: conductor.nombre,
+              celular: conductor.celular,
+            }
+            : null,
 
-          conductor: conductor,
-          etaBus,
           notificaciones: notificaciones ?? [],
         });
       } else {

@@ -1,8 +1,9 @@
 import { supabase } from "./supabase";
 import { notificarConductorAsignado } from "./notificacionesServices";
-//FUncion para guardar la ruta completa 
-//Guardamos lo que viene siendo las paradas el trayecto el conductor asignado con el bus 
-//
+//----------------------------------------------------------------------------------------------
+//Esta funcionalidad va ser para guardar la ruta completa
+//-----------------------------------------------------------------------------------------------------------------
+
 export const guardarRutaCompleta = async (
     nombre,
     numeroRuta,
@@ -41,7 +42,8 @@ export const guardarRutaCompleta = async (
             throw new Error('Este vehículo ya tiene una ruta asignada en ese horario');
         }
 
-        // 1. Guardar la ruta y obtener el ID (usando RPC)
+        // 1. Guardar la ruta con el trayecto en la columna geometry (RPC)
+        // La RPC guardar_ruta ya guarda el trayecto en rutas.trayecto como LINESTRING
         const { data, error } = await supabase.rpc('guardar_ruta', {
             p_nombre: nombre,
             p_numero_ruta: parseInt(numeroRuta),
@@ -53,13 +55,13 @@ export const guardarRutaCompleta = async (
 
         // 2. Calcular días según el tipo seleccionado
         const dias = {
-            lunes: diasTipo === 'entre_semana' || diasTipo === 'todos',
-            martes: diasTipo === 'entre_semana' || diasTipo === 'todos',
-            miercoles: diasTipo === 'entre_semana' || diasTipo === 'todos',
-            jueves: diasTipo === 'entre_semana' || diasTipo === 'todos',
-            viernes: diasTipo === 'entre_semana' || diasTipo === 'todos',
-            sabado: diasTipo === 'fines_semana' || diasTipo === 'todos',
-            domingo: diasTipo === 'fines_semana' || diasTipo === 'todos',
+            lunes: diasTipo.lunes ?? false,
+            martes: diasTipo.martes ?? false,
+            miercoles: diasTipo.miercoles ?? false,
+            jueves: diasTipo.jueves ?? false,
+            viernes: diasTipo.viernes ?? false,
+            sabado: diasTipo.sabado ?? false,
+            domingo: diasTipo.domingo ?? false,
         };
 
         // 3. Obtener el nombre del turno en minúsculas (para el enum)
@@ -96,34 +98,8 @@ export const guardarRutaCompleta = async (
 
         if (errorHorario) throw errorHorario;
 
-        // 5. Guardar los puntos de la ruta (trayecto) como paradas tipo 'trayecto'
-        for (let i = 0; i < puntosRuta.length; i++) {
-            const puntoGeo = `POINT(${puntosRuta[i].lon} ${puntosRuta[i].lat})`;
-            const { data: parada, error: errorParada } = await supabase
-                .from('paradas')
-                .insert({
-                    nombre: `Parada ${i + 1}`,
-                    ubicacion: puntoGeo,
-                    activa: true,
-                    tipo: 'trayecto'
-                })
-                .select()
-                .single();
 
-            if (errorParada) throw errorParada;
-
-            const { error: errorRutaParada } = await supabase
-                .from('ruta_paradas')
-                .insert({
-                    ruta_id: parseInt(rutaId),
-                    parada_id: parada.id,
-                    orden: i + 1
-                });
-
-            if (errorRutaParada) throw errorRutaParada;
-        }
-
-        // 6. Guardar las paradas de bus (tipo 'parada_bus')
+        // 5. Guardar las paradas de bus (tipo 'parada_bus')
         for (let i = 0; i < puntosParada.length; i++) {
             const puntoGeo = `POINT(${puntosParada[i].lon} ${puntosParada[i].lat})`;
             const { data: parada, error: errorParada } = await supabase
@@ -132,7 +108,9 @@ export const guardarRutaCompleta = async (
                     nombre: `Parada bus ${i + 1}`,
                     ubicacion: puntoGeo,
                     activa: true,
-                    tipo: 'parada_bus'
+                    tipo: 'parada_bus',
+                    latitud: puntosParada[i].lat,  // ← correcto
+                    longitud: puntosParada[i].lon,
                 })
                 .select()
                 .single();
@@ -155,7 +133,6 @@ export const guardarRutaCompleta = async (
     } catch (error) {
         // Rollback manual en caso de fallo
         if (rutaId) {
-            console.log('🔄 Revirtiendo por error:', error.message);
             await supabase.from('ruta_paradas').delete().eq('ruta_id', rutaId);
             await supabase.from('ruta_horarios').delete().eq('ruta_id', rutaId);
             await supabase.from('rutas').delete().eq('id', rutaId);
@@ -582,5 +559,59 @@ export async function guardarAsignaciones(rutaId, asignaciones) {
     } catch (error) {
         console.error('Error en guardarAsignaciones:', error.message);
         return { success: false, error: error.message };
+    }
+}
+
+//____________________________________________________________________
+//Esta funcion nos va servir para llamar a las rutas qeu haya en supabase y mostrar el trayecto 
+//___________________________________________________________________
+export async function getRutasConTrayecto() {
+    try {
+        const { data, error } = await supabase
+            .from('rutas')
+            .select(`
+                id,
+                numero_ruta,
+                nombre,
+                color,
+                activa,
+                ruta_paradas (
+                    orden,
+                    paradas (
+                        id,
+                        nombre,
+                        latitud,
+                        longitud,
+                        tipo
+                    )
+                )
+            `)
+            .eq('activa', true)
+            .order('numero_ruta', { ascending: true });
+
+        if (error) throw error;
+
+        // Formatear para que el trayecto venga ordenado y listo para el mapa
+        const rutas = data.map(ruta => ({
+            id: ruta.id,
+            numeroRuta: ruta.numero_ruta,
+            nombre: ruta.nombre,
+            color: ruta.color,
+            trayecto: ruta.ruta_paradas
+                .sort((a, b) => a.orden - b.orden)
+                .map(rp => ({
+                    id: rp.paradas.id,
+                    nombre: rp.paradas.nombre,
+                    latitud: rp.paradas.latitud,
+                    longitud: rp.paradas.longitud,
+                    tipo: rp.paradas.tipo,
+                }))
+                .filter(p => p.latitud && p.longitud)
+        }));
+
+        return { success: true, data: rutas };
+    } catch (error) {
+        console.error('Error en getRutasConTrayecto:', error);
+        return { success: false, data: [] };
     }
 }

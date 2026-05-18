@@ -19,7 +19,7 @@ const PanelRuta = ({
     conductorId, handleConductorChange,
     vehiculoId, setVehiculoId,
     horaInicio, setHoraInicio,
-    horaFin, setHoraFin,
+    horaFin, handleHoraFinChange,
     showError, showWarning,
     panelColapsado, setPanelColapsado,
     paso, setPaso,
@@ -29,7 +29,7 @@ const PanelRuta = ({
     limpiarParadas,
     turnoId, setTurnoId,
     turnos,
-    diasSeleccionados, setDiasSeleccionados,
+    diasSeleccionados, handleDiasChange,
     handleHoraInicioChange,
     verificarNumeroRuta,
     verificarConflictoHorarioVehiculo,
@@ -241,11 +241,11 @@ const PanelRuta = ({
                     horaInicio={horaInicio}
                     setHoraInicio={setHoraInicio}
                     horaFin={horaFin}
-                    setHoraFin={setHoraFin}
+                    setHoraFin={handleHoraFinChange}
                     turnoId={turnoId}
                     turnos={turnos}
                     diasTipo={diasSeleccionados}
-                    setDiasTipo={setDiasSeleccionados}
+                    setDiasTipo={handleDiasChange}
                     errores={errores}
                     mostrarPickerInicio={mostrarPickerInicio}
                     setMostrarPickerInicio={setMostrarPickerInicio}

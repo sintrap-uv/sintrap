@@ -45,6 +45,8 @@ export async function UbicacionUsuarioActulizada(userId, direccion, latitud, lon
                 direccion: direccion,
                 latitud: latitud,
                 longitud: longitud,
+                updated_at: new Date().toISOString(), // ✅ Agrega esto
+                fecha: new Date().toISOString(),
             },
             { onConflict: 'usuario_id' }
         )
@@ -74,7 +76,7 @@ export const ubicacionColaboradoresId = async (userId) => {
             ubicacion_usuario (
                 id,
                 direccion,
-                latidud,
+                latitud,
                 longitud,
                 updated_at
             )

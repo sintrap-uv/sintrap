@@ -13,7 +13,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { supabase } from "../../services/supabase";
 import theme from "../../constants/theme";
-import { getRutasCercanas, calcularETA, marcarNotifLeida, formatearHora } from "../../services/dashboardUsuarioService";
+import { getRutasCercanas, calcularETA, marcarNotifLeida, formatearHora, obtenerDiasOperacion } from "../../services/dashboardUsuarioService";
 import Header from "../../components/Header";
 
 const T = theme.lightMode;
@@ -193,6 +193,16 @@ export default function DashboardUsuario() {
               </View>
               <ChipEstadoBus enRuta={ruta.bus?.enRuta} etaMinutos={ruta.etaBus} />
             </View>
+
+            {/* DÍAS DE OPERACIÓN - NUEVO */}
+            {ruta.diasOperacion && (
+              <View style={styles.detalleFila}>
+                <MaterialCommunityIcons name="calendar-week" size={16} color={T.text.secondary} />
+                <Text style={styles.detalleTexto}>
+                   {ruta.diasOperacion}
+                </Text>
+              </View>
+            )}
 
             {/* Parada más cercana */}
             {ruta.paradaMasCercana && (

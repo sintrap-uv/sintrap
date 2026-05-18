@@ -45,18 +45,19 @@ const MapaColaboradores = () => {
         conductores, vehiculos,
         conductorId, handleConductorChange,
         vehiculoId, setVehiculoId,
-        horaInicio, setHoraInicio,
-        horaFin, setHoraFin,
+        horaInicio,
+        horaFin, handleHoraFinChange,
+        diasSeleccionados, handleDiasChange,
         sincronizarModoMapa,
         puntosParada,
         eliminarParada,
         limpiarParadas,
         turnoId, setTurnoId,
         turnos,
-        diasSeleccionados, setDiasSeleccionados,
         handleHoraInicioChange,
         verificarNumeroRuta,
         verificarEstadoVehiculo,
+        rutasExistentes,
         verificarConflictoHorarioVehiculo,
         guardando
 
@@ -84,7 +85,7 @@ const MapaColaboradores = () => {
         ? [grupos[0].centro.lat, grupos[0].centro.lon]
         : [4.0863, -76.195];
 
-    const htmlMapa = generarHtmlMapa({ centroInicial, circulosJS, marcadoresJS, marcadorEmpresa, empresaUbicacion });
+    const htmlMapa = generarHtmlMapa({ centroInicial, circulosJS, marcadoresJS, marcadorEmpresa, empresaUbicacion, rutasExistentes });
 
     if (cargando) return (
         <View style={[styles.contenedor, { backgroundColor: T.background }]}>
@@ -175,8 +176,7 @@ const MapaColaboradores = () => {
                         conductores={conductores} vehiculos={vehiculos}
                         conductorId={conductorId} handleConductorChange={handleConductorChange}
                         vehiculoId={vehiculoId} setVehiculoId={setVehiculoId}
-                        horaInicio={horaInicio} setHoraInicio={setHoraInicio}
-                        horaFin={horaFin} setHoraFin={setHoraFin}
+                        horaInicio={horaInicio}
                         showError={showError} showWarning={showWarning}
                         panelColapsado={panelColapsado}
                         setPanelColapsado={setPanelColapsado}
@@ -188,7 +188,10 @@ const MapaColaboradores = () => {
                         limpiarParadas={limpiarParadas}
                         turnoId={turnoId} setTurnoId={setTurnoId}
                         turnos={turnos}
-                        diasSeleccionados={diasSeleccionados} setDiasSeleccionados={setDiasSeleccionados}
+                        diasSeleccionados={diasSeleccionados}
+                        handleDiasChange={handleDiasChange}
+                        horaFin={horaFin}
+                        handleHoraFinChange={handleHoraFinChange}
                         handleHoraInicioChange={handleHoraInicioChange}
                         verificarNumeroRuta={verificarNumeroRuta}
                         verificarEstadoVehiculo={verificarEstadoVehiculo}
