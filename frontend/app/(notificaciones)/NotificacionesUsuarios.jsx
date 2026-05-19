@@ -4,9 +4,9 @@ import {
   StyleSheet, ActivityIndicator
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
 import { useNotificaciones } from "../../hooks/useNotificaciones"
+import Header from "../../components/Header"
 import theme from "../../constants/theme"
 
 const t = theme.lightMode
@@ -55,26 +55,19 @@ export default function NotificacionesUsuario({ usuarioId, onVolver }) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={t.Headers?.gradientColors ?? ["#16A34A", "#22C55E"]}
-        style={styles.header}
-      >
-        <TouchableOpacity onPress={() => onVolver()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitulo}>Notificaciones</Text>
-          {noLeidas > 0 && (
-            <Text style={styles.headerSub}>{noLeidas} sin leer</Text>
-          )}
-        </View>
-        {noLeidas > 0 && (
-          <TouchableOpacity onPress={marcarTodas}>
-            <Text style={styles.marcarBtn}>Marcar todas</Text>
-          </TouchableOpacity>
-        )}
-      </LinearGradient>
+      <Header
+        titulo="Notificaciones"
+        subtitulo={noLeidas > 0 ? `${noLeidas} sin leer` : "Todas las notificaciones"}
+        showBack={true}
+        onBack={() => onVolver()}
+        iconoDerecha={
+          noLeidas > 0 ? (
+            <TouchableOpacity onPress={marcarTodas}>
+              <Text style={styles.marcarBtn}>Marcar todas</Text>
+            </TouchableOpacity>
+          ) : null
+        }
+      />
 
       {/* Lista */}
       {loading ? (
@@ -103,17 +96,6 @@ export default function NotificacionesUsuario({ usuarioId, onVolver }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F1F5F9" },
-  header: {
-    paddingTop: 52,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  backBtn: { padding: 4 },
-  headerTitulo: { fontSize: 18, fontWeight: "700", color: "#fff" },
-  headerSub: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 },
   marcarBtn: { fontSize: 13, color: "#fff", fontWeight: "600", textDecorationLine: "underline" },
   lista: { padding: 16, gap: 10 },
   card: {

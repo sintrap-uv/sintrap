@@ -9,7 +9,7 @@ import {
   RefreshControl,
   Alert,
 } from "react-native";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import theme from "../../constants/theme";
@@ -19,9 +19,26 @@ const T = theme.lightMode;
 
 export default function TodasLasRutasScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const returnTo = params.returnTo;
   const [rutas, setRutas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
+
+  const handleBack = () => {
+    // Si se especificó returnTo=perfil, navegar directamente al perfil
+    if (returnTo === "perfil") {
+      router.replace("/home?tab=perfil");
+    } 
+    // Si puede volver atrás, hacerlo
+    else if (router.canGoBack()) {
+      router.back();
+    } 
+    // Si no hay historial, ir al home
+    else {
+      router.replace("/home");
+    }
+  };
 
   const cargarRutas = async (esRefresh = false) => {
     if (esRefresh) setRefrescando(true);
@@ -95,7 +112,7 @@ export default function TodasLasRutasScreen() {
 
         return {
           ...ruta,
-          turnos: turnos || [], // ✅ Asegurar que turnos sea un array
+          turnos: turnos || [],
         };
       });
 
@@ -115,6 +132,7 @@ export default function TodasLasRutasScreen() {
         id: ruta.id,
         numero_ruta: ruta.numero_ruta,
         nombre: ruta.nombre,
+        returnTo: returnTo, // Pasar el parámetro de retorno
       },
     });
   };
@@ -155,7 +173,6 @@ export default function TodasLasRutasScreen() {
   );
 
   const renderRuta = ({ item: ruta }) => {
-    // ✅ Validación de seguridad
     const turnos = ruta.turnos || [];
     
     return (
@@ -236,6 +253,8 @@ export default function TodasLasRutasScreen() {
       <Header
         titulo="Gestión de Rutas"
         subtitulo={`${rutas.length} rutas activas`}
+        showBack={true}
+        onBack={handleBack}
       />
 
       <FlatList
@@ -280,7 +299,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
-  rutaDot: { width: 12, height: 12, borderRadius: 6, marginRight: 10 },
   rutaNombre: {
     fontSize: 16,
     fontWeight: "600",

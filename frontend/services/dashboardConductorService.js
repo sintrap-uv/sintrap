@@ -1,4 +1,4 @@
- import { supabase } from "./supabase";
+import { supabase } from "./supabase";
 
 /**
  * Carga todos los datos del dashboard del conductor en paralelo.
@@ -8,15 +8,12 @@ export async function getDashboardConductor(conductorId) {
   try {
     const hoy = new Date().toISOString().split("T")[0];
 
-    // ── Turno de hoy + vehículo + ruta ─────────────────────────────
+    // ── Turno de hoy + vehículo ─────────────────────────────────────
     const { data: turno, error: eTurno } = await supabase
       .from("turnos")
       .select(`
         id, estado, fecha, hora_inicio_real, hora_fin_real,
-        ruta_horarios (
-          nombre_turno, hora_inicio, hora_fin,
-          rutas ( id, numero_ruta, nombre, color )
-        ),
+        vehiculo_id,
         vehiculos (
           id, placa, 
           tipo_vehiculo:tipo_vehiculo_id ( nombre, capacidad_max )
@@ -27,10 +24,24 @@ export async function getDashboardConductor(conductorId) {
       .maybeSingle();
 
     if (eTurno) throw eTurno;
-    if (!turno) return { success: true, data: null }; // sin turno hoy
+    if (!turno) return { success: true, data: null };
 
-    const rutaId    = turno.ruta_horarios?.rutas?.id;
-    const vehiculoId = turno.vehiculos?.id;
+    const vehiculoId = turno.vehiculo_id;
+
+    // ── Obtener la ruta asignada al vehículo ────────────────────────
+    const { data: rutaHorario, error: eRutaHorario } = await supabase
+      .from("ruta_horarios")
+      .select(`
+        id, nombre_turno, hora_inicio, hora_fin,
+        ruta_id,
+        rutas ( id, numero_ruta, nombre, color )
+      `)
+      .eq("vehiculo_id", vehiculoId)
+      .maybeSingle();
+
+    if (eRutaHorario) throw eRutaHorario;
+
+    const rutaId = rutaHorario?.ruta_id;
 
     // ── Carga en paralelo ───────────────────────────────────────────
     const [
@@ -40,7 +51,7 @@ export async function getDashboardConductor(conductorId) {
       { data: reportesPendientes },
     ] = await Promise.all([
 
-      // Paradas de la ruta con usuarios por parada
+      // Paradas de la ruta
       rutaId
         ? supabase
             .from("ruta_paradas")
@@ -63,9 +74,7 @@ export async function getDashboardConductor(conductorId) {
         .from("turnos")
         .select(`
           fecha, estado, hora_inicio_real, hora_fin_real,
-          ruta_horarios ( nombre_turno, hora_inicio, hora_fin,
-            rutas ( numero_ruta )
-          ),
+          vehiculo_id,
           vehiculo:vehiculos ( placa )
         `)
         .eq("conductor_id", conductorId)
@@ -80,6 +89,32 @@ export async function getDashboardConductor(conductorId) {
         .eq("estado", "pendiente")
         .limit(3),
     ]);
+
+    // ── Para el historial, obtener la ruta de cada vehículo ─────────
+    const historialConRutas = await Promise.all(
+      (historialData ?? []).map(async (h) => {
+        const { data: rutaHistorial } = await supabase
+          .from("ruta_horarios")
+          .select(`
+            nombre_turno, hora_inicio, hora_fin,
+            rutas ( numero_ruta )
+          `)
+          .eq("vehiculo_id", h.vehiculo_id)
+          .maybeSingle();
+
+        return {
+          fecha: h.fecha,
+          estado: h.estado,
+          nombreTurno: rutaHistorial?.nombre_turno,
+          horaInicio: rutaHistorial?.hora_inicio,
+          horaFin: rutaHistorial?.hora_fin,
+          numeroRuta: rutaHistorial?.rutas?.numero_ruta,
+          placa: h.vehiculo?.placa,
+          horaInicioReal: h.hora_inicio_real,
+          horaFinReal: h.hora_fin_real,
+        };
+      })
+    );
 
     // ── Agrupar usuarios por parada ─────────────────────────────────
     const usuariosPorParada = {};
@@ -97,10 +132,8 @@ export async function getDashboardConductor(conductorId) {
       usuariosSuben:   usuariosPorParada[rp.paradas.id] ?? 0,
     }));
 
-    // ── Resumen del turno ───────────────────────────────────────────
-    const ruta     = turno.ruta_horarios?.rutas;
+    const ruta = rutaHorario?.rutas;
     const vehiculo = turno.vehiculos;
-    const horario  = turno.ruta_horarios;
     const totalPasajeros = Object.values(usuariosPorParada).reduce((a, b) => a + b, 0);
 
     return {
@@ -112,9 +145,9 @@ export async function getDashboardConductor(conductorId) {
           fecha:          turno.fecha,
           horaInicioReal: turno.hora_inicio_real,
           horaFinReal:    turno.hora_fin_real,
-          nombreTurno:    horario?.nombre_turno,
-          horaInicio:     horario?.hora_inicio,
-          horaFin:        horario?.hora_fin,
+          nombreTurno:    rutaHorario?.nombre_turno,
+          horaInicio:     rutaHorario?.hora_inicio,
+          horaFin:        rutaHorario?.hora_fin,
         },
         ruta: ruta
           ? {
@@ -134,17 +167,7 @@ export async function getDashboardConductor(conductorId) {
           : null,
         paradas,
         totalPasajeros,
-        historial: (historialData ?? []).map((h) => ({
-          fecha:       h.fecha,
-          estado:      h.estado,
-          nombreTurno: h.ruta_horarios?.nombre_turno,
-          horaInicio:  h.ruta_horarios?.hora_inicio,
-          horaFin:     h.ruta_horarios?.hora_fin,
-          numeroRuta:  h.ruta_horarios?.rutas?.numero_ruta,
-          placa:       h.vehiculo?.placa,
-          horaInicioReal: h.hora_inicio_real,
-          horaFinReal:    h.hora_fin_real,
-        })),
+        historial: historialConRutas,
         reportesPendientes: reportesPendientes ?? [],
       },
     };
@@ -163,6 +186,8 @@ export async function actualizarEstadoTurno(turnoId, nuevoEstado) {
     const cambios = { estado: nuevoEstado };
     if (nuevoEstado === "completado") {
       cambios.hora_fin_real = new Date().toISOString();
+    } else if (nuevoEstado === "en_curso") {
+      cambios.hora_inicio_real = new Date().toISOString();
     }
     const { data, error } = await supabase
       .from("turnos")

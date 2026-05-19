@@ -1,4 +1,4 @@
- /**
+/**
  * mis-buses.jsx
  * Pantalla: Buses asignados al conductor — SINTRAP
  * Ruta: app/(conductor)/mis-buses.jsx
@@ -22,18 +22,36 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import { getCurrentUser } from "../../services/auth";
+import Header from "../../components/Header";
 import theme from "../../constants/theme";
 
 const T = theme.lightMode;
 
 export default function MisBusesScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const returnTo = params.returnTo;
+  
   const [buses,      setBuses]      = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error,      setError]      = useState(null);
+
+  // Función para navegar hacia atrás inteligentemente
+  const handleBack = () => {
+    // Si venimos del perfil, volver al perfil
+    if (returnTo === "perfil") {
+      router.replace("/home?tab=perfil");
+    } 
+    // Si no, ir al dashboard del conductor
+    else {
+      router.replace("/(conductor)/DashboardConductor");
+    }
+  };
 
   // ── FETCH BUSES DEL CONDUCTOR ACTUAL ────────────────────────────────────
   const fetchMisBuses = useCallback(async () => {
@@ -45,7 +63,6 @@ export default function MisBusesScreen() {
       if (!userId) throw new Error("No se pudo identificar al conductor.");
 
       // 2. Buscar vehículos asignados al conductor
-      // IMPORTANTE: no se selecciona "capacidad"
       const { data, error: dbError } = await supabase
         .from("vehiculos")
         .select(`
@@ -97,31 +114,31 @@ export default function MisBusesScreen() {
 
         <View style={s.divider} />
 
-         {/* Tipo de vehículo */}
-<View style={s.infoRow}>
-  <View style={[s.iconCircle, { backgroundColor: "#EFF6FF" }]}>
-    <Ionicons name="car-outline" size={18} color="#3B82F6" />
-  </View>
-  <View>
-    <Text style={s.infoLabel}>Tipo de vehículo</Text>
-    <Text style={s.infoValue}>
-      {bus.tipo_vehiculo?.nombre ?? "Sin tipo asignado"}
-    </Text>
-  </View>
-</View>
+        {/* Tipo de vehículo */}
+        <View style={s.infoRow}>
+          <View style={[s.iconCircle, { backgroundColor: "#EFF6FF" }]}>
+            <Ionicons name="car-outline" size={18} color="#3B82F6" />
+          </View>
+          <View>
+            <Text style={s.infoLabel}>Tipo de vehículo</Text>
+            <Text style={s.infoValue}>
+              {bus.tipo_vehiculo?.nombre ?? "Sin tipo asignado"}
+            </Text>
+          </View>
+        </View>
 
-{/* Capacidad  */}
-<View style={s.infoRow}>
-  <View style={[s.iconCircle, { backgroundColor: "#F5F3FF" }]}>
-    <Ionicons name="people-outline" size={18} color="#8B5CF6" />
-  </View>
-  <View>
-    <Text style={s.infoLabel}>Capacidad máxima</Text>
-    <Text style={s.infoValue}>
-      {bus.tipo_vehiculo?.capacidad_max ?? "—"} pasajeros
-    </Text>
-  </View>
-</View>
+        {/* Capacidad */}
+        <View style={s.infoRow}>
+          <View style={[s.iconCircle, { backgroundColor: "#F5F3FF" }]}>
+            <Ionicons name="people-outline" size={18} color="#8B5CF6" />
+          </View>
+          <View>
+            <Text style={s.infoLabel}>Capacidad máxima</Text>
+            <Text style={s.infoValue}>
+              {bus.tipo_vehiculo?.capacidad_max ?? "—"} pasajeros
+            </Text>
+          </View>
+        </View>
 
         {/* Seguro */}
         <View style={s.infoRow}>
@@ -189,6 +206,12 @@ export default function MisBusesScreen() {
   // ── RENDER PRINCIPAL ─────────────────────────────────────────────────────
   return (
     <View style={s.container}>
+      <Header
+        titulo="Mi vehículo"
+        subtitulo="Información del vehículo asignado"
+        showBack={true}
+        onBack={handleBack}
+      />
 
       {/* Error de conexión */}
       {error && (

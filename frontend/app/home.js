@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams } from "expo-router";
 import { BottomNavBar } from "../components/BottomNavBar";
 import BotonesFlotantes from "../components/BotonesFlotantes";
 import { getProfile } from "../services/profileService";
@@ -33,11 +34,8 @@ import { ObtenerDireccionUsuario } from "../services/geocalizacion";
 import CajaDireccion from "../components/ModalDireccion";
 import TodasLasRutasScreen from "./(admin)/rutas";
 
-
-
-
-
 export default function Home() {
+  const params = useLocalSearchParams();
   const [tabActivo, setTabActivo] = useState("inicio");
 
   const [perfil, setPerfil] = useState(null);
@@ -51,6 +49,13 @@ export default function Home() {
   const [colaboradores, setColaboradores] = useState([]);
   const [grupos, setGrupos] = useState([]);
   const [cargandoPrueba, setCargandoPrueba] = useState(false);
+
+  // Manejar el parámetro tab de la URL
+  useEffect(() => {
+    if (params.tab === "perfil") {
+      setTabActivo("perfil");
+    }
+  }, [params.tab]);
 
   useEffect(() => {
     cargarPerfil();
@@ -130,7 +135,7 @@ export default function Home() {
     }
   };
 
-    const handleLogout = async () => {
+  const handleLogout = async () => {
     await supabase.auth.signOut();
   };
 
@@ -149,7 +154,7 @@ export default function Home() {
       buses: () => <VehiculosScreen />, //para mostrar los buses
       graficas: () => <EstadisticasScreen />,
 
-       crear_Ruta: () => (<Bienvenida onNavegar={(tab) => setTabActivo(tab)} />
+      crear_Ruta: () => (<Bienvenida onNavegar={(tab) => setTabActivo(tab)} />
       ),
       mapa_colaboradores: () => <MapaColaboradores key={tabActivo} />,
       configurar_buses: () => <ConfiguracionBuses onNavegar={(tab) => setTabActivo(tab)} />,

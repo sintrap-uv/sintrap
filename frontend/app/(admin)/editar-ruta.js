@@ -11,19 +11,21 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { Picker } from "@react-native-picker/picker";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from "../../services/supabase";
 import { obtenerVehiculos } from "../../services/vehicleService";
 import { getAllDrivers } from "../../services/driverService";
+import Header from "../../components/Header";
 import theme from "../../constants/theme";
 
 const T = theme.lightMode;
 
 export default function EditarRutaScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const id = params.id;
+  const returnTo = params.returnTo;
 
   // Estados para datos de la ruta
   const [nombreRuta, setNombreRuta] = useState("");
@@ -42,10 +44,20 @@ export default function EditarRutaScreen() {
   const [horaInicio, setHoraInicio] = useState("06:00");
   const [horaFin, setHoraFin] = useState("18:00");
   const [diasTipo, setDiasTipo] = useState("entre_semana");
+  const [vehiculoAntiguoId, setVehiculoAntiguoId] = useState(null);
 
   // Estados para pickers
   const [mostrarPickerInicio, setMostrarPickerInicio] = useState(false);
   const [mostrarPickerFin, setMostrarPickerFin] = useState(false);
+
+  // Función para navegar hacia atrás inteligentemente
+  const handleBack = () => {
+    if (returnTo === "perfil") {
+      router.replace("/home?tab=perfil");
+    } else {
+      router.replace("/(admin)/rutas");
+    }
+  };
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -55,16 +67,49 @@ export default function EditarRutaScreen() {
   const cargarDatos = async () => {
     setCargando(true);
     try {
-      const [conductoresRes, vehiculosRes, turnosRes] = await Promise.all([
-        getAllDrivers(),
-        obtenerVehiculos(),
-        supabase.from("tipos_turno").select("*").order("id"),
-      ]);
-
+      // 1. Cargar conductores
+      const conductoresRes = await getAllDrivers();
       setConductores(conductoresRes.data || []);
-      setVehiculos(vehiculosRes || []);
+
+      // 2. Cargar vehículos CON su tipo de vehículo
+      const { data: vehiculosData, error: vehiculosError } = await supabase
+        .from("vehiculos")
+        .select(`
+          id,
+          placa,
+          conductor_id,
+          seguro,
+          activo,
+          tipo_vehiculo_id,
+          tipo_vehiculo (
+            id,
+            nombre,
+            capacidad_max
+          )
+        `)
+        .eq("activo", true)
+        .order("placa");
+
+      if (vehiculosError) throw vehiculosError;
+      
+      const vehiculosFormateados = (vehiculosData || []).map(v => ({
+        id: v.id,
+        placa: v.placa,
+        conductor_id: v.conductor_id,
+        seguro: v.seguro,
+        activo: v.activo,
+        tipo_vehiculo_id: v.tipo_vehiculo_id,
+        tipo_nombre: v.tipo_vehiculo?.nombre || "Sin tipo",
+        capacidad: v.tipo_vehiculo?.capacidad_max || 0
+      }));
+      
+      setVehiculos(vehiculosFormateados);
+
+      // 3. Cargar turnos
+      const turnosRes = await supabase.from("tipos_turno").select("*").order("id");
       setTurnos(turnosRes.data || []);
 
+      // 4. Cargar datos de la ruta
       const { data: rutaData } = await supabase
         .from("rutas")
         .select("*")
@@ -76,6 +121,7 @@ export default function EditarRutaScreen() {
         setNumeroRuta(rutaData.numero_ruta?.toString());
       }
 
+      // 5. Cargar horario de la ruta
       const { data: horarioData } = await supabase
         .from("ruta_horarios")
         .select("*")
@@ -85,17 +131,21 @@ export default function EditarRutaScreen() {
       if (horarioData) {
         setTurnoId(horarioData.tipo_turno_id);
         setVehiculoId(horarioData.vehiculo_id);
+        setVehiculoAntiguoId(horarioData.vehiculo_id);
         setHoraInicio(horarioData.hora_inicio || "06:00");
         setHoraFin(horarioData.hora_fin || "18:00");
 
-        const { data: vehiculoData } = await supabase
-          .from("vehiculos")
-          .select("conductor_id")
-          .eq("id", horarioData.vehiculo_id)
-          .single();
+        // Obtener el conductor del vehículo seleccionado
+        if (horarioData.vehiculo_id) {
+          const { data: vehiculoData } = await supabase
+            .from("vehiculos")
+            .select("conductor_id")
+            .eq("id", horarioData.vehiculo_id)
+            .single();
 
-        if (vehiculoData) {
-          setConductorId(vehiculoData.conductor_id);
+          if (vehiculoData) {
+            setConductorId(vehiculoData.conductor_id);
+          }
         }
       }
     } catch (error) {
@@ -124,6 +174,7 @@ export default function EditarRutaScreen() {
 
     setGuardando(true);
     try {
+      // 1. Actualizar la información de la ruta
       const { error: errorRuta } = await supabase
         .from("rutas")
         .update({
@@ -134,26 +185,97 @@ export default function EditarRutaScreen() {
 
       if (errorRuta) throw errorRuta;
 
-      const { error: errorHorario } = await supabase
+      // 2. Verificar si ya existe un horario para esta ruta
+      const { data: horarioExistente, error: checkError } = await supabase
         .from("ruta_horarios")
-        .upsert({
-          ruta_id: id,
-          tipo_turno_id: turnoId,
-          vehiculo_id: vehiculoId,
-          hora_inicio: horaInicio,
-          hora_fin: horaFin,
-          activo: true,
-        }, { onConflict: "ruta_id" });
+        .select("id")
+        .eq("ruta_id", id)
+        .maybeSingle();
+
+      let errorHorario = null;
+
+      if (horarioExistente) {
+        // Actualizar horario existente
+        const { error } = await supabase
+          .from("ruta_horarios")
+          .update({
+            tipo_turno_id: turnoId,
+            vehiculo_id: vehiculoId,
+            hora_inicio: horaInicio,
+            hora_fin: horaFin,
+            activo: true,
+          })
+          .eq("ruta_id", id);
+        errorHorario = error;
+      } else {
+        // Insertar nuevo horario
+        const { error } = await supabase
+          .from("ruta_horarios")
+          .insert({
+            ruta_id: id,
+            tipo_turno_id: turnoId,
+            vehiculo_id: vehiculoId,
+            hora_inicio: horaInicio,
+            hora_fin: horaFin,
+            activo: true,
+          });
+        errorHorario = error;
+      }
 
       if (errorHorario) throw errorHorario;
 
+      // 3. IMPORTANTE: Actualizar el conductor del vehículo NUEVO
+      if (vehiculoId && conductorId) {
+        const { error: errorUpdateVehiculo } = await supabase
+          .from("vehiculos")
+          .update({
+            conductor_id: conductorId,
+          })
+          .eq("id", vehiculoId);
+
+        if (errorUpdateVehiculo) {
+          console.error("Error actualizando conductor del vehículo:", errorUpdateVehiculo);
+          Alert.alert("Advertencia", "La ruta se guardó pero no se pudo actualizar el conductor del vehículo");
+        }
+      }
+
+      // 4. Limpiar el conductor del vehículo ANTIGUO (si cambió)
+      if (vehiculoAntiguoId && vehiculoAntiguoId !== vehiculoId) {
+        const { error: errorLimpiarVehiculo } = await supabase
+          .from("vehiculos")
+          .update({
+            conductor_id: null,
+          })
+          .eq("id", vehiculoAntiguoId);
+
+        if (errorLimpiarVehiculo) {
+          console.error("Error limpiando conductor del vehículo antiguo:", errorLimpiarVehiculo);
+        }
+      }
+
       Alert.alert("Éxito", "Ruta actualizada correctamente", [
-        { text: "OK", onPress: () => router.back() },
+        { text: "OK", onPress: handleBack },
       ]);
     } catch (error) {
-      Alert.alert("Error", "No se pudo actualizar la ruta");
+      console.error("Error guardando:", error);
+      Alert.alert("Error", `No se pudo actualizar la ruta: ${error.message}`);
     } finally {
       setGuardando(false);
+    }
+  };
+
+  // Función para obtener el nombre del tipo de vehículo
+  const getTipoVehiculo = (vehiculoId) => {
+    const vehiculo = vehiculos.find(v => v.id === vehiculoId);
+    return vehiculo ? vehiculo.tipo_nombre : "Sin tipo";
+  };
+
+  // Cuando cambia el vehículo, actualizar el conductor sugerido
+  const handleVehiculoChange = (nuevoVehiculoId) => {
+    setVehiculoId(nuevoVehiculoId);
+    const vehiculoSeleccionado = vehiculos.find(v => v.id === nuevoVehiculoId);
+    if (vehiculoSeleccionado && vehiculoSeleccionado.conductor_id) {
+      setConductorId(vehiculoSeleccionado.conductor_id);
     }
   };
 
@@ -167,15 +289,12 @@ export default function EditarRutaScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={["#16A34A", "#22C55E"]} style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View>
-          <Text style={styles.headerTitulo}>Editar Ruta</Text>
-          <Text style={styles.headerSub}>Modifica los datos de la ruta</Text>
-        </View>
-      </LinearGradient>
+      <Header
+        titulo="Editar Ruta"
+        subtitulo="Modifica los datos de la ruta"
+        showBack={true}
+        onBack={handleBack}
+      />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.card}>
@@ -250,11 +369,30 @@ export default function EditarRutaScreen() {
             />
           )}
 
-          <Text style={styles.labelSeccion}>Conductor</Text>
+          <Text style={styles.labelSeccion}>Vehículo</Text>
+          <View style={[styles.selectorContenedor, errores.vehiculo && styles.inputError]}>
+            <Picker
+              selectedValue={vehiculoId}
+              onValueChange={handleVehiculoChange}
+              style={{ color: T.input.text }}
+            >
+              <Picker.Item label="Selecciona un vehículo..." value={null} />
+              {vehiculos.map((v) => (
+                <Picker.Item 
+                  key={v.id} 
+                  label={`${v.placa} - ${v.tipo_nombre}${v.capacidad ? ` (${v.capacidad} personas)` : ''}`} 
+                  value={v.id} 
+                />
+              ))}
+            </Picker>
+          </View>
+          {errores.vehiculo && <Text style={styles.errorText}>{errores.vehiculo}</Text>}
+
+          <Text style={styles.labelSeccion}>Conductor (asignado al vehículo)</Text>
           <View style={[styles.selectorContenedor, errores.conductor && styles.inputError]}>
             <Picker
               selectedValue={conductorId}
-              onValueChange={(v) => setConductorId(v)}
+              onValueChange={setConductorId}
               style={{ color: T.input.text }}
             >
               <Picker.Item label="Selecciona un conductor..." value={null} />
@@ -264,21 +402,6 @@ export default function EditarRutaScreen() {
             </Picker>
           </View>
           {errores.conductor && <Text style={styles.errorText}>{errores.conductor}</Text>}
-
-          <Text style={styles.labelSeccion}>Vehículo</Text>
-          <View style={[styles.selectorContenedor, errores.vehiculo && styles.inputError]}>
-            <Picker
-              selectedValue={vehiculoId}
-              onValueChange={(v) => setVehiculoId(v)}
-              style={{ color: T.input.text }}
-            >
-              <Picker.Item label="Selecciona un vehículo..." value={null} />
-              {vehiculos.map((v) => (
-                <Picker.Item key={v.id} label={`${v.placa} - ${v.tipo_vehiculo?.nombre || "Sin tipo"}`} value={v.id} />
-              ))}
-            </Picker>
-          </View>
-          {errores.vehiculo && <Text style={styles.errorText}>{errores.vehiculo}</Text>}
 
           <Text style={styles.labelSeccion}>Turno</Text>
           <View style={[styles.selectorContenedor, errores.turno && styles.inputError]}>
@@ -316,17 +439,6 @@ export default function EditarRutaScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: T.background },
   centrado: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: {
-    paddingTop: 56,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  backBtn: { padding: 4 },
-  headerTitulo: { fontSize: 22, fontWeight: "800", color: "#fff" },
-  headerSub: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 },
   scroll: { padding: 20 },
   card: {
     backgroundColor: "#fff",

@@ -10,22 +10,32 @@ import {
   RefreshControl,
   Image,
 } from "react-native";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { getAllDrivers, toggleDriverStatus } from "../../../services/driverService";
+import Header from "../../../components/Header";
 import theme from "../../../constants/theme";
 
 const T = theme.lightMode;
 
 export default function ConductoresScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const returnTo = params.returnTo;
+  
   const [conductores, setConductores] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
   const [error, setError] = useState(null);
 
-  // Recargar lista cada vez que la pantalla recibe foco
-  // (igual que ngOnInit en Angular, pero se re-ejecuta al volver de gestion.jsx)
+  const handleBack = () => {
+    if (returnTo === "perfil") {
+      router.replace("/home?tab=perfil");
+    } else {
+      router.back();
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       cargarConductores();
@@ -60,7 +70,6 @@ export default function ConductoresScreen() {
             if (err) {
               Alert.alert("Error", "No se pudo cambiar el estado.");
             } else {
-              // Actualizar localmente sin recargar toda la lista
               setConductores((prev) =>
                 prev.map((c) =>
                   c.id === conductor.id ? { ...c, activo: !c.activo } : c
@@ -79,10 +88,11 @@ export default function ConductoresScreen() {
       params: {
         modo: "editar",
         conductorId: conductor.id,
-        nombre:      conductor.nombre,
-        cedula:      conductor.cedula,
-        celular:     conductor.celular,
-        avatar_url:  conductor.avatar_url ?? "",
+        nombre: conductor.nombre,
+        cedula: conductor.cedula,
+        celular: conductor.celular,
+        avatar_url: conductor.avatar_url ?? "",
+        returnTo: returnTo, // Pasar el parámetro de retorno a la pantalla de gestión
       },
     });
   };
@@ -90,17 +100,17 @@ export default function ConductoresScreen() {
   const handleNuevo = () => {
     router.push({
       pathname: "/(admin)/conductores/gestion",
-      params: { modo: "nuevo" },
+      params: { 
+        modo: "nuevo",
+        returnTo: returnTo, // Pasar el parámetro de retorno a la pantalla de gestión
+      },
     });
   };
 
-  // ── Render de cada fila ───────────────────────────────────
   const renderConductor = ({ item }) => (
     <View style={styles.card}>
-      {/* Indicador de estado */}
       <View style={[styles.estadoIndicador, item.activo ? styles.activo : styles.inactivo]} />
 
-      {/* Avatar del conductor */}
       {item.avatar_url ? (
         <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
       ) : (
@@ -109,7 +119,6 @@ export default function ConductoresScreen() {
         </View>
       )}
 
-      {/* Info */}
       <View style={styles.cardInfo}>
         <Text style={styles.cardNombre} numberOfLines={1}>{item.nombre}</Text>
         <Text style={styles.cardDetalle}>
@@ -127,7 +136,6 @@ export default function ConductoresScreen() {
         </View>
       </View>
 
-      {/* Acciones */}
       <View style={styles.cardAcciones}>
         <TouchableOpacity
           style={styles.btnEditar}
@@ -155,7 +163,6 @@ export default function ConductoresScreen() {
     </View>
   );
 
-  // ── Estados de carga / error / vacío ─────────────────────
   if (cargando) {
     return (
       <View style={styles.centrado}>
@@ -177,16 +184,14 @@ export default function ConductoresScreen() {
     );
   }
 
-  // ── Render principal ──────────────────────────────────────
   return (
     <View style={styles.pantalla}>
-      {/* Header con contador */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitulo}>Conductores</Text>
-        <View style={styles.headerBadge}>
-          <Text style={styles.headerBadgeTexto}>{conductores.length}</Text>
-        </View>
-      </View>
+      <Header
+        titulo="Conductores"
+        subtitulo="Gestión de conductores del sistema"
+        showBack={true}
+        onBack={handleBack}
+      />
 
       <FlatList
         data={conductores}
@@ -210,7 +215,6 @@ export default function ConductoresScreen() {
         }
       />
 
-      {/* FAB — Agregar nuevo conductor */}
       <TouchableOpacity style={styles.fab} onPress={handleNuevo} activeOpacity={0.85}>
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
@@ -220,27 +224,21 @@ export default function ConductoresScreen() {
 
 const styles = StyleSheet.create({
   pantalla: { flex: 1, backgroundColor: T.background },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 12,
-    gap: 10,
-  },
-  headerTitulo: { fontSize: 22, fontWeight: "700", color: T.text.primary },
-  headerBadge: {
-    backgroundColor: T.Button.primary.background,
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  headerBadgeTexto: { color: "#fff", fontSize: 12, fontWeight: "700" },
-
   lista: { paddingHorizontal: 16, paddingBottom: 100 },
+  centrado: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 10 },
+  textoEstado: { fontSize: 14, color: T.text.secondary, marginTop: 8 },
+  textoError: { fontSize: 15, color: "#DC2626", textAlign: "center" },
+  textoVacio: { fontSize: 16, fontWeight: "600", color: T.text.primary },
+  textoVacioSub: { fontSize: 13, color: T.text.secondary },
+  btnReintentar: {
+    backgroundColor: T.Button.primary.background,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  btnReintentarTexto: { color: "#fff", fontWeight: "600" },
 
-  // ── Card ──────────────────────────────────────────────────
   card: {
     flexDirection: "row",
     alignItems: "center",
@@ -252,22 +250,10 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 12,
   },
-  estadoIndicador: {
-    width: 4,
-    height: "100%",
-    borderRadius: 4,
-    minHeight: 60,
-  },
-  activo:   { backgroundColor: "#16A34A" },
+  estadoIndicador: { width: 4, height: "100%", borderRadius: 4, minHeight: 60 },
+  activo: { backgroundColor: "#16A34A" },
   inactivo: { backgroundColor: "#9CA3AF" },
-
-  // ── Avatar ────────────────────────────────────────────────
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: T.cards.border,
-  },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: T.cards.border },
   avatarPlaceholder: {
     width: 44,
     height: 44,
@@ -278,25 +264,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   cardInfo: { flex: 1, gap: 3 },
   cardNombre: { fontSize: 15, fontWeight: "600", color: T.text.primary },
   cardDetalle: { fontSize: 13, color: T.text.secondary },
   cardLabel: { fontWeight: "600", color: T.text.primary },
-
-  badge: {
-    alignSelf: "flex-start",
-    marginTop: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
+  badge: { alignSelf: "flex-start", marginTop: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
   badgeActivo: { backgroundColor: "#DCFCE7" },
   badgeInactivo: { backgroundColor: "#F3F4F6" },
   badgeTexto: { fontSize: 11, fontWeight: "600" },
   badgeTextoActivo: { color: "#16A34A" },
   badgeTextoInactivo: { color: "#6B7280" },
-
   cardAcciones: { alignItems: "flex-end", gap: 8 },
   btnEditar: {
     width: 34,
@@ -322,8 +299,6 @@ const styles = StyleSheet.create({
   btnEstadoTexto: { fontSize: 12, fontWeight: "600" },
   textoDesactivar: { color: "#DC2626" },
   textoActivar: { color: "#16A34A" },
-
-  // ── FAB ───────────────────────────────────────────────────
   fab: {
     position: "absolute",
     bottom: 28,
@@ -340,25 +315,4 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 8,
   },
-
-  // ── Estados vacío / error ─────────────────────────────────
-  centrado: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 32,
-    gap: 10,
-  },
-  textoEstado: { fontSize: 14, color: T.text.secondary, marginTop: 8 },
-  textoError: { fontSize: 15, color: "#DC2626", textAlign: "center" },
-  textoVacio: { fontSize: 16, fontWeight: "600", color: T.text.primary },
-  textoVacioSub: { fontSize: 13, color: T.text.secondary },
-  btnReintentar: {
-    backgroundColor: T.Button.primary.background,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 4,
-  },
-  btnReintentarTexto: { color: "#fff", fontWeight: "600" },
 });
