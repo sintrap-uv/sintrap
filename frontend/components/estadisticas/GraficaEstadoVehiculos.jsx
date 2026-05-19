@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -9,11 +9,28 @@ import {
 } from "react-native";
 import { BarChart } from "react-native-chart-kit";
 import theme from "../../constants/theme";
+import { getEstadoVehiculos } from "../../services/estadisticasService";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const T = theme.lightMode;
 
-export default function GraficaEstadoVehiculos({ datos, cargando }) {
+export default function GraficaEstadoVehiculos() {
+  const [datos, setDatos] = useState({ resumen: [], detalles: [] });
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  const cargarDatos = async () => {
+    setCargando(true);
+    const resultado = await getEstadoVehiculos();
+    if (resultado.success) {
+      setDatos(resultado.data);
+    }
+    setCargando(false);
+  };
+
   if (cargando) {
     return (
       <View style={[styles.card, { backgroundColor: T.cards.background }]}>
@@ -30,10 +47,9 @@ export default function GraficaEstadoVehiculos({ datos, cargando }) {
         <Text style={{ color: T.text.tertiary }}>No hay vehículos</Text>
       </View>
     );
-
   }
-  // Calcualar un ancho dinamico: 60 px para cada barra, minimo el ancho de la pantalla
-  const chartWidth = Math.max(resumen.length * 60, SCREEN_WIDTH - 40);
+
+  const chartWidth = Math.max(resumen.length * 80, SCREEN_WIDTH - 40);
 
   const chartData = {
     labels: resumen.map((r) => r.estado_vehiculo.substring(0, 10)),
@@ -98,7 +114,7 @@ export default function GraficaEstadoVehiculos({ datos, cargando }) {
         ))}
       </View>
 
-      {detalles.some((d) => d.estado === "Sin documentación") && (
+      {detalles.some((d) => d.estado === "Documentación vencida") && (
         <View
           style={[
             styles.alerta,
@@ -109,8 +125,10 @@ export default function GraficaEstadoVehiculos({ datos, cargando }) {
           ]}
         >
           <Text style={{ color: "#ef4444", fontWeight: "600", fontSize: 12 }}>
-            ⚠️ Hay{" "}
-            {detalles.filter((d) => d.estado === "Sin documentación").length}{" "}
+            {
+              detalles.filter((d) => d.estado === "Documentación vencida")
+                .length
+            }{" "}
             vehículos con documentación vencida
           </Text>
         </View>
