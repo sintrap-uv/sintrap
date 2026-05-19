@@ -3,8 +3,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import s from "./panelRutaStyles";
-import theme from "../../../../constants/theme";    
-
+import theme from "../../../../constants/theme";
+import SelectorDias from "../../../../components/panelRuta/SelectorDias";
 
 const T = theme.lightMode;
 
@@ -159,13 +159,12 @@ export const Paso2 = ({
         {errores?.vehiculo && <Text style={s.textoError}>{errores.vehiculo}</Text>}
 
         <Text style={s.labelSeccion}>Días de operación</Text>
-        <View style={s.selectorContenedor}>
-            <Picker selectedValue={diasTipo} onValueChange={setDiasTipo} style={{ color: T.input.text }}>
-                <Picker.Item label="Entre semana (Lun - Vie)" value="entre_semana" />
-                <Picker.Item label="Fines de semana (Sab - Dom)" value="fines_semana" />
-                <Picker.Item label="Todos los días" value="todos" />
-            </Picker>
-        </View>
+        <SelectorDias
+            dias={diasTipo}
+            setDias={setDiasTipo}
+            error={errores?.dias}   
+
+        />
 
         <Text style={s.labelSeccion}>Turno (asignado automáticamente)</Text>
         <View style={s.selectorContenedor}>

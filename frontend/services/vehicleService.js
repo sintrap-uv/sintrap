@@ -81,48 +81,50 @@ export async function verificarConflictoHorarioVehiculo(vehiculoId, horaInicio) 
 
 // Obtener vehículos disponibles para una hora de inicio específica
 //para que olamente filtre los conductores disponoble 
-export async function getVehiculosDisponibles(hora_inicio) {
+export async function getVehiculosDisponibles(hora_inicio, hora_fin, diasSelecionado = {}) {
 
-  if (!hora_inicio) return []
+  if (!hora_inicio || !hora_fin) return [];
 
-  //1 Primero obtenemos los IDS de vehiculos ocupados a esa hora 
-  const {data:ocupados, error : errorOcupados} = await supabase
-  .from('ruta_horarios')
-  .select('vehiculo_id')
-  .eq('hora_inicio', hora_inicio)
 
-  if(errorOcupados) throw errorOcupados;
+  // 1. Traer todos los horarios activos con sus días
+  const { data: horarios, error: errorHorarios } = await supabase
+    .from('ruta_horarios')
+    .select('vehiculo_id, hora_inicio, hora_fin, lunes, martes, miercoles, jueves, viernes, sabado, domingo');
 
-    const ocupadosIds = (ocupados || []).map(item => item.vehiculo_id);
+  if (errorHorarios) throw errorHorarios;
 
-    // 2. Consultar vehículos activos excluyendo los ocupados
-      let query = supabase
-        .from('vehiculos')
-        .select('id, placa, conductor_id, seguro, activo, fecha_vencimiento, tipo_vehiculo_id')
-        .eq('activo', true);
+  // 2. Detectar vehículos ocupados: solapamiento de hora Y al menos un día en común
+  const diasKeys = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 
-    if (ocupadosIds.length > 0) {
-        query = query.not('id', 'in', `(${ocupadosIds.join(',')})`);
-    }
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
+  const ocupadosIds = new Set(
+    (horarios || [])
+      .filter(h => {
+        // Solapamiento de horario: nueva_inicio < existente_fin && nueva_fin > existente_inicio
+        const hayConflictoHora = hora_inicio < h.hora_fin && hora_fin > h.hora_inicio;
+        if (!hayConflictoHora) return false;
+
+        // Solapamiento de días: al menos un día en común
+        const hayConflictoDia = diasKeys.some(
+          dia => diasSelecionado[dia] && h[dia]
+        );
+        return hayConflictoDia;
+      })
+      .map(h => h.vehiculo_id)
+  );
+
+  // 3. Traer vehículos activos excluyendo los ocupados
+  let query = supabase
+    .from('vehiculos')
+    .select('id, placa, conductor_id, seguro, activo, fecha_vencimiento, tipo_vehiculo_id')
+    .eq('activo', true);
+
+  if (ocupadosIds.size > 0) {
+    query = query.not('id', 'in', `(${[...ocupadosIds].join(',')})`);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
 }
 
-// Obtener conductores disponibles (que tengan vehículo disponible a esa hora)
-export async function getConductoresDisponibles(horaInicio) {
-    const vehiculosDisponibles = await getVehiculosDisponibles(horaInicio);
-    const conductoresIds = vehiculosDisponibles.map(v => v.conductor_id).filter(id => id != null);
-
-    if (conductoresIds.length === 0) return [];
-
-    const { data, error } = await supabase
-        .from('profiles')
-        .select('id, nombre')
-        .eq('rol', 'conductor')
-        .in('id', conductoresIds);
-
-    if (error) throw error;
-    return data || [];
-}

@@ -3,7 +3,7 @@ import Input from "./Input"
 import theme from "../constants/theme";
 import { useState } from "react";
 import * as Location from 'expo-location';
-import { obtenerCordenadas, ubicacionUsuario } from "../services/geocalizacion";
+import { obtenerCordenadas, guardarUbicacionUsuario } from "../services/geocalizacion";
 import { useToast } from "../context/ToastContext";
 
 const CajaDireccion = ({ id, onGuardado }) => {
@@ -43,7 +43,7 @@ const CajaDireccion = ({ id, onGuardado }) => {
                 showError("No pudimos obtner tu dirección ");
                 return;
             }
-            await ubicacionUsuario(id, direccion, latidud, longitud)
+            await guardarUbicacionUsuario(id, direccion, latidud, longitud)
             showSuccess('!Ubicación guardada correctamente!')
 
             setTimeout(() => {
@@ -51,8 +51,6 @@ const CajaDireccion = ({ id, onGuardado }) => {
             }, 1500);
         } catch (error) {
             showError("Error al obtener la ubicacion");
-            console.log(direccion);
-
         }
 
     }
@@ -123,12 +121,8 @@ const CajaDireccion = ({ id, onGuardado }) => {
         }
 
         // Guardar en Supabase
-        await ubicacionUsuario(
-            id,
-            direccionCompleta,
-            coordenadas.latitud,
-            coordenadas.longitud,
-
+        await guardarUbicacionUsuario(
+            id, direccionCompleta, coordenadas.latitud, coordenadas.longitud
         );
 
         setBuscando(false);
