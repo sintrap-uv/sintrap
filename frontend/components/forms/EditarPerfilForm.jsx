@@ -19,6 +19,7 @@ import theme from "../../constants/theme";
 import Header from "../../components/Header";
 import * as Location from "expo-location";
 import { guardarUbicacionUsuario, ObtenerDireccionUsuario } from "../../services/geocalizacion";
+import { useToast } from "../../context/ToastContext";
 
 const T = theme.lightMode; // cambia a theme.darkMode para modo oscuro
 
@@ -33,6 +34,8 @@ export default function EditarPerfilForm({
   userId,
   onGuardado,
 }) {
+  const { showSuccess, showError, showWarning, showInfo } = useToast();
+
   const [form, setForm] = useState({
     nombre: perfilInicial?.nombre ?? "",
     cedula: perfilInicial?.cedula ?? "",
@@ -69,6 +72,7 @@ export default function EditarPerfilForm({
         // El componente muestra "Sin ubicacion guardada"
       } catch (error) {
         console.error("Error carggando ubicacion previa: ", error);
+        showError("Error al cargar la ubicación guardada");
       }
     };
 
@@ -84,7 +88,7 @@ export default function EditarPerfilForm({
   const seleccionarFoto = async () => {
     const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permiso.granted) {
-      Alert.alert("Permiso requerido", "Necesitamos acceso a tu galería.");
+       showWarning("Necesitamos acceso a tu galería para cambiar la foto");
       return;
     }
     const resultado = await ImagePicker.launchImageLibraryAsync({
@@ -147,7 +151,7 @@ export default function EditarPerfilForm({
       // Pedir permiso al sistema operativo
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert(
+        showInfo(
           "Permiso requerido",
           "Activa el permiso de ubicación en ajustes para usar esta función.",
         );
@@ -176,7 +180,7 @@ export default function EditarPerfilForm({
       actualizarCampo("direccion", direccionTexto);
 
       // Guardar en supbase
-      const {error} = await guardarUbicacionUsuario(
+      const { error } = await guardarUbicacionUsuario(
         userId,
         direccionTexto,
         latitude,

@@ -22,7 +22,6 @@ import {
   formatearHora,
   nombreTurno,
 } from "../../services/dashboardConductorService";
-import { actualizarUbicacionUsuario } from "../../services/locationService";
 import * as Location from "expo-location";
 
 const T = theme.lightMode;

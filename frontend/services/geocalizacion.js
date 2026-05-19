@@ -27,14 +27,14 @@ export const obtenerCordenadas = async (direccion) => {
 
 // Guarda o actualiza la ubicación del usuario (upsert)
 // ← esta es la ÚNICA función para guardar, sirve tanto para crear como para actualizar
-export async function guardarUbicacionUsuario(userId, direccion, latidud, longitud) {
+export async function guardarUbicacionUsuario(userId, direccion, latitud, longitud) {
     const { data, error } = await supabase
         .from('ubicacion_usuario')
         .upsert(
             {
                 usuario_id: userId,
                 direccion: direccion,
-                latidud: latidud,
+                latitud: latitud,
                 longitud: longitud,
             },
             { onConflict: 'usuario_id' }
@@ -63,7 +63,7 @@ export const ObtenerDireccionUsuario = async (userId) => {
         }
         return data;
     } catch (error) {
-        console.error("Error inesperado:", error); // ← también corregí el bug "er"
+
         return null;
     }
 };

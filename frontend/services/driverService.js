@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-
+import { getVehiculosDisponibles } from "./vehicleService";
 // ─────────────────────────────────────────────
 // OBTENER TODOS LOS CONDUCTORES
 // ─────────────────────────────────────────────
@@ -178,3 +178,30 @@ export async function toggleDriverStatus(conductorId, estadoActual) {
   return { data: data ?? null, error: error ?? null };
 }
 
+//=======================================================================================
+//  Conductores disponibles por horario Y días
+// Un conductor no está disponible si su vehículo ya está ocupado en ese horario y días
+//=========================================================================================
+export async function getConductoresDisponibles(horaInicio, horaFin, diasSeleccionados = {}) {
+
+  if (!horaInicio || !horaFin) return [];
+
+  const vehiculosDisponibles = await getVehiculosDisponibles(horaInicio, horaFin, diasSeleccionados);
+  const conductoresIds = vehiculosDisponibles
+    .map(v => v.conductor_id)
+    .filter(id => id != null);
+
+  if (conductoresIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, nombre ')
+    .eq('rol', 'conductor')
+    .eq('activo', true)
+    .in('id', conductoresIds)
+
+  if (error) throw error;
+
+  return data || [];
+
+} 
