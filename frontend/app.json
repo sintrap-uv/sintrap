@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Permite a Sintrap acceder a tu ubicacion para establecer tu punto de recogida"
+        "NSLocationWhenInUseUsageDescription": "Permite a Sintrap acceder a tu ubicación para establecer tu punto de recogida."
       }
     },
     "android": {
@@ -26,16 +26,6 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": [
-        "ACCES_COARSE_LOCATION",
-        "ACCES_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "ACCES_COARSE_LOCATION",
-        "ACCES_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
-      ],
       "package": "com.anonymous.frontend"
     },
     "web": {
@@ -47,7 +37,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Permite a Sintrap acceder a tu ubicacion para establcer tu punto de recogida."
+          "locationWhenInUsePermission": "Permite a Sintrap acceder a tu ubicación para establecer tu punto de recogida."
         }
       ],
       "expo-secure-store"
