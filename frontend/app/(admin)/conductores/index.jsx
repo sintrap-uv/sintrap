@@ -29,12 +29,12 @@ export default function ConductoresScreen() {
   const [error, setError] = useState(null);
 
   const handleBack = () => {
-    if (returnTo === "perfil") {
-      router.replace("/home?tab=perfil");
-    } else {
-      router.back();
-    }
-  };
+  if (returnTo === "perfil") {
+    router.replace("/home?tab=perfil");
+  } else {
+    router.replace("/home");
+  }
+};
 
   useFocusEffect(
     useCallback(() => {

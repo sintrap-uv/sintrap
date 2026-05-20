@@ -157,9 +157,6 @@ export default function Home() {
     administrador: {
       inicio: () => <DashboardAdmin />,
       rutas: () => <TodasLasRutasScreen />,
-      crear: () => (
-        <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />
-      ),
       buses: () => <VehiculosScreen />,
       graficas: () => <EstadisticasScreen />,
       crear_Ruta: () => (<Bienvenida onNavegar={(tab) => setTabActivo(tab)} />),
@@ -352,20 +349,20 @@ export default function Home() {
       <View style={styles.contenido}>{renderContenido()}</View>
 
       {/* ── Navbar fijo abajo ───────────────────────────────── */}
-      {tabActivo === 'crear' && (
-        <BotonesFlotantes onAccion={(key) => {
-          if (key === 'bus') setTabActivo('crear_Bus');
-          if (key === 'conductor') setTabActivo('crear_Conductor');
-          if (key === 'ruta') setTabActivo('crear_Ruta');
-        }} />
-      )}
-      {tabActivo !== 'crear_Ruta' && (
-        <BottomNavBar
-          rol={perfil?.rol ?? 'usuario'}
-          initialTab={tabActivo}
-          onTabPress={(key) => setTabActivo(key)}
-        />
-      )}
+{tabActivo === 'crear' && (
+  <BotonesFlotantes onAccion={(key) => {
+    if (key === 'bus') setTabActivo('crear_Bus');
+    if (key === 'conductor') setTabActivo('crear_Conductor');
+    if (key === 'ruta') setTabActivo('crear_Ruta');
+  }} />
+)}
+{tabActivo !== 'crear_Ruta' && tabActivo !== 'crear_Bus' && tabActivo !== 'crear_Conductor' && (
+  <BottomNavBar
+    rol={perfil?.rol ?? 'usuario'}
+    initialTab={tabActivo}
+    onTabPress={(key) => setTabActivo(key)}
+  />
+)}
     </View>
   );
 }
