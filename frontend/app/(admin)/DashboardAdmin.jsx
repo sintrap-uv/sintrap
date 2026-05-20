@@ -51,7 +51,7 @@ const METRICAS_CONFIG = [
   },
   {
     key: "conductoresActivos",
-    label: "Conductores",
+    label: "Conductores Activos",
     icono: "steering",
     lib: "MaterialCommunityIcons",
     color: "#8B5CF6",
@@ -395,7 +395,7 @@ export default function DashboardAdmin() {
       <View style={[styles.accionIcono, { backgroundColor: "#FEF3C7" }]}>
         <MaterialCommunityIcons name="bullhorn" size={26} color="#F59E0B" />
       </View>
-      <Text style={styles.accionLabel}>Crear aviso</Text>
+      <Text style={styles.accionLabel}>Registrar aviso</Text>
     </TouchableOpacity>
 
     <TouchableOpacity
@@ -409,7 +409,7 @@ export default function DashboardAdmin() {
       <View style={[styles.accionIcono, { backgroundColor: "#FEE2E2" }]}>
         <MaterialCommunityIcons name="map-marker-plus" size={26} color="#EF4444" />
       </View>
-      <Text style={styles.accionLabel}>Crear ruta</Text>
+      <Text style={styles.accionLabel}>Registrar ruta</Text>
     </TouchableOpacity>
 
     <TouchableOpacity

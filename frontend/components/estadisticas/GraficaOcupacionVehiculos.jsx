@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -9,11 +9,28 @@ import {
 } from "react-native";
 import { BarChart } from "react-native-chart-kit";
 import theme from "../../constants/theme";
+import { getOcupacionVehiculos } from "../../services/estadisticasService";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const T = theme.lightMode;
 
-export default function GraficaOcupacionVehiculos({ datos, cargando }) {
+export default function GraficaOcupacionVehiculos() {
+  const [datos, setDatos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  const cargarDatos = async () => {
+    setCargando(true);
+    const resultado = await getOcupacionVehiculos();
+    if (resultado.success) {
+      setDatos(resultado.data);
+    }
+    setCargando(false);
+  };
+
   if (cargando) {
     return (
       <View style={[styles.card, { backgroundColor: T.cards.background }]}>
@@ -25,12 +42,11 @@ export default function GraficaOcupacionVehiculos({ datos, cargando }) {
   if (!datos || datos.length === 0) {
     return (
       <View style={[styles.card, { backgroundColor: T.cards.background }]}>
-        <Text style={{ color: T.text.tertiary }}>No hay datos disponibles</Text>
+        <Text style={{ color: T.text.tertiary }}>No hay vehículos activos con usuarios asignados</Text>
       </View>
     );
   }
 
-  // Calcualar un ancho dinamico: 60 px para cada barra, minimo el ancho de la pantalla
   const chartWidth = Math.max(datos.length * 60, SCREEN_WIDTH - 40);
 
   const chartData = {
