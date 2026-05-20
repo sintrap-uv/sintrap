@@ -51,7 +51,7 @@ const METRICAS_CONFIG = [
   },
   {
     key: "conductoresActivos",
-    label: "Conductores",
+    label: "Conductores Activos",
     icono: "steering",
     lib: "MaterialCommunityIcons",
     color: "#8B5CF6",

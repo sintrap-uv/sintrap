@@ -18,10 +18,8 @@ import {
   getConductoresActivos,
   getConductoresActivosTendencia,
   getRutasCompletadosCancelados,
-  getReportesPorTipo,
   getDistribucionTurnos,
   getOcupacionRutas,
-  getTendenciaReportes,
   getEstadoVehiculos,
   obtenerRangoFechas,
 } from "../../services/estadisticasService";
@@ -29,10 +27,8 @@ import {
 import GraficaOcupacionVehiculos from "../../components/estadisticas/GraficaOcupacionVehiculos";
 import GraficaConductoresActivos from "../../components/estadisticas/GraficaConductoresActivos";
 import GraficaRutasEstado from "../../components/estadisticas/GraficaRutasEstado";
-import GraficaReportesTipo from "../../components/estadisticas/GraficaReportesTipo";
 import GraficaDistribucionTurnos from "../../components/estadisticas/GraficaDistribucionTurnos";
 import GraficaOcupacionRutas from "../../components/estadisticas/GraficaOcupacionRutas";
-import GraficaTendenciaReportes from "../../components/estadisticas/GraficaTendenciaReportes";
 import GraficaEstadoVehiculos from "../../components/estadisticas/GraficaEstadoVehiculos";
 import PeriodoSelector from "../../components/estadisticas/PeriodoSelector";
 
@@ -43,7 +39,6 @@ export default function EstadisticasScreen() {
   const params = useLocalSearchParams();
   const returnTo = params.returnTo;
   const vieneDelPerfil = returnTo === "perfil";
-  const insets = useSafeAreaInsets();
   const [periodo, setPeriodo] = useState("mes");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -52,10 +47,8 @@ export default function EstadisticasScreen() {
   const [conductoresActivos, setConductoresActivos] = useState(0);
   const [conductoresActivosTend, setConductoresActivosTend] = useState([]);
   const [rutasEstado, setRutasEstado] = useState([]);
-  const [reportesTipo, setReportesTipo] = useState([]);
   const [distribucionTurnos, setDistribucionTurnos] = useState([]);
   const [ocupacionRutas, setOcupacionRutas] = useState([]);
-  const [tendenciaReportes, setTendenciaReportes] = useState([]);
   const [estadoVehiculos, setEstadoVehiculos] = useState({
     resumen: [],
     detalles: [],
@@ -91,20 +84,16 @@ export default function EstadisticasScreen() {
         conductores,
         conductoresTend,
         rutas,
-        reportes,
         distribucion,
         ocupRutas,
-        tendencia,
         estado,
       ] = await Promise.all([
         getOcupacionVehiculos(inicio, fin),
         getConductoresActivos(inicio, fin),
         getConductoresActivosTendencia(inicio, fin),
         getRutasCompletadosCancelados(inicio, fin),
-        getReportesPorTipo(inicio, fin),
         getDistribucionTurnos(inicio, fin),
         getOcupacionRutas(inicio, fin),
-        getTendenciaReportes(inicio, fin),
         getEstadoVehiculos(inicio, fin),
       ]);
 
@@ -112,11 +101,16 @@ export default function EstadisticasScreen() {
       setConductoresActivos(conductores);
       setConductoresActivosTend(conductoresTend);
       setRutasEstado(rutas);
-      setReportesTipo(reportes);
       setDistribucionTurnos(distribucion);
       setOcupacionRutas(ocupRutas);
-      setTendenciaReportes(tendencia);
-      setEstadoVehiculos(estado);
+      setEstadoVehiculos(
+        estado.success
+          ? estado.data
+          : {
+              resumen: [],
+              detalles: [],
+            },
+      );
     } catch (err) {
       setError("Error al cargar estadísticas");
       console.error(err);
@@ -140,18 +134,17 @@ export default function EstadisticasScreen() {
         subtitulo="Reportes y análisis del sistema"
         showBack={vieneDelPerfil}
         onBack={handleBack}
-        iconoDerecha={!vieneDelPerfil ? (
-          <TouchableOpacity onPress={handleGoToProfile}>
-            <Ionicons name="settings-outline" size={36} color="#fff" />
-          </TouchableOpacity>
-        ) : null}
+        iconoDerecha={
+          !vieneDelPerfil ? (
+            <TouchableOpacity onPress={handleGoToProfile}>
+              <Ionicons name="settings-outline" size={36} color="#fff" />
+            </TouchableOpacity>
+          ) : null
+        }
       />
 
       <ScrollView
-        style={[
-          styles.container,
-          { backgroundColor: T.background },
-        ]}
+        style={[styles.container, { backgroundColor: T.background }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerContent}>
@@ -180,13 +173,11 @@ export default function EstadisticasScreen() {
           cargando={cargando}
         />
         <GraficaRutasEstado datos={rutasEstado} cargando={cargando} />
-        <GraficaReportesTipo datos={reportesTipo} cargando={cargando} />
         <GraficaDistribucionTurnos
           datos={distribucionTurnos}
           cargando={cargando}
         />
         <GraficaOcupacionRutas datos={ocupacionRutas} cargando={cargando} />
-        <GraficaTendenciaReportes datos={tendenciaReportes} cargando={cargando} />
         <GraficaEstadoVehiculos datos={estadoVehiculos} cargando={cargando} />
       </ScrollView>
     </View>
@@ -206,3 +197,4 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
 });
+

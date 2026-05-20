@@ -27,62 +27,33 @@ export const obtenerRangoFechas = (periodo) => {
   };
 };
 
-// OCUPACIÓN DE VEHÍCULOS
 
-export const getOcupacionVehiculos = async (fechaInicio, fechaFin) => {
+/**
+ * Obtiene ocupación de rutas activas con usuarios asignados
+ */
+export async function getOcupacionRutas() {
   try {
-    // Consulta directa sin RPC
-    const { data, error } = await supabase
-      .from('vehiculos')
-      .select(`
-        id,
-        placa,
-        tipo_vehiculo:tipo_vehiculo_id (
-          nombre,
-          capacidad_max
-        ),
-        turnos (
-          id,
-          estado,
-          fecha
-        )
-      `)
-      .eq('activo', true);
-
+    const { data, error } = await supabase.rpc('get_ocupacion_rutas');
+    
     if (error) throw error;
-
-    // Transformar datos al formato para la gráfica
-    const resultado = data.map(vehiculo => {
-      const turnos = vehiculo.turnos.filter(t => {
-        const fecha = new Date(t.fecha);
-        const inicio = new Date(fechaInicio);
-        const fin = new Date(fechaFin);
-        return fecha >= inicio && fecha <= fin;
-      });
-
-      // Contar usuarios en turnos activos
-      const usuariosPromise = turnos
-        .filter(t => ['en_curso', 'programado'].includes(t.estado))
-        .reduce((acc, turno) => acc + (turno.usuarios_count || 0), 0);
-
-      const capacidad = vehiculo.tipo_vehiculo?.capacidad_max || 1;
-      const ocupados = usuariosPromise;
-      const porcentaje = Math.round((ocupados / capacidad) * 100);
-
-      return {
-        placa: vehiculo.placa,
-        capacidad,
-        ocupados,
-        porcentaje_ocupacion: porcentaje,
-      };
-    });
-
-    return resultado.sort((a, b) => b.porcentaje_ocupacion - a.porcentaje_ocupacion);
+    
+    return {
+      success: true,
+      data: data.map(r => ({
+        ruta_id: r.ruta_id,
+        numero_ruta: r.numero_ruta,
+        nombre: r.nombre.trim(),
+        usuarios_asignados: r.usuarios_asignados,
+        capacidad_total: r.capacidad_total,
+        porcentaje: r.porcentaje
+      }))
+    };
   } catch (error) {
-    console.error('Error getOcupacionVehiculos:', error);
-    return [];
+    console.error('Error en getOcupacionRutas:', error.message);
+    return { success: false, data: [], error: error.message };
   }
-};
+}
+
 
 // CONDUCTORES ACTIVOS
 
@@ -169,39 +140,6 @@ export const getRutasCompletadosCancelados = async (fechaInicio, fechaFin) => {
     return [];
   }
 };
-
-// REPORTES POR TIPO
-
-export const getReportesPorTipo = async (fechaInicio, fechaFin, estadoFiltro = null) => {
-  try {
-    let query = supabase
-      .from('reportes')
-      .select('tipo')
-      .gte('fecha', `${fechaInicio}T00:00:00`)
-      .lte('fecha', `${fechaFin}T23:59:59`);
-
-    if (estadoFiltro) {
-      query = query.eq('estado', estadoFiltro);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    // Agrupar por tipo
-    const resumen = {};
-    data.forEach(reporte => {
-      resumen[reporte.tipo] = (resumen[reporte.tipo] || 0) + 1;
-    });
-
-    return Object.entries(resumen)
-      .map(([tipo, cantidad]) => ({ tipo, cantidad }))
-      .sort((a, b) => b.cantidad - a.cantidad);
-  } catch (error) {
-    console.error('Error getReportesPorTipo:', error);
-    return [];
-  }
-};
-
 // DISTRIBUCIÓN DE TURNOS
 
 export const getDistribucionTurnos = async (fechaInicio, fechaFin) => {
@@ -239,169 +177,84 @@ export const getDistribucionTurnos = async (fechaInicio, fechaFin) => {
   }
 };
 
-// OCUPACIÓN DE RUTAS
-
-export const getOcupacionRutas = async (fechaInicio, fechaFin) => {
+/**
+ * Obtiene ocupación de vehículos activos con usuarios asignados
+ */
+export async function getOcupacionVehiculos() {
   try {
-    const { data, error } = await supabase
-      .from('rutas')
-      .select(`
-        id,
-        numero_ruta,
-        nombre,
-        vehiculos:vehiculos (
-          id,
-          tipo_vehiculo:tipo_vehiculo_id (
-            capacidad_max
-          ),
-          turnos (
-            id,
-            estado,
-            fecha
-          )
-        ),
-        usuario_ruta (
-          id
-        )
-      `)
-      .eq('activa', true);
-
-    if (error) throw error;
-
-    return data.map(ruta => {
-      // Filtrar vehículos por período
-      const vehiculosPeriodo = ruta.vehiculos.filter(v => {
-        const turno = v.turnos.find(t => {
-          const fecha = new Date(t.fecha);
-          const inicio = new Date(fechaInicio);
-          const fin = new Date(fechaFin);
-          return fecha >= inicio && fecha <= fin;
-        });
-        return turno;
-      });
-
-      // Sumar capacidades
-      const capacidadTotal = vehiculosPeriodo.reduce(
-        (sum, v) => sum + (v.tipo_vehiculo?.capacidad_max || 0),
-        0
-      ) || 1;
-
-      const usuariosAsignados = ruta.usuario_ruta.length;
-      const porcentaje = Math.round((usuariosAsignados / capacidadTotal) * 100);
-
-      return {
-        numero_ruta: ruta.numero_ruta.toString(),
-        nombre: ruta.nombre,
-        capacidad_total: capacidadTotal,
-        usuarios_asignados: usuariosAsignados,
-        porcentaje,
-      };
-    }).sort((a, b) => b.porcentaje - a.porcentaje);
-  } catch (error) {
-    console.error('Error getOcupacionRutas:', error);
-    return [];
-  }
-};
-
-// TENDENCIA DE REPORTES
-
-export const getTendenciaReportes = async (fechaInicio, fechaFin) => {
-  try {
-    const { data, error } = await supabase
-      .from('reportes')
-      .select('tipo, fecha')
-      .gte('fecha', `${fechaInicio}T00:00:00`)
-      .lte('fecha', `${fechaFin}T23:59:59`);
-
-    if (error) throw error;
-
-    // Agrupar por día y tipo
-    const porDia = {};
-    data.forEach(reporte => {
-      const dia = reporte.fecha.split('T')[0];
-      if (!porDia[dia]) porDia[dia] = {};
-      if (!porDia[dia][reporte.tipo]) porDia[dia][reporte.tipo] = 0;
-      porDia[dia][reporte.tipo] += 1;
-    });
-
-    // Convertir a array
-    const resultado = [];
-    Object.entries(porDia).forEach(([dia, tipos]) => {
-      Object.entries(tipos).forEach(([tipo, cantidad]) => {
-        resultado.push({ dia, tipo, cantidad });
-      });
-    });
-
-    return resultado.sort((a, b) => new Date(a.dia) - new Date(b.dia));
-  } catch (error) {
-    console.error('Error getTendenciaReportes:', error);
-    return [];
-  }
-};
-
-// ESTADO DE VEHÍCULOS
-
-export const getEstadoVehiculos = async (fechaInicio, fechaFin) => {
-  try {
-    const hoy = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase.rpc('get_ocupacion_vehiculos');
     
-    const { data, error } = await supabase
-      .from('vehiculos')
-      .select(`
-        id,
-        placa,
-        activo,
-        tipo_vehiculo:tipo_vehiculo_id (
-          nombre
-        ),
-        conductor:conductor_id (
-          nombre
-        ),
-        ruta:ruta_id (
-          numero_ruta
-        ),
-        turnos (
-          id,
-          estado,
-          fecha
-        )
-      `)
-      .eq('activo', true);
-
     if (error) throw error;
-
-    // Clasificar estado
-    const clasificar = (vehiculo) => {
-      const turnoHoy = vehiculo.turnos.find(t => t.fecha === hoy && t.estado === 'en_curso');
-      if (turnoHoy) return 'Activo en ruta';
-      if (vehiculo.turnos.length === 0) return 'Disponible';
-      return 'Inactivo';
-    };
-
-    // Agrupar por estado
-    const resumen = {};
-    data.forEach(vehiculo => {
-      const estado = clasificar(vehiculo);
-      resumen[estado] = (resumen[estado] || 0) + 1;
-    });
-
+    
     return {
-      resumen: Object.entries(resumen).map(([estado, cantidad]) => ({
-        estado_vehiculo: estado,
-        cantidad,
-      })),
-      detalles: data.map(v => ({
+      success: true,
+      data: data.map(v => ({
         placa: v.placa,
-        tipo: v.tipo_vehiculo?.nombre || 'N/A',
-        estado: clasificar(v),
-        conductor: v.conductor?.nombre || 'No asignado',
-        ruta: v.ruta?.numero_ruta?.toString() || 'N/A',
-        ultima_ubicacion: 'GPS',
-        vencimiento: 'N/A',
-      })),
+        capacidad: v.capacidad_max,
+        ocupados: v.usuarios_asignados,
+        porcentaje_ocupacion: Math.round((v.usuarios_asignados / v.capacidad_max) * 100)
+      }))
     };
   } catch (error) {
-    console.error('Error getEstadoVehiculos:', error);
-    return { resumen: [], detalles: [] };
+    console.error('Error en getOcupacionVehiculos:', error.message);
+    return { success: false, data: [], error: error.message };
   }
-};
+}
+
+/**
+ * Obtiene tendencia de conductores activos últimos 7 días
+ */
+export async function getTendenciaConductores() {
+  try {
+    const { data, error } = await supabase.rpc('get_tendencia_conductores');
+    
+    if (error) throw error;
+    
+    const hoy = new Date().toISOString().split('T')[0];
+    const activosHoy = data.find(d => d.dia === hoy)?.conductores_activos || 0;
+    
+    return {
+      success: true,
+      data: {
+        activos: activosHoy,
+        tendencia: data
+      }
+    };
+  } catch (error) {
+    console.error('Error en getTendenciaConductores:', error.message);
+    return { 
+      success: false, 
+      data: { activos: 0, tendencia: [] },
+      error: error.message 
+    };
+  }
+}
+
+/**
+ * Obtiene estado de vehículos (resumen + detalles)
+ */
+export async function getEstadoVehiculos() {
+  try {
+    const { data, error } = await supabase.rpc('get_estado_vehiculos');
+    
+    if (error) throw error;
+    
+    // La función retorna una sola fila con resumen y detalles en JSONB
+    const resultado = data[0];
+    
+    return {
+      success: true,
+      data: {
+        resumen: resultado.resumen || [],
+        detalles: resultado.detalles || []
+      }
+    };
+  } catch (error) {
+    console.error('Error en getEstadoVehiculos:', error.message);
+    return { 
+      success: false, 
+      data: { resumen: [], detalles: [] },
+      error: error.message 
+    };
+  }
+}

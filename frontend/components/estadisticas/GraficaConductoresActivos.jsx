@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -8,15 +8,30 @@ import {
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import theme from "../../constants/theme";
+import { getTendenciaConductores } from "../../services/estadisticasService";
 
 const { width } = Dimensions.get("window");
 const T = theme.lightMode;
 
-export default function GraficaConductoresActivos({
-  activos,
-  tendencia,
-  cargando,
-}) {
+export default function GraficaConductoresActivos() {
+  const [activos, setActivos] = useState(0);
+  const [tendencia, setTendencia] = useState([]);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  const cargarDatos = async () => {
+    setCargando(true);
+    const resultado = await getTendenciaConductores();
+    if (resultado.success) {
+      setActivos(resultado.data.activos);
+      setTendencia(resultado.data.tendencia);
+    }
+    setCargando(false);
+  };
+
   if (cargando) {
     return (
       <View style={[styles.card, { backgroundColor: T.cards.background }]}>
@@ -43,7 +58,7 @@ export default function GraficaConductoresActivos({
     tendencia.length > 0
       ? Math.round(
           tendencia.reduce((sum, t) => sum + t.conductores_activos, 0) /
-            tendencia.length,
+            tendencia.length
         )
       : 0;
 
