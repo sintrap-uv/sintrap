@@ -5,10 +5,13 @@ import {
   View,
   ActivityIndicator,
   Text,
+  TouchableOpacity,
 } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import theme from "../../constants/theme";
 import { Ionicons } from "@expo/vector-icons";
+import theme from "../../constants/theme";
+import Header from "../../components/Header";
 
 import {
   getOcupacionVehiculos,
@@ -32,6 +35,10 @@ import PeriodoSelector from "../../components/estadisticas/PeriodoSelector";
 const T = theme.lightMode;
 
 export default function EstadisticasScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const returnTo = params.returnTo;
+  const vieneDelPerfil = returnTo === "perfil";
   const insets = useSafeAreaInsets();
   const [periodo, setPeriodo] = useState("mes");
   const [cargando, setCargando] = useState(true);
@@ -47,6 +54,20 @@ export default function EstadisticasScreen() {
     resumen: [],
     detalles: [],
   });
+
+  // Función para navegar hacia atrás (cuando viene del perfil)
+  const handleBack = () => {
+    if (vieneDelPerfil) {
+      router.replace("/home?tab=perfil");
+    } else {
+      router.back();
+    }
+  };
+
+  // Función para ir al perfil (cuando se presiona el engranaje)
+  const handleGoToProfile = () => {
+    router.push("/home?tab=perfil");
+  };
 
   useEffect(() => {
     cargarTodosDatos();
@@ -114,17 +135,16 @@ export default function EstadisticasScreen() {
         <PeriodoSelector periodo={periodo} onChangePeriodo={setPeriodo} />
       </View>
 
-      {error && (
-        <View
-          style={{
-            padding: 16,
-            backgroundColor: "rgba(239, 68, 68, 0.1)",
-            marginHorizontal: 16,
-          }}
-        >
-          <Text style={{ color: "#ef4444" }}>{error}</Text>
+      <ScrollView
+        style={[
+          styles.container,
+          { backgroundColor: T.background },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.headerContent}>
+          <PeriodoSelector periodo={periodo} onChangePeriodo={setPeriodo} />
         </View>
-      )}
 
       <GraficaOcupacionVehiculos
         datos={ocupacionVehiculos}
@@ -149,9 +169,12 @@ export default function EstadisticasScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: T.background,
   },
   header: {
     flex: 1,
+  },
+  headerContent: {
     paddingHorizontal: 16,
     paddingVertical: 16,
   },

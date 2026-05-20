@@ -206,11 +206,8 @@ export default function EditarPerfilForm({
         titulo={"Editar perfil"}
         subtitulo={"Modifica los datos personales"}
         mode="light"
-        iconoDerecha={
-          <TouchableOpacity onPress={() => onGuardado?.()}>
-            <Ionicons name="arrow-back-outline" size={26} color="#fff" />
-          </TouchableOpacity>
-        }
+        showBack={true}
+        onBack={() => onGuardado?.()}
       />
 
       <ScrollView
