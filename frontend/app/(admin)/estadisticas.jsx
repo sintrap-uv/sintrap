@@ -83,7 +83,9 @@ export default function EstadisticasScreen() {
       setRutasEstado(rutas);
       setDistribucionTurnos(distribucion);
       setOcupacionRutas(ocupRutas);
-      setEstadoVehiculos(estado);
+      setEstadoVehiculos(
+        estado.success ? estado.data : { resumen: [], detalles: [] },
+      );
     } catch (err) {
       setError("Error al cargar estadísticas");
       console.error(err);
@@ -109,7 +111,6 @@ export default function EstadisticasScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        
         <PeriodoSelector periodo={periodo} onChangePeriodo={setPeriodo} />
       </View>
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   View,
   StyleSheet,
@@ -9,28 +9,13 @@ import {
 } from "react-native";
 import { BarChart } from "react-native-chart-kit";
 import theme from "../../constants/theme";
-import { getEstadoVehiculos } from "../../services/estadisticasService";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const T = theme.lightMode;
 
-export default function GraficaEstadoVehiculos() {
-  const [datos, setDatos] = useState({ resumen: [], detalles: [] });
-  const [cargando, setCargando] = useState(true);
-
-  useEffect(() => {
-    cargarDatos();
-  }, []);
-
-  const cargarDatos = async () => {
-    setCargando(true);
-    const resultado = await getEstadoVehiculos();
-    if (resultado.success) {
-      setDatos(resultado.data);
-    }
-    setCargando(false);
-  };
-
+export default function GraficaEstadoVehiculos({ datos, cargando }) {
+  
+  // 1. Manejo del estado de carga controlado por el padre
   if (cargando) {
     return (
       <View style={[styles.card, { backgroundColor: T.cards.background }]}>
@@ -39,8 +24,11 @@ export default function GraficaEstadoVehiculos() {
     );
   }
 
-  const { resumen = [], detalles = [] } = datos;
+  // 2. Extracción segura de los datos (gracias a la corrección en estadisticas.jsx)
+  const resumen = datos?.resumen || [];
+  const detalles = datos?.detalles || [];
 
+  // 3. Manejo de estado vacío
   if (resumen.length === 0) {
     return (
       <View style={[styles.card, { backgroundColor: T.cards.background }]}>
@@ -114,6 +102,7 @@ export default function GraficaEstadoVehiculos() {
         ))}
       </View>
 
+      {/* Alerta de vehículos vencidos */}
       {detalles.some((d) => d.estado === "Documentación vencida") && (
         <View
           style={[
