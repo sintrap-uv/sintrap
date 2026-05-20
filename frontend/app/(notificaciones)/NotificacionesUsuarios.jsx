@@ -1,12 +1,13 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   View, Text, FlatList, TouchableOpacity,
   StyleSheet, ActivityIndicator
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
-import { useRouter } from "expo-router"
+import { useRouter, useLocalSearchParams } from "expo-router"
 import { useNotificaciones } from "../../hooks/useNotificaciones"
+import { getCurrentUser } from "../../services/auth"
+import Header from "../../components/Header"
 import theme from "../../constants/theme"
 
 const t = theme.lightMode
@@ -17,10 +18,55 @@ const ICONO_TIPO = {
   alerta:      { nombre: "warning-outline", color: "#EF4444" },
 }
 
-export default function NotificacionesUsuario({ usuarioId, onVolver }) {
+export default function NotificacionesUsuarios() {
   const router = useRouter()
-  const { notificaciones, loading, noLeidas, marcarLeida, marcarTodas } =
+  const params = useLocalSearchParams()
+  const returnTo = params.returnTo
+  const [usuarioId, setUsuarioId] = useState(null)
+  const [cargandoUsuario, setCargandoUsuario] = useState(true)
+
+  // Obtener el userId de los parámetros o del usuario autenticado
+  useEffect(() => {
+    const getUserId = async () => {
+      setCargandoUsuario(true)
+      if (params.usuarioId) {
+        setUsuarioId(params.usuarioId)
+        setCargandoUsuario(false)
+        return
+      }
+      
+      try {
+        const { data } = await getCurrentUser()
+        if (data?.user) {
+          setUsuarioId(data.user.id)
+        }
+      } catch (error) {
+        console.error("Error obteniendo usuario:", error)
+      } finally {
+        setCargandoUsuario(false)
+      }
+    }
+    getUserId()
+  }, [params.usuarioId])
+
+  const { notificaciones, loading, noLeidas, marcarLeida, marcarTodas } = 
     useNotificaciones(usuarioId)
+
+  const handleBack = () => {
+    console.log("Volviendo con returnTo:", returnTo)
+    
+    if (returnTo === "favoritos") {
+      router.push("/home?tab=favoritos")
+    } else if (returnTo === "rutas") {
+      router.push("/home?tab=rutas")
+    } else if (returnTo === "perfil") {
+      router.push("/home?tab=perfil")
+    } else if (returnTo === "dashboard") {
+      router.push("/home?tab=inicio")
+    } else {
+      router.back()
+    }
+  }
 
   const renderItem = ({ item }) => {
     const icono = ICONO_TIPO[item.tipo] ?? ICONO_TIPO.info
@@ -53,30 +99,55 @@ export default function NotificacionesUsuario({ usuarioId, onVolver }) {
     )
   }
 
+  if (cargandoUsuario) {
+    return (
+      <View style={styles.container}>
+        <Header
+          titulo="Notificaciones"
+          subtitulo="Cargando..."
+          showBack={true}
+          onBack={handleBack}
+        />
+        <View style={styles.vacioCont}>
+          <ActivityIndicator size="large" color={t.icon?.active ?? "#16A34A"} />
+        </View>
+      </View>
+    )
+  }
+
+  if (!usuarioId) {
+    return (
+      <View style={styles.container}>
+        <Header
+          titulo="Notificaciones"
+          subtitulo="Error"
+          showBack={true}
+          onBack={handleBack}
+        />
+        <View style={styles.vacioCont}>
+          <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+          <Text style={styles.vacio}>No se pudo cargar tus notificaciones</Text>
+        </View>
+      </View>
+    )
+  }
+
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={t.Headers?.gradientColors ?? ["#16A34A", "#22C55E"]}
-        style={styles.header}
-      >
-        <TouchableOpacity onPress={() => onVolver()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitulo}>Notificaciones</Text>
-          {noLeidas > 0 && (
-            <Text style={styles.headerSub}>{noLeidas} sin leer</Text>
-          )}
-        </View>
-        {noLeidas > 0 && (
-          <TouchableOpacity onPress={marcarTodas}>
-            <Text style={styles.marcarBtn}>Marcar todas</Text>
-          </TouchableOpacity>
-        )}
-      </LinearGradient>
+      <Header
+        titulo="Notificaciones"
+        subtitulo={noLeidas > 0 ? `${noLeidas} sin leer` : "Todas las notificaciones"}
+        showBack={true}
+        onBack={handleBack}
+        iconoDerecha={
+          noLeidas > 0 ? (
+            <TouchableOpacity onPress={marcarTodas}>
+              <Text style={styles.marcarBtn}>Marcar todas</Text>
+            </TouchableOpacity>
+          ) : null
+        }
+      />
 
-      {/* Lista */}
       {loading ? (
         <ActivityIndicator
           size="large"
@@ -103,17 +174,6 @@ export default function NotificacionesUsuario({ usuarioId, onVolver }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F1F5F9" },
-  header: {
-    paddingTop: 52,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  backBtn: { padding: 4 },
-  headerTitulo: { fontSize: 18, fontWeight: "700", color: "#fff" },
-  headerSub: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 },
   marcarBtn: { fontSize: 13, color: "#fff", fontWeight: "600", textDecorationLine: "underline" },
   lista: { padding: 16, gap: 10 },
   card: {

@@ -350,7 +350,7 @@ export default function DashboardAdmin() {
         mode="light"
         iconoDerecha={
           <TouchableOpacity onPress={() => setMostrarPerfil(true)}>
-            <Ionicons name="settings-outline" size={28} color="#fff" />
+            <Ionicons name="settings-outline" size={36} color="#fff" />
           </TouchableOpacity>
         }
       />
@@ -384,42 +384,46 @@ export default function DashboardAdmin() {
         )}
 
         {/* ACCIONES RÁPIDAS */}
-        <View style={styles.seccion}>
-          <View style={styles.accionesGrid}>
-            <TouchableOpacity
-              style={styles.accionBtn}
-              onPress={() => router.push("/(admin)/EnviarAviso")}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.accionIcono, { backgroundColor: "#FEF3C7" }]}>
-                <MaterialCommunityIcons name="bullhorn" size={26} color="#F59E0B" />
-              </View>
-              <Text style={styles.accionLabel}>Crear aviso</Text>
-            </TouchableOpacity>
+        {/* ACCIONES RÁPIDAS */}
+<View style={styles.seccion}>
+  <View style={styles.accionesGrid}>
+    <TouchableOpacity
+      style={styles.accionBtn}
+      onPress={() => router.push("/(admin)/EnviarAviso")}
+      activeOpacity={0.8}
+    >
+      <View style={[styles.accionIcono, { backgroundColor: "#FEF3C7" }]}>
+        <MaterialCommunityIcons name="bullhorn" size={26} color="#F59E0B" />
+      </View>
+      <Text style={styles.accionLabel}>Crear aviso</Text>
+    </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.accionBtn}
-              onPress={() => router.push("/(admin)/EnviarAviso")}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.accionIcono, { backgroundColor: "#FEE2E2" }]}>
-                <MaterialCommunityIcons name="map-marker-plus" size={26} color="#EF4444" />
-              </View>
-              <Text style={styles.accionLabel}>Crear ruta</Text>
-            </TouchableOpacity>
+    <TouchableOpacity
+      style={styles.accionBtn}
+      onPress={() => router.push({
+        pathname: "/(admin)/Mapa_colaboradores/mapa-Colaboradores",
+        params: { returnTo: "acciones_rapidas" }
+      })}
+      activeOpacity={0.8}
+    >
+      <View style={[styles.accionIcono, { backgroundColor: "#FEE2E2" }]}>
+        <MaterialCommunityIcons name="map-marker-plus" size={26} color="#EF4444" />
+      </View>
+      <Text style={styles.accionLabel}>Crear ruta</Text>
+    </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.accionBtn}
-              onPress={() => router.push("/(admin)/registrar-vehiculo")}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.accionIcono, { backgroundColor: "#DCFCE7" }]}>
-                <MaterialCommunityIcons name="bus-side" size={26} color="#22C55E" />
-              </View>
-              <Text style={styles.accionLabel}>Registrar bus</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+    <TouchableOpacity
+      style={styles.accionBtn}
+      onPress={() => router.push("/(admin)/registrar-vehiculo")}
+      activeOpacity={0.8}
+    >
+      <View style={[styles.accionIcono, { backgroundColor: "#DCFCE7" }]}>
+        <MaterialCommunityIcons name="bus-side" size={26} color="#22C55E" />
+      </View>
+      <Text style={styles.accionLabel}>Registrar bus</Text>
+    </TouchableOpacity>
+  </View>
+</View>
 
         {/* MÉTRICAS */}
         <View style={styles.seccion}>

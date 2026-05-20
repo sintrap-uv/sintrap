@@ -132,10 +132,10 @@ export default function RegistrarVehiculo() {
   return (
     <View style={styles.screen}>
       <Header
-        titulo="Registrar vehículo"
+        titulo="Registrar Bus"
         subtitulo="Registro de Flota"
         showBack={true}
-        onBack={() => router.back()}
+        onBack={() => router.replace('/home')}
       />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.card}>

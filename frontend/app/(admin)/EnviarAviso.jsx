@@ -4,11 +4,11 @@ import {
   StyleSheet, ScrollView, ActivityIndicator,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
 import { supabase } from "../../services/supabase"
 import { getCurrentUser } from "../../services/auth"
 import { getProfile } from "../../services/profileService"
+import Header from "../../components/Header"
 import theme from "../../constants/theme"
 
 const t = theme.lightMode
@@ -85,19 +85,12 @@ export default function EnviarAviso() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={t.Headers?.gradientColors ?? ["#16A34A", "#22C55E"]}
-        style={styles.header}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View>
-          <Text style={styles.headerTitulo}>Crear aviso</Text>
-          <Text style={styles.headerSub}>Se enviará a todos los usuarios</Text>
-        </View>
-      </LinearGradient>
+      <Header
+        titulo="Crear aviso"
+        subtitulo="Se enviará a todos los usuarios"
+        showBack={true}
+        onBack={() => router.back()}
+      />
 
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
@@ -192,17 +185,6 @@ export default function EnviarAviso() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F1F5F9" },
-  header: {
-    paddingTop: 52,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  backBtn: { padding: 4 },
-  headerTitulo: { fontSize: 18, fontWeight: "700", color: "#fff" },
-  headerSub: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 },
   scroll: { padding: 16 },
   seccionLabel: {
     fontSize: 13,

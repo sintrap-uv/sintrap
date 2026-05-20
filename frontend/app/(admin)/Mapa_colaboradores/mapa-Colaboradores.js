@@ -1,10 +1,12 @@
 // MapaColaboradores.jsx
 import { useState, useEffect } from "react";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import Header from "../../../components/Header";
 import {
     View, Text, ActivityIndicator,
     TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard
 } from "react-native"
+import { Ionicons } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
 import theme from "../../../constants/theme";
 import { useMapaColaboradores } from "./useMapaColaboradores";
@@ -15,11 +17,24 @@ import { styles } from "./MapaColaboradores.styles";
 const T = theme.lightMode;
 
 const MapaColaboradores = () => {
+    const router = useRouter();
+    const params = useLocalSearchParams();
+    const returnTo = params.returnTo;
+    const vieneDeAccionesRapidas = returnTo === "acciones_rapidas";
 
     const [paso, setPaso] = useState(1);
     const [panelColapsado, setPanelColapsado] = useState(false);
     const [keyboardHeight, setKeyboardHeight] = useState(0);
 
+    // Función para volver al home (cuando viene de acciones rápidas)
+    const handleBackToHome = () => {
+        router.replace("/home");
+    };
+
+    // Función para ir al perfil (cuando viene de la barra de navegación)
+    const handleGoToProfile = () => {
+        router.push("/home?tab=perfil");
+    };
 
     useEffect(() => {
         const mostrar = Keyboard.addListener('keyboardDidShow', (e) => {
@@ -30,7 +45,6 @@ const MapaColaboradores = () => {
         });
         return () => { mostrar.remove(); ocultar.remove(); };
     }, []);
-
 
     const {
         colaboradores, grupos, cargando,
@@ -60,14 +74,12 @@ const MapaColaboradores = () => {
         rutasExistentes,
         verificarConflictoHorarioVehiculo,
         guardando
-
     } = useMapaColaboradores();
 
     const handleSetModoEdicion = (valor) => {
         if (!valor) setPaso(1);
         setModoEdicion(valor);
     };
-
 
     const circulosJS = grupos.map(g =>
         `L.circle([${g.centro.lat}, ${g.centro.lon}], { radius: 300, color: 'green', fillColor: '#22C55E', fillOpacity: 0.2 }).addTo(map);`
@@ -95,19 +107,33 @@ const MapaColaboradores = () => {
     );
 
     const esModoMapa = paso === 3 || paso === 4;
-
-    // El mapa ocupa toda la pantalla si: no hay modo edición, O estamos en paso 3
-    // const mapaOcupaTodo = !modoEdicion || esModoMapa;
-
     const flexMapa = 1;
 
     return (
         <View style={[styles.mapaContenedor, { backgroundColor: T.background }]}>
-            <Header
-                titulo="Mapa de colaboradores"
-                subtitulo="Gestión de rutas"
-                showBack={true}
-            />
+            {/* Header condicional según el origen */}
+            {vieneDeAccionesRapidas ? (
+                // Desde acciones rápidas: solo flecha que lleva al home
+                <Header
+                    titulo="Mapa de colaboradores"
+                    subtitulo="Gestión de rutas"
+                    showBack={true}
+                    onBack={handleBackToHome}
+                />
+            ) : (
+                // Desde barra de navegación: solo engranaje que lleva al perfil
+                <Header
+                    titulo="Mapa de colaboradores"
+                    subtitulo="Gestión de rutas"
+                    showBack={false}
+                    iconoDerecha={
+                        <TouchableOpacity onPress={handleGoToProfile}>
+                            <Ionicons name="settings-outline" size={36} color="#fff" />
+                        </TouchableOpacity>
+                    }
+                />
+            )}
+
             {/* Mapa — se encoge cuando aparece el teclado */}
             <View style={{ flex: flexMapa }}>
                 <WebView
@@ -163,7 +189,7 @@ const MapaColaboradores = () => {
             {modoEdicion && panelVisible && (
                 <View style={{
                     position: 'absolute',
-                    bottom: esModoMapa ? 0 : keyboardHeight,  // ← sube solo en pasos 1 y 2
+                    bottom: esModoMapa ? 0 : keyboardHeight,
                     left: 0,
                     right: 0,
                 }}>
@@ -197,13 +223,11 @@ const MapaColaboradores = () => {
                         verificarEstadoVehiculo={verificarEstadoVehiculo}
                         verificarConflictoHorarioVehiculo={verificarConflictoHorarioVehiculo}
                         guardando={guardando}
-
                     />
                 </View>
             )}
 
             {modoEdicion && !panelVisible && !esModoMapa && (
-
                 <TouchableOpacity style={styles.botonMostrarPanel} onPress={() => setPanelVisible(true)}>
                     <Text style={styles.textoMostrarPanel}>Mostrar panel</Text>
                 </TouchableOpacity>
@@ -215,7 +239,6 @@ const MapaColaboradores = () => {
                 </View>
             )}
         </View>
-
     );
 };
 

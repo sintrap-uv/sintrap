@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
+  Alert,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import theme from "../constants/theme";
@@ -50,6 +51,7 @@ const ProfileCard = ({
   onAssignedRoutes,
   onToggleService,
   serviceActive = true,
+  onBack,
 }) => {
 
   const router = useRouter();
@@ -88,7 +90,7 @@ const ProfileCard = ({
     );
   }
 
-  // ── volverBtn eliminado — la flecha está en el Header de EditarPerfilForm
+  // ── Editar perfil ──
   if (mostrarEditar) {
     return (
       <View style={{ flex: 1 }}>
@@ -103,53 +105,59 @@ const ProfileCard = ({
       </View>
     );
   }
- if (mostrarResetPassword) {
+
+  // ── Reset Password (con Header) ──
+  if (mostrarResetPassword) {
     return (
       <View style={{ flex: 1 }}>
-        <TouchableOpacity
-          style={styles.volverBtn}
-          onPress={() => setMostrarResetPassword(false)}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back-outline" size={22} color={t.text.primary} />
-          <Text style={styles.volverTexto}>Volver al perfil</Text>
-        </TouchableOpacity>
-
+        <Header
+          titulo="Recuperar contraseña"
+          subtitulo="Te enviaremos un enlace a tu correo"
+          showBack={true}
+          onBack={() => setMostrarResetPassword(false)}
+        />
         <ResetPassword onDone={() => setMostrarResetPassword(false)} />
       </View>
     );
   }
+
+  // ── Notificaciones ──
   if (mostraNotificaaciones) {
     return (
       <View style={{ flex: 1 }}>
-        <TouchableOpacity
-          style={styles.volverBtn}
-          onPress={() => setMostrarNotificaciones(false)}
-          activeOpacity={0.7}
-        >
-        </TouchableOpacity>
-
+      
         {role === "administrador" 
-        ? <NotificacionesAdmin 
-          usuarioId={userId} 
-          onVolver={() => setMostrarNotificaciones(false)}
-           /> 
-        : <NotificacionesUsuario  
-          usuarioId={userId} 
-          onVolver={() => setMostrarNotificaciones(false)}
-          /> }
+          ? <NotificacionesAdmin 
+              usuarioId={userId} 
+              onVolver={() => setMostrarNotificaciones(false)}
+            /> 
+          : <NotificacionesUsuario  
+              usuarioId={userId} 
+              onVolver={() => setMostrarNotificaciones(false)}
+            /> 
+        }
       </View>
     );
   }
 
-  
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-
-      {/* ── Header del proyecto + avatar sobresaliendo ── */}
       <View style={styles.headerContainer}>
+        <View style={styles.headerWrapper}></View>
+        <TouchableOpacity
+          onPress={() => {
+            if (onBack) {
+              onBack();
+            } else {
+              router.back();
+            }
+          }}
+          style={styles.backButtonHeader}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
         <Header titulo="" subtitulo="" mode="light" />
-        {/* Avatar encima del header sobresaliendo */}
+
         <View style={styles.avatarWrapper}>
           {avatarUri ? (
             <Image source={{ uri: avatarUri }} style={styles.avatar} />
@@ -161,7 +169,6 @@ const ProfileCard = ({
         </View>
       </View>
 
-      {/* ── Info del usuario ── */}
       <View style={styles.profileInfo}>
         <Text style={styles.name}>{name}</Text>
         <View style={[styles.badgeContainer, { backgroundColor: roleConfig.badgeBg }]}>
@@ -172,33 +179,35 @@ const ProfileCard = ({
         {email ? <Text style={styles.email}>{email}</Text> : null}
       </View>
 
-      {/* ══ SOLO ADMINISTRADOR ══ */}
+      {/* ADMINISTRADOR */}
       {role === "administrador" && (
         <>
           <Text style={styles.sectionTitle}>Administración</Text>
           <View style={styles.card}>
             <MenuItem
               icon={<Ionicons name="people-outline" size={22} color="#2563EB" />}
-              label="Gestión de usuarios"
-              onPress={onManageUsers}
+              label="Gestión de conductores"
+               showBack={true}
+              onPress={() => router.push("/(admin)/conductores?returnTo=perfil")}
+
             />
             <Divider />
             <MenuItem
               icon={<Ionicons name="bar-chart-outline" size={22} color="#2563EB" />}
               label="Reportes"
-              onPress={onReports}
+              onPress={() => router.push("/(admin)/estadisticas?returnTo=perfil")}
             />
             <Divider />
             <MenuItem
               icon={<MaterialCommunityIcons name="map-marker-path" size={22} color="#2563EB" />}
               label="Gestión de rutas"
-              onPress={onManageRoutes}
+              onPress={() => router.push("/(admin)/rutas?returnTo=perfil")}
             />
           </View>
         </>
       )}
 
-      {/* ══ SOLO CONDUCTOR ══ */}
+      {/* CONDUCTOR */}
       {role === "conductor" && (
         <>
           <Text style={styles.sectionTitle}>Mi servicio</Text>
@@ -206,13 +215,13 @@ const ProfileCard = ({
             <MenuItem
               icon={<Ionicons name="bus-outline" size={22} color="#D97706" />}
               label="Mi vehículo"
-              onPress={onMyVehicle}
+              onPress={() => router.push("/(conductor)/mis-buses?returnTo=perfil")}
             />
             <Divider />
             <MenuItem
               icon={<MaterialCommunityIcons name="map-marker-path" size={22} color="#D97706" />}
               label="Rutas asignadas"
-              onPress={onAssignedRoutes}
+              onPress={() => router.push("/(conductor)/DashboardConductor?returnTo=perfil")} 
             />
             <Divider />
             <TouchableOpacity
@@ -239,23 +248,23 @@ const ProfileCard = ({
         </>
       )}
 
-      {/* ══ ACTIVIDAD ══ */}
+      {/* ACTIVIDAD */}
       <Text style={styles.sectionTitle}>Actividad</Text>
       <View style={styles.card}>
         <MenuItem
           icon={<Ionicons name="bus-outline" size={22} color={t.icon.active} />}
           label="Historial de viajes"
-          onPress={onTripHistory}
+          onPress={() => Alert.alert('En desarrollo', 'Próximamente disponible')}
         />
         <Divider />
         <MenuItem
           icon={<Ionicons name="notifications-outline" size={22} color={t.icon.alert} />}
           label="Notificaciones"
-          onPress={() => setMostrarNotificaciones(true)}
+          onPress={() => router.push("/(notificaciones)/NotificacionesUsuarios?returnTo=perfil")}
         />
       </View>
 
-      {/* ══ CUENTA ══ */}
+      {/* CUENTA */}
       <Text style={styles.sectionTitle}>Cuenta</Text>
       <View style={styles.card}>
         <MenuItem
@@ -265,13 +274,13 @@ const ProfileCard = ({
         />
         <Divider />
         <MenuItem
-          icon={<Ionicons name="settings-outline" size={22} color={t.icon.default} />}
+          icon={<Ionicons name="settings-outline" size={26} color={t.icon.default} />}
           label="Configuración"
           onPress={onSettings}
         />
       </View>
 
-      {/* ══ SEGURIDAD ══ */}
+      {/* SEGURIDAD */}
       <Text style={styles.sectionTitle}>Seguridad</Text>
       <View style={styles.card}>
         <MenuItem
@@ -288,9 +297,9 @@ const ProfileCard = ({
             const { error } = await signOut();
             if (!error) {
               router.replace("/login");
-          }
-        }}
-        labelStyle={{ color: t.icon.error }}
+            }
+          }}
+          labelStyle={{ color: t.icon.error }}
         />
       </View>
 
@@ -325,10 +334,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: t.text.secondary,
   },
-  // ── Header container ──
   headerContainer: {
     position: "relative",
     alignItems: "center",
+  },
+  headerWrapper: {
+    width: "100%",
+    position: "relative",
+  },
+  backButtonHeader: {
+    position: "absolute",
+    left: 20,
+    top: 70,
+    zIndex: 10,
+    padding: 8,
   },
   avatarWrapper: {
     position: "absolute",
@@ -410,6 +429,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: t.text.primary,
     fontWeight: "400",
+  },
+  volverBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    gap: 8,
+    backgroundColor: "#fff",
+  },
+  volverTexto: {
+    fontSize: 16,
+    color: t.text.primary,
   },
 });
 
