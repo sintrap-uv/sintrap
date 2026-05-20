@@ -39,7 +39,6 @@ export default function EstadisticasScreen() {
   const params = useLocalSearchParams();
   const returnTo = params.returnTo;
   const vieneDelPerfil = returnTo === "perfil";
-  const insets = useSafeAreaInsets();
   const [periodo, setPeriodo] = useState("mes");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -105,7 +104,12 @@ export default function EstadisticasScreen() {
       setDistribucionTurnos(distribucion);
       setOcupacionRutas(ocupRutas);
       setEstadoVehiculos(
-        estado.success ? estado.data : { resumen: [], detalles: [] },
+        estado.success
+          ? estado.data
+          : {
+              resumen: [],
+              detalles: [],
+            },
       );
     } catch (err) {
       setError("Error al cargar estadísticas");
@@ -124,63 +128,73 @@ export default function EstadisticasScreen() {
   }
 
   return (
-    <ScrollView
-      style={[
-        styles.container,
-        { backgroundColor: T.background, paddingTop: insets.top },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.header}>
-        <PeriodoSelector periodo={periodo} onChangePeriodo={setPeriodo} />
-      </View>
+    <View style={styles.root}>
+      <Header
+        titulo="Estadísticas"
+        subtitulo="Reportes y análisis del sistema"
+        showBack={vieneDelPerfil}
+        onBack={handleBack}
+        iconoDerecha={
+          !vieneDelPerfil ? (
+            <TouchableOpacity onPress={handleGoToProfile}>
+              <Ionicons name="settings-outline" size={36} color="#fff" />
+            </TouchableOpacity>
+          ) : null
+        }
+      />
 
       <ScrollView
-        style={[
-          styles.container,
-          { backgroundColor: T.background },
-        ]}
+        style={[styles.container, { backgroundColor: T.background }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerContent}>
           <PeriodoSelector periodo={periodo} onChangePeriodo={setPeriodo} />
         </View>
 
-      <GraficaOcupacionVehiculos
-        datos={ocupacionVehiculos}
-        cargando={cargando}
-      />
-      <GraficaConductoresActivos
-        activos={conductoresActivos}
-        tendencia={conductoresActivosTend}
-        cargando={cargando}
-      />
-      <GraficaRutasEstado datos={rutasEstado} cargando={cargando} />
-      <GraficaDistribucionTurnos
-        datos={distribucionTurnos}
-        cargando={cargando}
-      />
-      <GraficaOcupacionRutas datos={ocupacionRutas} cargando={cargando} />
-      <GraficaEstadoVehiculos datos={estadoVehiculos} cargando={cargando} />
-    </ScrollView>
+        {error && (
+          <View
+            style={{
+              padding: 16,
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
+              marginHorizontal: 16,
+            }}
+          >
+            <Text style={{ color: "#ef4444" }}>{error}</Text>
+          </View>
+        )}
+
+        <GraficaOcupacionVehiculos
+          datos={ocupacionVehiculos}
+          cargando={cargando}
+        />
+        <GraficaConductoresActivos
+          activos={conductoresActivos}
+          tendencia={conductoresActivosTend}
+          cargando={cargando}
+        />
+        <GraficaRutasEstado datos={rutasEstado} cargando={cargando} />
+        <GraficaDistribucionTurnos
+          datos={distribucionTurnos}
+          cargando={cargando}
+        />
+        <GraficaOcupacionRutas datos={ocupacionRutas} cargando={cargando} />
+        <GraficaEstadoVehiculos datos={estadoVehiculos} cargando={cargando} />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
     backgroundColor: T.background,
   },
-  header: {
+  container: {
     flex: 1,
   },
   headerContent: {
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 12,
-  },
 });
+
