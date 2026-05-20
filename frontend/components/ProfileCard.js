@@ -274,7 +274,7 @@ const ProfileCard = ({
         />
         <Divider />
         <MenuItem
-          icon={<Ionicons name="settings-outline" size={36} color={t.icon.default} />}
+          icon={<Ionicons name="settings-outline" size={26} color={t.icon.default} />}
           label="Configuración"
           onPress={onSettings}
         />
