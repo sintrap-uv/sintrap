@@ -9,7 +9,7 @@ import {
   Switch, ActivityIndicator, StyleSheet, ScrollView,
   RefreshControl, TextInput, Alert,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
@@ -21,6 +21,10 @@ const T = theme.lightMode;
 
 export default function VehiculosScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const returnTo = params.returnTo;
+  const vieneDelPerfil = returnTo === "perfil";
+  
   const [vehiculos, setVehiculos] = useState([]);
   const [conductores, setConductores] = useState([]);
   const [tiposVehiculo, setTiposVehiculo] = useState([]);
@@ -54,6 +58,11 @@ export default function VehiculosScreen() {
   const [eliminando, setEliminando] = useState(false);
   const [tieneDependencias, setTieneDependencias] = useState("ninguna");
   const [infoDependencia, setInfoDependencia] = useState(null);
+
+  // Función para ir al perfil (cuando se presiona el engranaje)
+  const handleGoToProfile = () => {
+    router.push("/home?tab=perfil");
+  };
 
   // ── FETCH VEHÍCULOS ──────────────────────────────────────────────────────
   const fetchVehiculos = useCallback(async () => {
@@ -356,6 +365,11 @@ export default function VehiculosScreen() {
       <Header
         titulo="Vehículos"
         subtitulo="Gestión de flota vehicular"
+        iconoDerecha={
+          <TouchableOpacity onPress={handleGoToProfile}>
+            <Ionicons name="settings-outline" size={36} color="#fff" />
+          </TouchableOpacity>
+        }
       />
 
       {/* Buscador */}
@@ -410,12 +424,197 @@ export default function VehiculosScreen() {
       )}
 
       {/* Modal — Editar Vehículo (resto igual, sin cambios) */}
-      {/* ... el resto del código de modales se mantiene igual ... */}
+      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={cerrarEdicion}>
+        <View style={s.overlay}>
+          <View style={s.modalBox}>
+            <View style={s.modalHead}>
+              <Text style={s.modalTitle}>Editar vehículo</Text>
+              <TouchableOpacity onPress={cerrarEdicion}>
+                <Ionicons name="close" size={24} color={T.text.secondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={s.modalBody}>
+              <Text style={s.fieldLabel}>Estado</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 8 }}>
+                <Text>Activo</Text>
+                <Switch value={formActivo} onValueChange={setFormActivo} />
+              </View>
+
+              <Text style={s.fieldLabel}>Seguro vigente</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 8 }}>
+                <Text>SOAT activo</Text>
+                <Switch value={formSeguro} onValueChange={setFormSeguro} />
+              </View>
+
+              {formSeguro && (
+                <>
+                  <Text style={s.fieldLabel}>Fecha inicio SOAT</Text>
+                  <TouchableOpacity style={s.inputRow} onPress={() => setShowPickerInicio(true)}>
+                    <Ionicons name="calendar-outline" size={20} color={T.text.secondary} style={s.inputIcon} />
+                    <Text style={s.inputText}>{formFechaInicio || "Seleccionar fecha"}</Text>
+                  </TouchableOpacity>
+
+                  {showPickerInicio && (
+                    <DateTimePicker
+                      value={formFechaInicio ? new Date(formFechaInicio) : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={onChangeInicio}
+                    />
+                  )}
+
+                  <Text style={s.fieldLabel}>Fecha vencimiento SOAT</Text>
+                  <TouchableOpacity style={s.inputRow} onPress={() => setShowPickerVencimiento(true)}>
+                    <Ionicons name="calendar-outline" size={20} color={T.text.secondary} style={s.inputIcon} />
+                    <Text style={s.inputText}>{formFechaVencimiento || "Seleccionar fecha"}</Text>
+                  </TouchableOpacity>
+
+                  {showPickerVencimiento && (
+                    <DateTimePicker
+                      value={formFechaVencimiento ? new Date(formFechaVencimiento) : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={onChangeVencimiento}
+                    />
+                  )}
+                </>
+              )}
+
+              <Text style={s.fieldLabel}>Tipo de vehículo</Text>
+              <TouchableOpacity style={s.inputRow} onPress={() => setModalTipoVisible(true)}>
+                <Ionicons name="car-outline" size={20} color={T.text.secondary} style={s.inputIcon} />
+                <Text style={s.inputText}>{tipoNombreSeleccionado}</Text>
+              </TouchableOpacity>
+
+              <Text style={s.fieldLabel}>Conductor asignado</Text>
+              <TouchableOpacity style={s.inputRow} onPress={() => setModalConductorVisible(true)}>
+                <Ionicons name="person-outline" size={20} color={T.text.secondary} style={s.inputIcon} />
+                <Text style={s.inputText}>{conductorNombreSeleccionado}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            <View style={s.modalFoot}>
+              <TouchableOpacity style={s.btnCancel} onPress={cerrarEdicion}>
+                <Text style={s.btnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.btnSave} onPress={handleGuardar} disabled={guardando}>
+                {guardando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnSaveText}>Guardar</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal seleccionar conductor */}
+      <Modal visible={modalConductorVisible} transparent animationType="slide" onRequestClose={() => setModalConductorVisible(false)}>
+        <View style={s.overlay}>
+          <View style={s.modalBox}>
+            <View style={s.modalHead}>
+              <Text style={s.modalTitle}>Seleccionar conductor</Text>
+              <TouchableOpacity onPress={() => setModalConductorVisible(false)}>
+                <Ionicons name="close" size={24} color={T.text.secondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {conductores.map((c) => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[s.modalItem, formConductorId === c.id && s.modalItemSelected]}
+                  onPress={() => {
+                    setFormConductorId(c.id);
+                    setModalConductorVisible(false);
+                  }}
+                >
+                  <Ionicons name="person-outline" size={20} color={T.text.secondary} />
+                  <Text style={s.modalItemText}>{c.nombre}</Text>
+                  {formConductorId === c.id && <Ionicons name="checkmark" size={20} color="#22C55E" />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal seleccionar tipo vehículo */}
+      <Modal visible={modalTipoVisible} transparent animationType="slide" onRequestClose={() => setModalTipoVisible(false)}>
+        <View style={s.overlay}>
+          <View style={s.modalBox}>
+            <View style={s.modalHead}>
+              <Text style={s.modalTitle}>Seleccionar tipo</Text>
+              <TouchableOpacity onPress={() => setModalTipoVisible(false)}>
+                <Ionicons name="close" size={24} color={T.text.secondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {tiposVehiculo.map((t) => (
+                <TouchableOpacity
+                  key={t.id}
+                  style={[s.modalItem, formTipoVehiculoId === t.id && s.modalItemSelected]}
+                  onPress={() => {
+                    setFormTipoVehiculoId(t.id);
+                    setModalTipoVisible(false);
+                  }}
+                >
+                  <Ionicons name="bus-outline" size={20} color={T.text.secondary} />
+                  <Text style={s.modalItemText}>{t.nombre}</Text>
+                  {formTipoVehiculoId === t.id && <Ionicons name="checkmark" size={20} color="#22C55E" />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal confirmación borrado */}
+      <Modal visible={confirmVisible} transparent animationType="fade" onRequestClose={() => setConfirmVisible(false)}>
+        <View style={s.overlay}>
+          <View style={[s.modalBox, { maxHeight: "70%", margin: 20, borderRadius: 24 }]}>
+            <View style={s.confirmBody}>
+              <View style={[s.confirmIconCircle, { backgroundColor: "#FEE2E2" }]}>
+                <Ionicons name="trash-outline" size={36} color="#EF4444" />
+              </View>
+              <Text style={s.confirmTitle}>Eliminar vehículo</Text>
+              <Text style={s.confirmSubtext}>
+                ¿Estás seguro de eliminar este vehículo? Esta acción no se puede deshacer.
+              </Text>
+
+              {tieneDependencias === "bloqueado" && infoDependencia && (
+                <View style={s.confirmCard}>
+                  <Text style={[s.confirmRowLabel, { textAlign: "center", marginTop: 8 }]}>
+                    No se puede eliminar este vehículo porque está asignado a:
+                  </Text>
+                  <View style={s.confirmRow}>
+                    <Text style={s.confirmRowLabel}>📋 {infoDependencia.ruta}</Text>
+                  </View>
+                  <Text style={[s.confirmRowLabel, { textAlign: "center", marginBottom: 8 }]}>
+                    Desasigna la ruta antes de continuar.
+                  </Text>
+                </View>
+              )}
+
+              <View style={{ flexDirection: "row", gap: 12, marginTop: 16, width: "100%" }}>
+                <TouchableOpacity style={[s.btnCancel, { flex: 1 }]} onPress={() => setConfirmVisible(false)}>
+                  <Text style={s.btnCancelText}>Cancelar</Text>
+                </TouchableOpacity>
+                {tieneDependencias !== "bloqueado" && (
+                  <TouchableOpacity
+                    style={[s.btnSave, { flex: 1, backgroundColor: "#EF4444" }]}
+                    onPress={handleEliminar}
+                    disabled={eliminando}
+                  >
+                    {eliminando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnSaveText}>Eliminar</Text>}
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-// Estilos (se mantienen igual)
+// Estilos
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: T.background },
 

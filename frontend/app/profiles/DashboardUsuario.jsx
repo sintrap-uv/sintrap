@@ -90,7 +90,7 @@ export default function DashboardUsuario() {
   const router = useRouter();
 
   const [userId, setUserId] = useState(null);
-  const [rutasCercanas, setRutasCercanas] = useState([]);  // ← Cambiado
+  const [rutasCercanas, setRutasCercanas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
   const [sinRuta, setSinRuta] = useState(false);
@@ -108,7 +108,7 @@ export default function DashboardUsuario() {
     else setCargando(true);
 
     try {
-      const rutas = await getRutasCercanas(userId);  // ← Cambiado
+      const rutas = await getRutasCercanas(userId);
       setRutasCercanas(rutas);
       setSinRuta(rutas.length === 0);
     } catch (e) {
@@ -120,7 +120,6 @@ export default function DashboardUsuario() {
   }, [userId]);
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
-
 
   if (cargando) {
     return (
@@ -155,7 +154,13 @@ export default function DashboardUsuario() {
         subtitulo={`${rutasCercanas.length} ruta${rutasCercanas.length !== 1 ? 's' : ''} cerca de ti`}
         mode="light"
         iconoDerecha={
-          <TouchableOpacity onPress={() => router.push("/notificaciones")} style={{ position: "relative" }}>
+          <TouchableOpacity 
+            onPress={() => router.push({
+              pathname: "/(notificaciones)/NotificacionesUsuarios",
+              params: { returnTo: "dashboard" }
+            })} 
+            style={{ position: "relative" }}
+          >
             <Ionicons name="notifications-outline" size={24} color="#fff" />
             {rutasCercanas.some(r => r.notificaciones?.length > 0) && (
               <View style={styles.badgeNotif}>
@@ -259,6 +264,7 @@ export default function DashboardUsuario() {
     </View>
   );
 }
+
 // ─── Estilos
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.background },

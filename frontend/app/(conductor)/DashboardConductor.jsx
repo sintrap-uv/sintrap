@@ -10,7 +10,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../services/supabase";
 import { getProfile } from "../../services/profileService";
 import ProfileCard from "../../components/ProfileCard";
@@ -93,6 +93,9 @@ function ItemParadaConductor({ parada, esUltima }) {
 // ─── Dashboard conductor 
 export default function DashboardConductor() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const returnTo = params.returnTo;
+  const vieneDelPerfil = returnTo === "perfil";
 
   const [mostrarPerfil, setMostrarPerfil] = useState(false);
   const [perfil, setPerfil] = useState(null);
@@ -105,6 +108,20 @@ export default function DashboardConductor() {
   const [cargando,      setCargando]      = useState(true);
   const [refrescando,   setRefrescando]   = useState(false);
   const [actualizando,  setActualizando]  = useState(false);
+
+  // Función para navegar hacia atrás (cuando viene del perfil)
+  const handleBack = () => {
+    if (vieneDelPerfil) {
+      router.replace("/home?tab=perfil");
+    } else {
+      router.back();
+    }
+  };
+
+  // Función para ir al perfil (cuando se presiona el engranaje)
+  const handleGoToProfile = () => {
+    setMostrarPerfil(true);
+  };
 
   useEffect(() => {
     const cargarPerfil = async () => {
@@ -156,6 +173,7 @@ export default function DashboardConductor() {
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
 
+  // Si el conductor abrió su perfil, renderiza ProfileCard
   if (mostrarPerfil) {
     return (
       <ProfileCard
@@ -173,8 +191,8 @@ export default function DashboardConductor() {
         onSettings={() => {}}
         onChangePassword={() => {}}
         onLogout={handleLogout}
-        onMyVehicle={() => router.push("/(conductor)/mis-buses")}
-        onAssignedRoutes={() => router.push("/(conductor)/DashboardConductor")}
+        onMyVehicle={() => router.push("/(conductor)/mis-buses?returnTo=perfil")}
+        onAssignedRoutes={() => router.push("/(conductor)/DashboardConductor?returnTo=perfil")}
         serviceActive={true}
         onToggleService={() => {}}
         onBack={() => setMostrarPerfil(false)}
@@ -214,11 +232,13 @@ export default function DashboardConductor() {
           titulo="Mi turno"
           subtitulo="Panel del conductor"
           mode="light"
-          iconoDerecha={
-            <TouchableOpacity onPress={() => setMostrarPerfil(true)}>
-              <Ionicons name="settings-outline" size={24} color="#fff" />
+          showBack={vieneDelPerfil}
+          onBack={handleBack}
+          iconoDerecha={!vieneDelPerfil ? (
+            <TouchableOpacity onPress={handleGoToProfile}>
+              <Ionicons name="settings-outline" size={36} color="#fff" />
             </TouchableOpacity>
-          }
+          ) : null}
         />
         <View style={styles.centrado}>
           <ActivityIndicator size="large" color={T.Button.primary.background} />
@@ -235,11 +255,13 @@ export default function DashboardConductor() {
           titulo="Mi turno"
           subtitulo="Panel del conductor"
           mode="light"
-          iconoDerecha={
-            <TouchableOpacity onPress={() => setMostrarPerfil(true)}>
-              <Ionicons name="settings-outline" size={24} color="#fff" />
+          showBack={vieneDelPerfil}
+          onBack={handleBack}
+          iconoDerecha={!vieneDelPerfil ? (
+            <TouchableOpacity onPress={handleGoToProfile}>
+              <Ionicons name="settings-outline" size={36} color="#fff" />
             </TouchableOpacity>
-          }
+          ) : null}
         />
         <View style={styles.centrado}>
           <MaterialCommunityIcons name="calendar-blank" size={64} color="#D1D5DB" />
@@ -275,11 +297,13 @@ export default function DashboardConductor() {
         titulo="Mi turno"
         subtitulo={`Ruta ${ruta?.numeroRuta ?? ""} · ${nombreTurno(turno.nombreTurno)}`}
         mode="light"
-        iconoDerecha={
-          <TouchableOpacity onPress={() => setMostrarPerfil(true)}>
-            <Ionicons name="settings-outline" size={24} color="#fff" />
+        showBack={vieneDelPerfil}
+        onBack={handleBack}
+        iconoDerecha={!vieneDelPerfil ? (
+          <TouchableOpacity onPress={handleGoToProfile}>
+            <Ionicons name="settings-outline" size={36} color="#fff" />
           </TouchableOpacity>
-        }
+        ) : null}
       />
 
       <ScrollView

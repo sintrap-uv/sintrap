@@ -5,9 +5,11 @@ import {
   View,
   ActivityIndicator,
   Text,
+  TouchableOpacity,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import theme from "../../constants/theme";
 import Header from "../../components/Header";
 
@@ -40,6 +42,7 @@ export default function EstadisticasScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const returnTo = params.returnTo;
+  const vieneDelPerfil = returnTo === "perfil";
   const insets = useSafeAreaInsets();
   const [periodo, setPeriodo] = useState("mes");
   const [cargando, setCargando] = useState(true);
@@ -58,15 +61,18 @@ export default function EstadisticasScreen() {
     detalles: [],
   });
 
+  // Función para navegar hacia atrás (cuando viene del perfil)
   const handleBack = () => {
-    // Si venimos del perfil, volver al perfil
-    if (returnTo === "perfil") {
+    if (vieneDelPerfil) {
       router.replace("/home?tab=perfil");
-    } 
-    // Si no, ir al home (o a la pantalla principal)
-    else {
-      router.replace("/home");
+    } else {
+      router.back();
     }
+  };
+
+  // Función para ir al perfil (cuando se presiona el engranaje)
+  const handleGoToProfile = () => {
+    router.push("/home?tab=perfil");
   };
 
   useEffect(() => {
@@ -132,8 +138,13 @@ export default function EstadisticasScreen() {
       <Header
         titulo="Estadísticas"
         subtitulo="Reportes y análisis del sistema"
-        showBack={true}
+        showBack={vieneDelPerfil}
         onBack={handleBack}
+        iconoDerecha={!vieneDelPerfil ? (
+          <TouchableOpacity onPress={handleGoToProfile}>
+            <Ionicons name="settings-outline" size={36} color="#fff" />
+          </TouchableOpacity>
+        ) : null}
       />
 
       <ScrollView

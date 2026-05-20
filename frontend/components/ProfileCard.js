@@ -221,7 +221,7 @@ const ProfileCard = ({
             <MenuItem
               icon={<MaterialCommunityIcons name="map-marker-path" size={22} color="#D97706" />}
               label="Rutas asignadas"
-              onPress={() => router.push("/(conductor)/DashboardConductor")} 
+              onPress={() => router.push("/(conductor)/DashboardConductor?returnTo=perfil")} 
             />
             <Divider />
             <TouchableOpacity
@@ -260,7 +260,7 @@ const ProfileCard = ({
         <MenuItem
           icon={<Ionicons name="notifications-outline" size={22} color={t.icon.alert} />}
           label="Notificaciones"
-          onPress={() => setMostrarNotificaciones(true)}
+          onPress={() => router.push("/(notificaciones)/NotificacionesUsuarios?returnTo=perfil")}
         />
       </View>
 
@@ -274,7 +274,7 @@ const ProfileCard = ({
         />
         <Divider />
         <MenuItem
-          icon={<Ionicons name="settings-outline" size={22} color={t.icon.default} />}
+          icon={<Ionicons name="settings-outline" size={26} color={t.icon.default} />}
           label="Configuración"
           onPress={onSettings}
         />

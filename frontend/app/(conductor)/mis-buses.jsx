@@ -2,14 +2,6 @@
  * mis-buses.jsx
  * Pantalla: Buses asignados al conductor — SINTRAP
  * Ruta: app/(conductor)/mis-buses.jsx
- *
- * Historia de Usuario:
- * "Como conductor quiero ver el listado de buses que tengo asignados"
- *
- * - Solo lectura: sin editar ni eliminar
- * - Filtra por conductor_id = usuario actual
- * - Muestra: placa, tipo, seguro, fechas SOAT, estado
- * - NUNCA toca la columna "capacidad"
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -36,33 +28,36 @@ export default function MisBusesScreen() {
   const params = useLocalSearchParams();
   const returnTo = params.returnTo;
   
-  const [buses,      setBuses]      = useState([]);
-  const [loading,    setLoading]    = useState(true);
+  const [buses, setBuses] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error,      setError]      = useState(null);
+  const [error, setError] = useState(null);
 
-  // Función para navegar hacia atrás inteligentemente
+  // Determinar si viene del perfil
+  const vieneDelPerfil = returnTo === "perfil";
+
+  // Función para navegar hacia atrás
   const handleBack = () => {
-    // Si venimos del perfil, volver al perfil
-    if (returnTo === "perfil") {
+    if (vieneDelPerfil) {
       router.replace("/home?tab=perfil");
-    } 
-    // Si no, ir al dashboard del conductor
-    else {
-      router.replace("/(conductor)/DashboardConductor");
+    } else {
+      router.back();
     }
+  };
+
+  // Función para ir al perfil (cuando se presiona el engranaje)
+  const handleGoToProfile = () => {
+    router.push("/home?tab=perfil");
   };
 
   // ── FETCH BUSES DEL CONDUCTOR ACTUAL ────────────────────────────────────
   const fetchMisBuses = useCallback(async () => {
     setError(null);
     try {
-      // 1. Obtener usuario autenticado
       const { data: authData } = await getCurrentUser();
       const userId = authData?.user?.id;
       if (!userId) throw new Error("No se pudo identificar al conductor.");
 
-      // 2. Buscar vehículos asignados al conductor
       const { data, error: dbError } = await supabase
         .from("vehiculos")
         .select(`
@@ -101,8 +96,6 @@ export default function MisBusesScreen() {
   function renderBus({ item: bus }) {
     return (
       <View style={s.card}>
-
-        {/* Placa + badge activo */}
         <View style={s.cardHeader}>
           <Text style={s.placa}>{bus.placa}</Text>
           <View style={[s.badge, bus.activo ? s.badgeActivo : s.badgeInactivo]}>
@@ -114,7 +107,6 @@ export default function MisBusesScreen() {
 
         <View style={s.divider} />
 
-        {/* Tipo de vehículo */}
         <View style={s.infoRow}>
           <View style={[s.iconCircle, { backgroundColor: "#EFF6FF" }]}>
             <Ionicons name="car-outline" size={18} color="#3B82F6" />
@@ -127,7 +119,6 @@ export default function MisBusesScreen() {
           </View>
         </View>
 
-        {/* Capacidad */}
         <View style={s.infoRow}>
           <View style={[s.iconCircle, { backgroundColor: "#F5F3FF" }]}>
             <Ionicons name="people-outline" size={18} color="#8B5CF6" />
@@ -140,7 +131,6 @@ export default function MisBusesScreen() {
           </View>
         </View>
 
-        {/* Seguro */}
         <View style={s.infoRow}>
           <View style={[s.iconCircle, { backgroundColor: bus.seguro ? "#DCFCE7" : "#FEF2F2" }]}>
             <Ionicons
@@ -157,7 +147,6 @@ export default function MisBusesScreen() {
           </View>
         </View>
 
-        {/* Fechas SOAT — solo si tiene seguro */}
         {bus.seguro && (
           <>
             <View style={s.infoRow}>
@@ -182,7 +171,6 @@ export default function MisBusesScreen() {
           </>
         )}
 
-        {/* Estado operativo */}
         <View style={s.infoRow}>
           <View style={[s.iconCircle, { backgroundColor: bus.activo ? "#DCFCE7" : "#F1F5F9" }]}>
             <Ionicons
@@ -198,7 +186,6 @@ export default function MisBusesScreen() {
             </Text>
           </View>
         </View>
-
       </View>
     );
   }
@@ -206,12 +193,28 @@ export default function MisBusesScreen() {
   // ── RENDER PRINCIPAL ─────────────────────────────────────────────────────
   return (
     <View style={s.container}>
-      <Header
-        titulo="Mi vehículo"
-        subtitulo="Información del vehículo asignado"
-        showBack={true}
-        onBack={handleBack}
-      />
+      {/* Header condicional */}
+      {vieneDelPerfil ? (
+        // Si viene del perfil: muestra flecha de retroceso
+        <Header
+          titulo="Mi vehículo"
+          subtitulo="Información del vehículo asignado"
+          showBack={true}
+          onBack={handleBack}
+        />
+      ) : (
+        // Si viene de la barra de navegación: muestra engranaje
+        <Header
+          titulo="Mi vehículo"
+          subtitulo="Información del vehículo asignado"
+          showBack={false}
+          iconoDerecha={
+            <TouchableOpacity onPress={handleGoToProfile} activeOpacity={0.7}>
+              <Ionicons name="settings-outline" size={36} color="#fff" />
+            </TouchableOpacity>
+          }
+        />
+      )}
 
       {/* Error de conexión */}
       {error && (
@@ -228,7 +231,6 @@ export default function MisBusesScreen() {
           <Text style={s.loadingText}>Cargando tus buses…</Text>
         </View>
 
-      /* Sin buses */
       ) : buses.length === 0 ? (
         <View style={s.centered}>
           <Ionicons name="bus-outline" size={48} color={T.cards.border} />
@@ -239,7 +241,6 @@ export default function MisBusesScreen() {
           </Text>
         </View>
 
-      /* Lista */
       ) : (
         <FlatList
           data={buses}
@@ -270,7 +271,6 @@ export default function MisBusesScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: T.background },
 
-  // Error
   errorBanner: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: "rgba(239,68,68,0.08)",
@@ -279,17 +279,14 @@ const s = StyleSheet.create({
   },
   errorText: { color: T.icon.error, fontSize: 13, flex: 1 },
 
-  // Loading / empty
-  centered:      { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 32 },
-  loadingText:   { color: T.text.secondary, fontSize: 14, marginTop: 8 },
-  emptyTitle:    { fontSize: 17, fontWeight: "700", color: T.text.primary, textAlign: "center" },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 32 },
+  loadingText: { color: T.text.secondary, fontSize: 14, marginTop: 8 },
+  emptyTitle: { fontSize: 17, fontWeight: "700", color: T.text.primary, textAlign: "center" },
   emptySubtitle: { fontSize: 13, color: T.text.secondary, textAlign: "center", lineHeight: 20, marginTop: 4 },
 
-  // Lista
-  list:       { paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8, gap: 12 },
+  list: { paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8, gap: 12 },
   listHeader: { fontSize: 12, color: T.text.secondary, fontWeight: "600", marginBottom: 4, marginTop: 8 },
 
-  // Tarjeta
   card: {
     backgroundColor: T.cards.background,
     borderRadius: T.cards.borderRadius,
@@ -300,22 +297,18 @@ const s = StyleSheet.create({
     shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
   },
 
-  // Header tarjeta
   cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  placa:      { fontSize: 22, fontWeight: "800", color: T.text.primary, letterSpacing: 1 },
+  placa: { fontSize: 22, fontWeight: "800", color: T.text.primary, letterSpacing: 1 },
 
-  // Badges
-  badge:         { borderRadius: 100, paddingHorizontal: 12, paddingVertical: 4, borderWidth: 1 },
-  badgeActivo:   { backgroundColor: "#DCFCE7", borderColor: "#86EFAC" },
+  badge: { borderRadius: 100, paddingHorizontal: 12, paddingVertical: 4, borderWidth: 1 },
+  badgeActivo: { backgroundColor: "#DCFCE7", borderColor: "#86EFAC" },
   badgeInactivo: { backgroundColor: "#F1F5F9", borderColor: T.cards.border },
-  badgeText:     { fontSize: 12, fontWeight: "600" },
+  badgeText: { fontSize: 12, fontWeight: "600" },
 
-  // Divisor
   divider: { height: 1, backgroundColor: T.cards.border },
 
-  // Info rows
-  infoRow:   { flexDirection: "row", alignItems: "center", gap: 12 },
-  iconCircle:{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  infoRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  iconCircle: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   infoLabel: { fontSize: 11, color: T.text.tertiary, fontWeight: "500", textTransform: "uppercase", letterSpacing: 0.5 },
   infoValue: { fontSize: 14, fontWeight: "600", color: T.text.primary, marginTop: 1 },
 });

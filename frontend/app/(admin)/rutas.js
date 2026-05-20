@@ -21,23 +21,23 @@ export default function TodasLasRutasScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const returnTo = params.returnTo;
+  const vieneDelPerfil = returnTo === "perfil";
   const [rutas, setRutas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
 
+  // Función para navegar hacia atrás (cuando viene del perfil)
   const handleBack = () => {
-    // Si se especificó returnTo=perfil, navegar directamente al perfil
-    if (returnTo === "perfil") {
+    if (vieneDelPerfil) {
       router.replace("/home?tab=perfil");
-    } 
-    // Si puede volver atrás, hacerlo
-    else if (router.canGoBack()) {
+    } else {
       router.back();
-    } 
-    // Si no hay historial, ir al home
-    else {
-      router.replace("/home");
     }
+  };
+
+  // Función para ir al perfil (cuando se presiona el engranaje)
+  const handleGoToProfile = () => {
+    router.push("/home?tab=perfil");
   };
 
   const cargarRutas = async (esRefresh = false) => {
@@ -132,7 +132,7 @@ export default function TodasLasRutasScreen() {
         id: ruta.id,
         numero_ruta: ruta.numero_ruta,
         nombre: ruta.nombre,
-        returnTo: returnTo, // Pasar el parámetro de retorno
+        returnTo: returnTo,
       },
     });
   };
@@ -253,8 +253,13 @@ export default function TodasLasRutasScreen() {
       <Header
         titulo="Gestión de Rutas"
         subtitulo={`${rutas.length} rutas activas`}
-        showBack={true}
+        showBack={vieneDelPerfil}
         onBack={handleBack}
+        iconoDerecha={!vieneDelPerfil ? (
+          <TouchableOpacity onPress={handleGoToProfile}>
+            <Ionicons name="settings-outline" size={36} color="#fff" />
+          </TouchableOpacity>
+        ) : null}
       />
 
       <FlatList

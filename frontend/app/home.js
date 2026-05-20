@@ -8,25 +8,26 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { BottomNavBar } from "../components/BottomNavBar";
 import BotonesFlotantes from "../components/BotonesFlotantes";
 import { getProfile } from "../services/profileService";
 import { getCurrentUser, signOut } from "../services/auth";
+import Header from "../components/Header";
 
 // ── Importa aquí los componentes de cada tab ──────────────────
 import EditarPerfilForm from "../components/forms/EditarPerfilForm";
-import ProfileCard from "../components/ProfileCard"; // ← agregado
+import ProfileCard from "../components/ProfileCard";
 import ConductoresScreen from "./(admin)/conductores";
 import RegistrarVehiculo from "./(admin)/registrar-vehiculo";
-import VehiculosScreen from "./(admin)/vehiculos"
+import VehiculosScreen from "./(admin)/vehiculos";
 import MisBusesScreen from "./(conductor)/mis-buses";
 import Bienvenida from "./(admin)/bienvenida-empresa";
 import EstadisticasScreen from "./(admin)/estadisticas";
 
 import DashboardAdmin from "./(admin)/DashboardAdmin";
 import DashboardUsuario from "./profiles/DashboardUsuario";
-import DashboardConductor from "./(conductor)/DashboardConductor"
+import DashboardConductor from "./(conductor)/DashboardConductor";
 import { supabase } from "../services/supabase";
 import MapaColaboradores from "./(admin)/Mapa_colaboradores/mapa-Colaboradores";
 import ConfiguracionBuses from "./(admin)/configurar-buses";
@@ -35,6 +36,7 @@ import CajaDireccion from "../components/ModalDireccion";
 import TodasLasRutasScreen from "./(admin)/rutas";
 
 export default function Home() {
+  const router = useRouter();
   const params = useLocalSearchParams();
   const [tabActivo, setTabActivo] = useState("inicio");
 
@@ -50,10 +52,22 @@ export default function Home() {
   const [grupos, setGrupos] = useState([]);
   const [cargandoPrueba, setCargandoPrueba] = useState(false);
 
+  // Función para ir al perfil
+  const handleGoToProfile = () => {
+    router.push("/home?tab=perfil");
+  };
+
   // Manejar el parámetro tab de la URL
   useEffect(() => {
-    if (params.tab === "perfil") {
+    const tab = params.tab;
+    if (tab === "perfil") {
       setTabActivo("perfil");
+    } else if (tab === "favoritos") {
+      setTabActivo("favoritos");
+    } else if (tab === "rutas") {
+      setTabActivo("rutas");
+    } else if (tab === "inicio") {
+      setTabActivo("inicio");
     }
   }, [params.tab]);
 
@@ -117,8 +131,6 @@ export default function Home() {
       const tienedireccion = !!ubicacionData?.direccion;
       setMostarModal(!tienedireccion)
 
-
-
     } catch (e) {
       console.error('Error cargando perfil:', e.message);
     } finally {
@@ -143,24 +155,18 @@ export default function Home() {
   const CONTENIDO = {
     // ── ADMINISTRADOR ──
     administrador: {
- 
-      // ✅ Perfil → ProfileCard que abre EditarPerfilForm internamente
-
       inicio: () => <DashboardAdmin />,
       rutas: () => <TodasLasRutasScreen />,
       crear: () => (
         <TabPendiente nombre="Crear ruta" icono="add-circle-outline" />
       ),
-      buses: () => <VehiculosScreen />, //para mostrar los buses
+      buses: () => <VehiculosScreen />,
       graficas: () => <EstadisticasScreen />,
-
-      crear_Ruta: () => (<Bienvenida onNavegar={(tab) => setTabActivo(tab)} />
-      ),
+      crear_Ruta: () => (<Bienvenida onNavegar={(tab) => setTabActivo(tab)} />),
       mapa_colaboradores: () => <MapaColaboradores key={tabActivo} />,
       configurar_buses: () => <ConfiguracionBuses onNavegar={(tab) => setTabActivo(tab)} />,
       crear_Conductor: () => <ConductoresScreen />,
       crear_Bus: () => <RegistrarVehiculo />,
-      
 
       perfil: () => (
         <ProfileCard
@@ -188,15 +194,41 @@ export default function Home() {
 
     // ── CONDUCTOR ──
     conductor: {
-
       inicio: () => <DashboardConductor />,
-      rutas: () => <TabPendiente nombre="Mi Ruta" icono="navigate-outline" />,
+      
+      rutas: () => (
+        <View style={{ flex: 1 }}>
+          <Header
+            titulo="Mi Ruta"
+            subtitulo="Ruta asignada para hoy"
+            showBack={false}
+            iconoDerecha={
+              <TouchableOpacity onPress={handleGoToProfile}>
+                <Ionicons name="settings-outline" size={36} color="#fff" />
+              </TouchableOpacity>
+            }
+          />
+          <TabPendiente nombre="Mi Ruta" icono="navigate-outline" />
+        </View>
+      ),
 
       agregar: () => (
-        <TabPendiente nombre="Reportar incidente" icono="warning-outline" />
+        <View style={{ flex: 1 }}>
+          <Header
+            titulo="Reportar incidente"
+            subtitulo="Notifica cualquier novedad"
+            showBack={false}
+            iconoDerecha={
+              <TouchableOpacity onPress={handleGoToProfile}>
+                <Ionicons name="settings-outline" size={36} color="#fff" />
+              </TouchableOpacity>
+            }
+          />
+          <TabPendiente nombre="Reportar incidente" icono="warning-outline" />
+        </View>
       ),
+      
       bus: () => <MisBusesScreen />,
-      //Perfil → ProfileCard que abre EditarPerfilForm internamente
 
       perfil: () => (
         <ProfileCard
@@ -214,8 +246,8 @@ export default function Home() {
           onSettings={() => console.log("Configuración")}
           onChangePassword={() => console.log("Cambiar contraseña")}
           onLogout={handleLogout}
-          onMyVehicle={() => console.log("Mi vehículo")}
-          onAssignedRoutes={() => console.log("Rutas asignadas")}
+          onMyVehicle={() => router.push("/(conductor)/mis-buses?returnTo=perfil")}
+          onAssignedRoutes={() => router.push("/(conductor)/DashboardConductor?returnTo=perfil")}
           serviceActive={serviceActive}
           onToggleService={() => setServiceActive((prev) => !prev)}
           onBack={() => setTabActivo("inicio")}
@@ -225,14 +257,44 @@ export default function Home() {
 
     // ── USUARIO ──
     usuario: {
-
       inicio: () => <DashboardUsuario />,
+      
       favoritos: () => (
-        <TabPendiente nombre="Favoritos" icono="heart-outline" />
+        <View style={{ flex: 1 }}>
+          <Header
+            titulo="Favoritos"
+            subtitulo="Tus rutas favoritas"
+            iconoDerecha={
+              <TouchableOpacity onPress={() => router.push({
+                pathname: "/(notificaciones)/NotificacionesUsuarios",
+                params: { returnTo: "favoritos" }
+              })}>
+                <Ionicons name="notifications-outline" size={24} color="#fff" />
+              </TouchableOpacity>
+            }
+          />
+          <TabPendiente nombre="Favoritos" icono="heart-outline" />
+        </View>
       ),
-      rutas: () => <TabPendiente nombre="Rutas" icono="location-outline" />,
-      // Perfil → ProfileCard que abre EditarPerfilForm internamente
 
+      rutas: () => (
+        <View style={{ flex: 1 }}>
+          <Header
+            titulo="Rutas"
+            subtitulo="Explora las rutas disponibles"
+            iconoDerecha={
+              <TouchableOpacity onPress={() => router.push({
+                pathname: "/(notificaciones)/NotificacionesUsuarios",
+                params: { returnTo: "rutas" }
+              })}>
+                <Ionicons name="notifications-outline" size={24} color="#fff" />
+              </TouchableOpacity>
+            }
+          />
+          <TabPendiente nombre="Rutas" icono="location-outline" />
+        </View>
+      ),
+      
       perfil: () => (
         <ProfileCard
           name={perfil?.nombre ?? ""}
@@ -267,7 +329,6 @@ export default function Home() {
     );
   };
 
-
   if (cargando) {
     return (
       <View style={styles.centrado}>
@@ -285,18 +346,10 @@ export default function Home() {
     );
   }
 
-
   return (
     <View style={styles.container}>
-      {/* ── Header fijo (siempre visible) ──────────────────── */}
-
-   
-
       {/* ── Área de contenido (cambia según el tab) ─────────── */}
       <View style={styles.contenido}>{renderContenido()}</View>
-
-
-
 
       {/* ── Navbar fijo abajo ───────────────────────────────── */}
       {tabActivo === 'crear' && (
@@ -309,16 +362,13 @@ export default function Home() {
       {tabActivo !== 'crear_Ruta' && (
         <BottomNavBar
           rol={perfil?.rol ?? 'usuario'}
-          initialTab="inicio"
+          initialTab={tabActivo}
           onTabPress={(key) => setTabActivo(key)}
         />
       )}
-
     </View>
   );
 }
-
-
 
 function TabPendiente({ nombre, icono }) {
   return (
