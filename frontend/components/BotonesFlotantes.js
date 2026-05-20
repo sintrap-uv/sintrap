@@ -3,9 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const ACCIONES = [
-  { key: 'bus', label: 'Crear bus', icon: 'bus-outline' },
+  { key: 'bus', label: 'Registrar bus', icon: 'bus-outline' },
   { key: 'ruta', label: 'Crear Ruta', icon: 'location-outline' },
-  { key: 'conductor', label: 'Crear conductor', icon: 'person-outline' },
+  { key: 'conductor', label: 'Registrar conductor', icon: 'person-outline' },
 ];
 
 export default function BotonesFlotantes({ onAccion }) {
