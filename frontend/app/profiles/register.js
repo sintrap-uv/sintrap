@@ -9,7 +9,8 @@ import {
   StyleSheet
 } from "react-native"
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons"
-import { useRouter } from "expo-router" 
+import { useRouter } from "expo-router"
+import {validarDominioEmail} from "../../utils/validarDominios"
 
 export default function Register() {
 
@@ -46,9 +47,17 @@ export default function Register() {
     setErrores(e)
     return Object.keys(e).length === 0
   }
+  
 
   const handleRegister = async () => {
   if (!validar()) return;
+
+  // Validar dominio del email
+  const { valido, mensaje } = validarDominioEmail(email)
+  if (!valido) {
+    alert(mensaje)
+    return
+  }
 
   const { data, error } = await signUp(email, password);
 
