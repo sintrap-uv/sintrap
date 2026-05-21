@@ -9,7 +9,8 @@ import {
 } from "react-native"
 
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons"
-import { resetPassword, verifyResetCode } from "../../services/auth"
+import { resetPassword, verifyResetCode, checkEmail } from "../../services/auth"
+import {validarDominioEmail} from "../../utils/validarDominios"
 import { useRouter } from "expo-router"
 
 export default function ForgotPassword() {
@@ -17,17 +18,38 @@ export default function ForgotPassword() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [codigo, setCodigo] = useState("")
-  const [paso, setPaso] = useState("correo") // "correo" | "codigo"
+  const [paso, setPaso] = useState("correo")
   const [loading, setLoading] = useState(false)
 
-  // Paso 1 — enviar OTP
+  // Paso 1 — enviar código
   const handleEnviarCodigo = async () => {
     if (!email) {
       alert("Ingresa tu correo electrónico.")
       return
     }
+    
+    // Validar dominio del email
+    const { valido, mensaje } = validarDominioEmail(email)
+    if (!valido) {
+      alert(mensaje)
+      return
+    }
 
     setLoading(true)
+
+    const { exists, error: checkError } = await checkEmail(email)
+    if (checkError){
+      setLoading(false)
+      alert("Error al verificar correo" + "\n" + "El email: " + email + " no existe en el registro de usuarios")
+      return
+    }
+
+    if (!exists) {
+      setLoading(false)
+      alert("No existe una cuenta con correo: " + email)
+      return
+    }
+
     const { error } = await resetPassword(email)
     setLoading(false)
 
@@ -38,7 +60,7 @@ export default function ForgotPassword() {
     }
   }
 
-  // Paso 2 — verificar OTP
+  // Paso 2 — verificar código
   const handleVerificarCodigo = async () => {
     if (codigo.length < 8) {
       alert("Ingresa el código de 8 dígitos.")
@@ -54,6 +76,7 @@ export default function ForgotPassword() {
     } else {
       router.push("/profiles/forgotPassword")
     }
+    
   }
 
   return (

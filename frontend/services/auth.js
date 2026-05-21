@@ -89,3 +89,11 @@ export const verifyResetCode = async (email, token) => {
   })
   return { data, error }
 }
+
+export const checkEmail = async (email) => {
+  const { data, error } = await supabase
+    .rpc("check_email_exists", { p_email: email })
+
+  if (error) return { exists: false, error }
+  return { exists: data, error: null }
+}
