@@ -164,7 +164,7 @@ const MapaColaboradores = () => {
                                     setPanelVisible(true);
                                     showInfo('Completa los pasos para trazar tu ruta');
                                 }}>
-                                <Text style={{ color: T.Button.primary.Text, fontWeight: 'bold' }}>Crear ruta</Text>
+                                <Text style={{ color: T.Button.primary.Text, fontWeight: 'bold' }}>Registrar ruta</Text>
                             </TouchableOpacity>
                         )}
                         {!modoEdicion && (
