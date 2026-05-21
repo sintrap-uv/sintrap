@@ -615,3 +615,229 @@ export async function getRutasConTrayecto() {
         return { success: false, data: [] };
     }
 }
+
+// ============================================================================
+// AGREGAR ESTAS FUNCIONES AL FINAL DE TU rutaServices.js EXISTENTE
+// Copiar y pegar TODO el contenido de abajo al final del archivo
+// ============================================================================
+
+/**
+ * Obtiene la ruta activa asignada al usuario autenticado.
+ * Incluye datos de la ruta (trayecto, color) y paradas asociadas.
+ *
+ * @param {string} userId - ID del usuario autenticado
+ * @returns {Object|null} Objeto con usuario_ruta + rutas embedded, o null si no existe
+ */
+export const obtenerRutaActualUsuario = async (userId) => {
+  if (!userId) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('usuario_ruta')
+      .select(`
+        id,
+        usuario_id,
+        ruta_id,
+        parada_origen_id,
+        parada_destino_id,
+        activa,
+        fecha_asignacion,
+        turno_id,
+        rutas(
+          id,
+          numero_ruta,
+          nombre,
+          trayecto,
+          color,
+          activa,
+          updated_at
+        )
+      `)
+      .eq('usuario_id', userId)
+      .eq('activa', true)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error obteniendo ruta del usuario:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Exception en obtenerRutaActualUsuario:', error);
+    return null;
+  }
+};
+
+/**
+ * Obtiene todas las paradas de una ruta en orden.
+ * Incluye información geoespacial (latitud, longitud).
+ *
+ * @param {number} rutaId - ID de la ruta
+ * @returns {Array} Array de paradas con orden y ubicación
+ */
+export const obtenerParadasRuta = async (rutaId) => {
+  if (!rutaId) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('ruta_paradas')
+      .select(`
+        id,
+        parada_id,
+        orden,
+        tiempo_desde_inicio,
+        paradas(
+          id,
+          nombre,
+          latitud,
+          longitud,
+          descripcion,
+          tipo,
+          activa
+        )
+      `)
+      .eq('ruta_id', rutaId)
+      .eq('paradas.activa', true)
+      .order('orden', { ascending: true });
+
+    if (error) {
+      console.error('Error obteniendo paradas:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Exception en obtenerParadasRuta:', error);
+    return [];
+  }
+};
+
+/**
+ * Obtiene la ubicación actual del bus en una ruta específica.
+ * Consulta el vehículo activo en la ruta y su última posición GPS.
+ *
+ * @param {number} rutaId - ID de la ruta
+ * @returns {Object|null} Ubicación del bus con conductor_id, latitud, longitud, velocidad
+ */
+export const obtenerUbicacionBusActual = async (rutaId) => {
+  if (!rutaId) return null;
+
+  try {
+    // Paso 1: Obtener vehículos activos en la ruta
+    const { data: horarios, error: errHorarios } = await supabase
+      .from('ruta_horarios')
+      .select('vehiculo_id')
+      .eq('ruta_id', rutaId)
+      .eq('activo', true);
+
+    if (errHorarios || !horarios?.length) {
+      console.warn('No hay horarios activos para esta ruta:', rutaId);
+      return null;
+    }
+
+    const vehiculoIds = horarios.map(h => h.vehiculo_id);
+
+    // Paso 2: Obtener ubicación más reciente del vehículo
+    const { data, error } = await supabase
+      .from('ubicacion_conductor')
+      .select(`
+        conductor_id,
+        vehiculo_id,
+        latitud,
+        longitud,
+        velocidad,
+        en_ruta,
+        updated_at
+      `)
+      .in('vehiculo_id', vehiculoIds)
+      .eq('en_ruta', true)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error obteniendo ubicación del bus:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Exception en obtenerUbicacionBusActual:', error);
+    return null;
+  }
+};
+
+/**
+ * Obtiene una parada específica por ID.
+ * Útil para obtener datos de parada origen/destino.
+ *
+ * @param {number} paradaId - ID de la parada
+ * @returns {Object|null} Datos completos de la parada
+ */
+export const obtenerParada = async (paradaId) => {
+  if (!paradaId) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('paradas')
+      .select('*')
+      .eq('id', paradaId)
+      .eq('activa', true)
+      .single();
+
+    if (error) {
+      console.error('Error obteniendo parada:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Exception en obtenerParada:', error);
+    return null;
+  }
+};
+
+/**
+ * Obtiene todas las rutas asignadas a un usuario (no solo la activa).
+ * Útil para implementar historial o cambio rápido entre rutas.
+ *
+ * @param {string} userId - ID del usuario
+ * @returns {Array} Array de usuario_ruta con datos de rutas
+ */
+export const obtenerTodasRutasUsuario = async (userId) => {
+  if (!userId) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('usuario_ruta')
+      .select(`
+        id,
+        usuario_id,
+        ruta_id,
+        parada_origen_id,
+        parada_destino_id,
+        activa,
+        fecha_asignacion,
+        rutas(
+          id,
+          numero_ruta,
+          nombre,
+          color
+        )
+      `)
+      .eq('usuario_id', userId)
+      .order('activa', { ascending: false })
+      .order('fecha_asignacion', { ascending: false });
+
+    if (error) {
+      console.error('Error obteniendo todas las rutas:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Exception en obtenerTodasRutasUsuario:', error);
+    return [];
+  }
+};

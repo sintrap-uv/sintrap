@@ -7,7 +7,7 @@ const NAV_CONFIGS = {
   // Rol: Usuario normal
   usuario: [
     { key: 'inicio', label: 'Inicio', icon: 'home' },
-    { key: 'favoritos', label: 'Favoritos', icon: 'star', },
+    { key: 'mi_ruta', label: 'Mi ruta', icon: 'star', },
     { key: 'rutas', label: 'Rutas', icon: 'location' },
     { key: 'perfil', label: 'Perfil', icon: 'person' },
   ],
@@ -23,7 +23,7 @@ const NAV_CONFIGS = {
   administrador: [
     { key: 'inicio', label: 'Inicio', icon: 'home' },
     { key: 'rutas', label: 'Rutas', icon: 'map' },
-    { key: 'crear', label: 'Crear', icon: 'add' },
+    { key: 'crear', label: 'Registrar', icon: 'add' },
     { key: 'buses', label: 'Buses', icon: 'bus' },
     { key: 'graficas', label: 'Graficas', icon: 'bar-chart' },
 
