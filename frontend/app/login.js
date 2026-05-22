@@ -1,185 +1,363 @@
-import React, { useState } from "react"
+ import React, { useState, useRef } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet
-} from "react-native"
- 
-import { FontAwesome, MaterialIcons } from "@expo/vector-icons"
-import { useRouter } from "expo-router"
-import { signIn } from "../services/auth"
-import { clearSession } from "../services/authStorageService"
- 
-export default function Login() {
- 
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const router = useRouter()
- 
- const handleLogin = async () => {
-  const { data, error } = await signIn(email, password)
+  View, Text, TextInput, TouchableOpacity,
+  StyleSheet, StatusBar, KeyboardAvoidingView,
+  Platform, ScrollView, Animated,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { signIn } from "../services/auth";
+import { clearSession } from "../services/authStorageService";
+import LogoSintrap from "../components/LogoSintrap";
 
-  if (error) {
-    alert("Error al iniciar sesión: " + error.message)
-  } else {
-    router.replace("/home");
-  }
-}
- 
+// ─── PALETA ───────────────────────────────────────────────────────────────
+const C = {
+  bg1:        "#EBEBEB",
+  card:       "#FFFFFF",
+  green:      "#16A34A",
+  greenGlow:  "rgba(22,163,74,0.18)",
+  greenSoft:  "rgba(22,163,74,0.10)",
+  text:       "#111827",
+  sub:        "#374151",
+  muted:      "#6B7280",
+  inputBg:    "#F9FAFB",
+  border:     "#E5E7EB",
+  borderFocus:"#16A34A",
+  red:        "#A61B1B",
+  redSoft:    "rgba(166,27,27,0.07)",
+};
+
+// ─── VALIDACIONES ─────────────────────────────────────────────────────────
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+// ─── INPUT ANIMADO ────────────────────────────────────────────────────────
+function AnimatedInput({
+  label, icon, secureEntry, rightIcon, onRightPress,
+  value, onChangeText, placeholder, keyboardType, autoCapitalize,
+}) {
+  const [focused, setFocused] = useState(false);
+  const borderAnim = useRef(new Animated.Value(0)).current;
+
+  const onFocus = () => {
+    setFocused(true);
+    Animated.timing(borderAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
+  };
+  const onBlur = () => {
+    setFocused(false);
+    Animated.timing(borderAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+  };
+
+  const borderColor = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [C.border, C.borderFocus],
+  });
+  const shadowOpacity = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.15],
+  });
+
   return (
-    <View style={styles.container}>
- 
-      {/* Icono */}
-      <View style={styles.iconContainer}>
-        <FontAwesome name="map-marker" size={60} color="#444" />
-        <FontAwesome name="bus" size={24} color="#fff" style={styles.busIcon}/>
-      </View>
- 
-      {/* Título */}
-      <Text style={styles.title}>Bienvenido a</Text>
-      <Text style={styles.titleBold}>Sintrap</Text>
- 
-      {/* Card */}
-      <View style={styles.card}>
- 
-        {/* Email */}
-        <View style={styles.inputContainer}>
-          <MaterialIcons name="email" size={20} color="#444"/>
-          <TextInput
-            placeholder="Correo electronico"
-            style={styles.input}
+    <View style={inp.wrap}>
+      {label && <Text style={inp.label}>{label}</Text>}
+      <Animated.View style={[
+        inp.box,
+        {
+          borderColor,
+          shadowColor: C.green,
+          shadowOpacity,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 0 },
+          elevation: focused ? 3 : 0,
+        },
+      ]}>
+        <Ionicons name={icon} size={16} color={focused ? C.green : C.muted} style={inp.icon} />
+        <TextInput
+          style={inp.field}
+          placeholder={placeholder}
+          placeholderTextColor={C.muted}
+          value={value}
+          onChangeText={onChangeText}
+          secureTextEntry={secureEntry}
+          keyboardType={keyboardType ?? "default"}
+          autoCapitalize={autoCapitalize ?? "none"}
+          autoCorrect={false}
+          onFocus={onFocus}
+          onBlur={onBlur}
+        />
+        {rightIcon && (
+          <TouchableOpacity
+            onPress={onRightPress}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name={rightIcon} size={16} color={C.muted} />
+          </TouchableOpacity>
+        )}
+      </Animated.View>
+    </View>
+  );
+}
+
+const inp = StyleSheet.create({
+  wrap:  { marginBottom: 10 },
+  label: { fontSize: 12, fontWeight: "600", color: C.sub, marginBottom: 7, letterSpacing: 0.3 },
+  box:   {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: C.inputBg,
+    borderRadius: 14, borderWidth: 1.5,
+    paddingHorizontal: 5, paddingVertical: 5,
+  },
+  icon:  { marginRight: 10 },
+  field: { flex: 1, fontSize: 14, color: C.text, letterSpacing: 0.1 },
+});
+
+// ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────
+export default function Login() {
+  const [email,        setEmail]        = useState("");
+  const [password,     setPassword]     = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading,      setLoading]      = useState(false);
+  const btnScale = useRef(new Animated.Value(1)).current;
+  const router = useRouter();
+
+  const onPressIn  = () => Animated.spring(btnScale, { toValue: 0.97, useNativeDriver: true }).start();
+  const onPressOut = () => Animated.spring(btnScale, { toValue: 1,    useNativeDriver: true }).start();
+
+   
+  const handleLogin = async () => {
+    // Validación campos vacíos
+    if (!email.trim() || !password.trim()) {
+      alert("Por favor completa todos los campos.");
+      return;
+    }
+
+    // Validación formato email
+    if (!isValidEmail(email.trim())) {
+      alert("Ingresa un correo electrónico válido.");
+      return;
+    }
+
+    // Validación longitud contraseña
+    if (password.length < 6) {
+      alert("La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await signIn(email.trim(), password);
+
+      if (error) {
+        // Mensajes de error amigables
+        let mensaje = "Ocurrió un error al iniciar sesión.";
+        if (error.message.includes("Invalid login credentials")) {
+          mensaje = "Correo o contraseña incorrectos.";
+        } else if (error.message.includes("Email not confirmed")) {
+          mensaje = "Debes confirmar tu correo antes de iniciar sesión.";
+        } else if (error.message.includes("Too many requests")) {
+          mensaje = "Demasiados intentos. Intenta de nuevo más tarde.";
+        }
+        alert(mensaje);
+      } else {
+        router.replace("/home");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={s.root}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={40}
+    >
+      <StatusBar barStyle="dark-content" backgroundColor={C.bg1} />
+
+      {/* Círculos decorativos */}
+      <View style={s.circle1} pointerEvents="none" />
+      <View style={s.circle2} pointerEvents="none" />
+
+      <ScrollView
+        contentContainerStyle={s.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        keyboardDismissMode="on-drag"
+      //contentInsetAdjustmentBehavior="always"
+      >
+        {/* ── Logo ── */}
+        <View style={s.logoArea}>
+          <View style={s.logoGlow} />
+          <LogoSintrap size={96} color="#1a1a1a" />
+          <Text style={s.appName}>Sintrap</Text>
+          <View style={s.taglineRow}>
+            <View style={s.taglineDot} />
+            <Text style={s.tagline}></Text>
+            <View style={s.taglineDot} />
+          </View>
+        </View>
+
+        {/* ── Card ── */}
+        <View style={s.card}>
+          <View style={s.cardHead}>
+            <Text style={s.cardTitle}>Bienvenido</Text>
+            <Text style={s.cardSub}>Ingresa a tu cuenta para continuar</Text>
+          </View>
+
+          {/* Inputs */}
+          <AnimatedInput
+            label="CORREO ELECTRÓNICO"
+            icon="mail-outline"
+            placeholder="tucorreo@ejemplo.com"
             value={email}
             onChangeText={setEmail}
+            keyboardType="email-address"
           />
-        </View>
- 
-        {/* Password */}
-        <View style={styles.inputContainer}>
-          <FontAwesome name="lock" size={20} color="#444"/>
-          <TextInput
-            placeholder="Contraseña"
-             secureTextEntry={!showPassword}
-            style={styles.input}
+          <AnimatedInput
+            label="CONTRASEÑA"
+            icon="lock-closed-outline"
+            placeholder="Ingresa tu contraseña"
             value={password}
             onChangeText={setPassword}
+            secureEntry={!showPassword}
+            rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
+            onRightPress={() => setShowPassword(!showPassword)}
           />
 
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-            <FontAwesome name={showPassword ? "eye-slash" : "eye"} size={18} color="#888" />
+          {/* ¿Olvidaste tu contraseña? */}
+          <TouchableOpacity
+            style={s.forgotWrap}
+            onPress={() => router.push("/profiles/resetPassword")}
+          >
+            <Text style={s.forgotText}>¿Olvidaste tu contraseña?</Text>
+          </TouchableOpacity>
+
+          {/* Botón login */}
+          <Animated.View style={{ transform: [{ scale: btnScale }] }}>
+            <TouchableOpacity
+              style={[s.btn, loading && s.btnLoading]}
+              onPress={handleLogin}
+              onPressIn={onPressIn}
+              onPressOut={onPressOut}
+              disabled={loading}
+              activeOpacity={1}
+            >
+              {loading ? (
+                <View style={s.btnInner}>
+                  <Text style={s.btnText}>Ingresando</Text>
+                  <Text style={s.btnDots}>...</Text>
+                </View>
+              ) : (
+                <View style={s.btnInner}>
+                  <Text style={s.btnText}>Iniciar sesión</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#fff" />
+                </View>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Divisor */}
+          <View style={s.divider}>
+            <View style={s.divLine} />
+            <Text style={s.divText}>¿No tienes cuenta?</Text>
+            <View style={s.divLine} />
+          </View>
+
+          {/* Crear cuenta */}
+          <TouchableOpacity
+            style={s.registerBtn}
+            onPress={() => router.push("/profiles/register")}
+            activeOpacity={0.8}
+          >
+            <Text style={s.registerText}>Crear una cuenta</Text>
           </TouchableOpacity>
         </View>
- 
-        {/* Botón login */}
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleLogin}
-        >
-          <Text style={styles.buttonText}>Inicio sesión</Text>
-        </TouchableOpacity>
- 
-        {/* Links */}
-        <TouchableOpacity onPress={() => router.push("/profiles/resetPassword")}>
-          <Text style={styles.forgot}>
-            ¿Olvidaste tu contraseña?
-          </Text>
-        </TouchableOpacity>
-        
- 
-        {/*Fix: navega a la pantalla de registro */}
-        <TouchableOpacity onPress={() => router.push("/profiles/register")}>
-          <Text style={styles.register}>
-            Crear una cuenta
-          </Text>
-        </TouchableOpacity>
- 
-      </View>
-    </View>
-  )
+
+        <Text style={s.footer}>Sintrap © 2026 · Todos los derechos reservados</Text>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
 }
- 
-const styles = StyleSheet.create({
- 
-  container: {
-    flex: 1,
-    backgroundColor: "#d9d9d9",
+
+// ─── ESTILOS ──────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.bg1 },
+
+  // Círculos decorativos
+  circle1: {
+    position: "absolute", top: -80, right: -80,
+    width: 260, height: 260, borderRadius: 130,
+    backgroundColor: C.greenSoft,
+  },
+  circle2: {
+    position: "absolute", bottom: -60, left: -60,
+    width: 200, height: 200, borderRadius: 100,
+    backgroundColor: "rgba(0,0,0,0.03)",
+  },
+
+  scroll: {
+    flexGrow: 1,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    paddingTop: 70,
+    paddingHorizontal: 24,
+    paddingBottom: 52,
   },
- 
-  iconContainer: {
-    alignItems: "center",
-    marginBottom: 10
+
+  // Logo
+  logoArea:   { alignItems: "center", marginBottom: 32, position: "relative" },
+  logoGlow:   {
+    position: "absolute", top: 8, left: "50%",
+    width: 80, height: 80, marginLeft: -40,
+    borderRadius: 40, backgroundColor: C.greenGlow,
   },
- 
-  busIcon: {
-    position: "absolute",
-    top: 18
-  },
- 
-  title: {
-    fontSize: 22,
-    fontWeight: "500",
-    color: "#333"
-  },
- 
-  titleBold: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 20
-  },
- 
+  appName:    { fontSize: 34, fontWeight: "800", color: C.text, letterSpacing: -1, marginTop: 10 },
+  taglineRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
+  taglineDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: C.green },
+  tagline:    { fontSize: 11, color: C.muted, fontWeight: "500", letterSpacing: 0.5 },
+
+  // Card
   card: {
-    width: "85%",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 25,
-    padding: 25,
-    alignItems: "center"
+    width: "94%",
+    backgroundColor: C.card,
+    borderRadius: 26, padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08, shadowRadius: 18, elevation: 5,
   },
- 
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#eee",
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    width: "100%",
-    height: 45
+  cardHead:  { marginBottom: 18 },
+  cardTitle: { fontSize: 26, fontWeight: "800", color: C.text, letterSpacing: -0.5 },
+  cardSub:   { fontSize: 14, color: C.muted, marginTop: 4 },
+
+  // Forgot
+  forgotWrap: { alignSelf: "flex-end", marginBottom: 20, marginTop: 2 },
+  forgotText: { fontSize: 12, color: C.green, fontWeight: "600", letterSpacing: 0.2 },
+
+  // Botón
+  btn: {
+    backgroundColor: C.green, borderRadius: 16,
+    paddingVertical: 16, alignItems: "center",
+    shadowColor: C.green,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35, shadowRadius: 14, elevation: 6,
   },
- 
-  input: {
-    marginLeft: 10,
-    flex: 1
+  btnLoading: { opacity: 0.75 },
+  btnInner:   { flexDirection: "row", alignItems: "center", gap: 10 },
+  btnText:    { color: "#fff", fontSize: 16, fontWeight: "700", letterSpacing: 0.3 },
+  btnDots:    { color: "#fff", fontSize: 16, fontWeight: "700" },
+
+  // Divisor
+  divider: { flexDirection: "row", alignItems: "center", marginVertical: 18, gap: 10 },
+  divLine: { flex: 1, height: 1, backgroundColor: C.border },
+  divText: { fontSize: 12, color: C.muted, fontWeight: "500" },
+
+  // Registro
+  registerBtn: {
+    borderWidth: 1.5, borderColor: "#F5C2C2",
+    backgroundColor: C.redSoft,
+    borderRadius: 16, paddingVertical: 15, alignItems: "center",
   },
- 
-  button: {
-    marginTop: 25,
-    backgroundColor: "#0d5b0d",
-    paddingVertical: 12,
-    paddingHorizontal: 40,
-    borderRadius: 25
-  },
- 
-  buttonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold"
-  },
- 
-  forgot: {
-    marginTop: 20,
-    color: "#0d5b0d",
-    fontWeight: "600"
-  },
- 
-  register: {
-    marginTop: 8,
-    color: "#8B0000",
-    fontWeight: "bold"
-  }
- 
-})
- 
+  registerText: { fontSize: 15, fontWeight: "700", color: C.red, letterSpacing: 0.2 },
+
+  // Footer
+  footer: { marginTop: 28, fontSize: 10, color: "#A1A1AA", textAlign: "center", letterSpacing: 0.3 },
+});
