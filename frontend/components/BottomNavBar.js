@@ -23,7 +23,7 @@ const NAV_CONFIGS = {
   administrador: [
     { key: 'inicio', label: 'Inicio', icon: 'home' },
     { key: 'rutas', label: 'Rutas', icon: 'map' },
-    { key: 'crear', label: 'Crear', icon: 'add' },
+    { key: 'crear', label: 'Registrar', icon: 'add' },
     { key: 'buses', label: 'Buses', icon: 'bus' },
     { key: 'graficas', label: 'Graficas', icon: 'bar-chart' },
 

@@ -25,8 +25,6 @@ export default function Login() {
   if (error) {
     alert("Error al iniciar sesión: " + error.message)
   } else {
-    alert("Inicio de sesión exitoso: " + data.user.email)
-    //Redirigir manualmente al home después del login
     router.replace("/home");
   }
 }

@@ -1,10 +1,27 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Text, ActivityIndicator, ScrollView } from 'react-native';
 import theme from '../../constants/theme';
+import { getOcupacionRutas } from '../../services/estadisticasService';
 
 const T = theme.lightMode;
 
-export default function GraficaOcupacionRutas({ datos, cargando }) {
+export default function GraficaOcupacionRutas() {
+  const [datos, setDatos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  const cargarDatos = async () => {
+    setCargando(true);
+    const resultado = await getOcupacionRutas();
+    if (resultado.success) {
+      setDatos(resultado.data);
+    }
+    setCargando(false);
+  };
+
   if (cargando) {
     return (
       <View style={[styles.card, { backgroundColor: T.cards.background }]}>
@@ -16,7 +33,7 @@ export default function GraficaOcupacionRutas({ datos, cargando }) {
   if (!datos || datos.length === 0) {
     return (
       <View style={[styles.card, { backgroundColor: T.cards.background }]}>
-        <Text style={{ color: T.text.tertiary }}>No hay datos</Text>
+        <Text style={{ color: T.text.tertiary }}>No hay rutas con vehículos asignados</Text>
       </View>
     );
   }
