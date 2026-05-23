@@ -438,39 +438,42 @@ export default function DashboardConductor() {
         </View>
 
         {historial.length > 0 && (
-          <View style={styles.seccion}>
-            <Text style={styles.tituloSeccion}>Turnos anteriores</Text>
-            {historial.map((h, i) => {
-              const duracionMin = h.horaInicioReal && h.horaFinReal
-                ? Math.round((new Date(h.horaFinReal) - new Date(h.horaInicioReal)) / 60000)
-                : null;
-              return (
-                <View key={i} style={styles.historialItem}>
-                  <View style={[styles.historialEstado, { backgroundColor: "#F3F4F6" }]}>
-                    <MaterialCommunityIcons
-                      name="check-circle"
-                      size={16}
-                      color="#6B7280"
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.historialFecha}>
-                      {new Date(h.fecha).toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" })}
-                      {" · Ruta "}{h.numeroRuta}
-                    </Text>
-                    <Text style={styles.historialDetalle}>
-                      {nombreTurno(h.nombreTurno)} · {h.placa}
-                      {duracionMin ? ` · ${duracionMin} min` : ""}
-                    </Text>
-                  </View>
-                  <View style={[styles.chip, { backgroundColor: "#F3F4F6" }]}>
-                    <Text style={[styles.chipTexto, { color: "#6B7280" }]}>Completado</Text>
-                  </View>
-                </View>
-              );
-            })}
+  <View style={styles.seccion}>
+    <Text style={styles.tituloSeccion}>Turnos anteriores</Text>
+    {historial.map((h, i) => {
+      const cfg = TURNO_ESTADO_CONFIG[h.estado] ?? TURNO_ESTADO_CONFIG.completado;
+      const duracionMin = h.horaInicioReal && h.horaFinReal
+        ? Math.round((new Date(h.horaFinReal) - new Date(h.horaInicioReal)) / 60000)
+        : null;
+      const icono = h.estado === "completado" ? "check-circle" : 
+                    h.estado === "cancelado" ? "close-circle" : "clock-outline";
+      return (
+        <View key={i} style={styles.historialItem}>
+          <View style={[styles.historialEstado, { backgroundColor: cfg.bg }]}>
+            <MaterialCommunityIcons
+              name={icono}
+              size={16}
+              color={cfg.color}
+            />
           </View>
-        )}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.historialFecha}>
+              {new Date(h.fecha).toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" })}
+              {" · Ruta "}{h.numeroRuta}
+            </Text>
+            <Text style={styles.historialDetalle}>
+              {nombreTurno(h.nombreTurno)} · {h.placa}
+              {duracionMin ? ` · ${duracionMin} min` : ""}
+            </Text>
+          </View>
+          <View style={[styles.chip, { backgroundColor: cfg.bg }]}>
+            <Text style={[styles.chipTexto, { color: cfg.color }]}>{cfg.label}</Text>
+          </View>
+        </View>
+      );
+    })}
+  </View>
+)}
 
       </ScrollView>
     </View>

@@ -1,6 +1,29 @@
 import { supabase } from "./supabase";
 
 /**
+ * Obtiene TODOS los turnos de un conductor (para MisTurnos)
+ * @param {string} conductorId - UUID del conductor
+ */
+export async function getTurnosConductor(conductorId) {
+  try {
+    const { data, error } = await supabase.rpc('get_conductor_turnos', {
+      p_conductor_id: conductorId,
+    });
+    
+    if (error) {
+      console.error("RPC Error:", error);
+      return { success: false, error: error.message };
+    }
+    
+    const turnos = Array.isArray(data) ? data : [];
+    return { success: true, data: turnos };
+  } catch (err) {
+    console.error("Catch Error:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
  * Carga todos los datos del dashboard del conductor en paralelo.
  * @param {string} conductorId - UUID del conductor autenticado
  */

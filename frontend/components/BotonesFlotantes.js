@@ -4,11 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 const ACCIONES = [
   { key: 'bus', label: 'Registrar bus', icon: 'bus-outline' },
-<<<<<<< HEAD
-  { key: 'ruta', label: 'Crear Ruta', icon: 'location-outline' },
-=======
   { key: 'ruta', label: 'Registar ruta', icon: 'location-outline' },
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
   { key: 'conductor', label: 'Registrar conductor', icon: 'person-outline' },
 ];
 

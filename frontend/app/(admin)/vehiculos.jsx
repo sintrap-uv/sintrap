@@ -1,11 +1,3 @@
-<<<<<<< HEAD
-/**
- * vehiculos.jsx
- * Pantalla: Gestión de vehículos
- */
-
-=======
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
 import { useState, useEffect, useCallback } from "react";
 import {
   View, Text, FlatList, TouchableOpacity, Modal,
@@ -16,11 +8,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
-<<<<<<< HEAD
-import { getCurrentUser } from "../../services/auth";
 import Header from "../../components/Header";
-=======
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
 import theme from "../../constants/theme";
 import {
   verificarDependenciasVehiculo,
@@ -75,16 +63,11 @@ export default function VehiculosScreen() {
   const [vehiculoSeleccionadoReemplazo, setVehiculoSeleccionadoReemplazo] = useState(null);
   const [procesandoDesactivacion, setProcesandoDesactivacion] = useState(false);
 
-<<<<<<< HEAD
-  // Función para ir al perfil (cuando se presiona el engranaje)
   const handleGoToProfile = () => {
     router.push("/home?tab=perfil");
   };
 
-  // ── FETCH VEHÍCULOS ──────────────────────────────────────────────────────
-=======
   // ── FETCH VEHÍCULOS 
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
   const fetchVehiculos = useCallback(async () => {
     setGlobalError(null);
     try {
@@ -178,10 +161,7 @@ export default function VehiculosScreen() {
     (v.profiles?.nombre ?? "").toLowerCase().includes(busqueda.toLowerCase())
   );
 
-<<<<<<< HEAD
-=======
   // ── ABRIR EDICIÓN 
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
   function abrirEdicion(v) {
     setEditando(v);
     setFormActivo(v.activo ?? true);
@@ -200,10 +180,7 @@ export default function VehiculosScreen() {
     setEditando(null);
   }
 
-<<<<<<< HEAD
-=======
   // ── PICKERS DE FECHA 
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
   const onChangeInicio = (event, selectedDate) => {
     setShowPickerInicio(false);
     if (selectedDate) {
@@ -218,8 +195,6 @@ export default function VehiculosScreen() {
     }
   };
 
-<<<<<<< HEAD
-=======
   // ── VALIDACIÓN ANTES DE DESACTIVAR 
   async function validarDesactivacion(vehiculo) {
   try {
@@ -354,7 +329,6 @@ export default function VehiculosScreen() {
 }
   
   // ── UPDATE ───────────────────────────────────────────────────────────────
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
   async function handleGuardar() {
     if (!editando) return;
     
@@ -368,32 +342,6 @@ export default function VehiculosScreen() {
 
     setGuardando(true);
 
-<<<<<<< HEAD
-    const conductorSeleccionado = conductores.find((c) => c.id === formConductorId) ?? null;
-    const tipoSeleccionado = tiposVehiculo.find((t) => t.id === formTipoVehiculoId) ?? null;
-
-    const prev = vehiculos;
-    setVehiculos((list) =>
-      list.map((v) =>
-        v.id === editando.id
-          ? {
-              ...v,
-              activo: formActivo,
-              seguro: formSeguro,
-              conductor_id: formConductorId,
-              tipo_vehiculo_id: formTipoVehiculoId,
-              fecha_inicio: formSeguro ? formFechaInicio : null,
-              fecha_vencimiento: formSeguro ? formFechaVencimiento : null,
-              profiles: conductorSeleccionado,
-              tipo_vehiculo: tipoSeleccionado,
-            }
-          : v
-      )
-    );
-    cerrarEdicion();
-
-=======
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
     try {
       const { error } = await supabase
         .from("vehiculos")
@@ -420,84 +368,8 @@ export default function VehiculosScreen() {
     }
   }
 
-<<<<<<< HEAD
-  async function pedirConfirmacion(v) {
-    setParaEliminar(v);
-
-    try {
-      const { data: rutasAsignadas, error } = await supabase
-        .from("ruta_horarios")
-        .select("id, ruta_id, rutas(numero_ruta, nombre)")
-        .eq("vehiculo_id", v.id)
-        .eq("activo", true)
-        .limit(1);
-
-      if (error) throw error;
-
-      if (rutasAsignadas?.length > 0) {
-        setTieneDependencias("bloqueado");
-        setInfoDependencia({
-          ruta: `Ruta ${rutasAsignadas[0].rutas?.numero_ruta} - ${rutasAsignadas[0].rutas?.nombre}`
-        });
-      } else {
-        setTieneDependencias("ninguna");
-        setInfoDependencia(null);
-      }
-    } catch (err) {
-      setTieneDependencias("ninguna");
-      setInfoDependencia(null);
-    }
-
-    setConfirmVisible(true);
-  }
-
-  async function handleEliminar() {
-    if (!paraEliminar) return;
-    if (tieneDependencias === "bloqueado") {
-      setConfirmVisible(false);
-      return;
-    }
-
-    setEliminando(true);
-    const prev = vehiculos;
-    setVehiculos((list) => list.filter((v) => v.id !== paraEliminar.id));
-    setConfirmVisible(false);
-
-    try {
-      if (tieneDependencias === "historial") {
-        const { error } = await supabase
-          .from("vehiculos")
-          .update({ activo: false })
-          .eq("id", paraEliminar.id);
-        if (error) throw error;
-        setVehiculos((list) =>
-          list.map((v) =>
-            v.id === paraEliminar.id ? { ...v, activo: false } : v
-          )
-        );
-      } else {
-        const { error } = await supabase
-          .from("vehiculos")
-          .delete()
-          .eq("id", paraEliminar.id);
-        if (error) throw error;
-      }
-    } catch (err) {
-      setGlobalError(`Error: ${err.message}`);
-      setVehiculos(prev);
-    } finally {
-      setEliminando(false);
-      setParaEliminar(null);
-    }
-  }
-
-  function renderVehiculo({ item: v }) {
-    const nombreConductor = v.profiles?.nombre ?? "Sin conductor";
-    const tipoNombre = v.tipo_vehiculo?.nombre ?? "Sin tipo";
-=======
   // ── RENDER ───────────────────────────────────────────────────────────────
   if (loading) {
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
     return (
       <View style={s.centered}>
         <ActivityIndicator size="large" color={T.icon.active} />
@@ -506,31 +378,18 @@ export default function VehiculosScreen() {
     );
   }
 
-<<<<<<< HEAD
-  const conductorNombreSeleccionado = formConductorId
-    ? (conductores.find((c) => c.id === formConductorId)?.nombre ?? "Conductor")
-    : "Sin conductor asignado";
-
-  const tipoNombreSeleccionado = formTipoVehiculoId
-    ? (tiposVehiculo.find((t) => t.id === formTipoVehiculoId)?.nombre ?? "Tipo")
-    : "Seleccionar tipo";
-
   return (
     <View style={s.container}>
-      <Header
-        titulo="Vehículos"
-        subtitulo="Gestión de flota vehicular"
-        iconoDerecha={
-          <TouchableOpacity onPress={handleGoToProfile}>
-            <Ionicons name="settings-outline" size={36} color="#fff" />
-          </TouchableOpacity>
-        }
-      />
-
-=======
-  return (
-    <View style={s.container}>
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
+      {/* Agrega el Header aquí */}
+    <Header
+      titulo="Vehículos"
+      subtitulo="Gestión de flota vehicular"
+      iconoDerecha={
+        <TouchableOpacity onPress={handleGoToProfile}>
+          <Ionicons name="settings-outline" size={36} color="#fff" />
+        </TouchableOpacity>
+      }
+    />
       {/* Buscador */}
       <View style={s.searchWrap}>
         <Ionicons name="search-outline" size={18} color={T.icon.secondary} />
@@ -568,10 +427,6 @@ export default function VehiculosScreen() {
               </View>
             </View>
 
-<<<<<<< HEAD
-      {/* Modal — Editar Vehículo (resto igual, sin cambios) */}
-      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={cerrarEdicion}>
-=======
             <View style={s.cardInfo}>
               <View style={s.infoRow}>
                 <Ionicons name="person-outline" size={16} color={T.icon.secondary} />
@@ -606,7 +461,6 @@ export default function VehiculosScreen() {
 
       {/* MODAL EDICIÓN */}
       <Modal visible={modalVisible} animationType="slide" transparent>
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
         <View style={s.overlay}>
           <View style={s.modalBox}>
             <View style={s.modalHead}>
@@ -615,18 +469,6 @@ export default function VehiculosScreen() {
                 <Ionicons name="close" size={24} color={T.icon.secondary} />
               </TouchableOpacity>
             </View>
-<<<<<<< HEAD
-            <ScrollView style={s.modalBody}>
-              <Text style={s.fieldLabel}>Estado</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 8 }}>
-                <Text>Activo</Text>
-                <Switch value={formActivo} onValueChange={setFormActivo} />
-              </View>
-
-              <Text style={s.fieldLabel}>Seguro vigente</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 8 }}>
-                <Text>SOAT activo</Text>
-=======
 
             <ScrollView style={s.modalBody}>
               <Text style={s.fieldLabel}>Placa</Text>
@@ -643,40 +485,17 @@ export default function VehiculosScreen() {
               <Text style={s.fieldLabel}>Tiene SOAT vigente</Text>
               <View style={[s.inputRow, { justifyContent: "space-between" }]}>
                 <Text style={s.inputText}>{formSeguro ? "Sí" : "No"}</Text>
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
                 <Switch value={formSeguro} onValueChange={setFormSeguro} />
               </View>
 
               {formSeguro && (
                 <>
-<<<<<<< HEAD
-                  <Text style={s.fieldLabel}>Fecha inicio SOAT</Text>
-                  <TouchableOpacity style={s.inputRow} onPress={() => setShowPickerInicio(true)}>
-                    <Ionicons name="calendar-outline" size={20} color={T.text.secondary} style={s.inputIcon} />
-                    <Text style={s.inputText}>{formFechaInicio || "Seleccionar fecha"}</Text>
-                  </TouchableOpacity>
-
-                  {showPickerInicio && (
-                    <DateTimePicker
-                      value={formFechaInicio ? new Date(formFechaInicio) : new Date()}
-                      mode="date"
-                      display="default"
-                      onChange={onChangeInicio}
-                    />
-                  )}
-
-                  <Text style={s.fieldLabel}>Fecha vencimiento SOAT</Text>
-                  <TouchableOpacity style={s.inputRow} onPress={() => setShowPickerVencimiento(true)}>
-                    <Ionicons name="calendar-outline" size={20} color={T.text.secondary} style={s.inputIcon} />
-                    <Text style={s.inputText}>{formFechaVencimiento || "Seleccionar fecha"}</Text>
-=======
                   <Text style={s.fieldLabel}>Fecha vencimiento SOAT</Text>
                   <TouchableOpacity style={s.inputRow} onPress={() => setShowPickerVencimiento(true)}>
                     <Ionicons name="calendar-outline" size={20} color={T.icon.secondary} style={s.inputIcon} />
                     <Text style={s.inputText}>
                       {formFechaVencimiento || "Seleccionar fecha"}
                     </Text>
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
                   </TouchableOpacity>
 
                   {showPickerVencimiento && (
@@ -690,18 +509,6 @@ export default function VehiculosScreen() {
                 </>
               )}
 
-<<<<<<< HEAD
-              <Text style={s.fieldLabel}>Tipo de vehículo</Text>
-              <TouchableOpacity style={s.inputRow} onPress={() => setModalTipoVisible(true)}>
-                <Ionicons name="car-outline" size={20} color={T.text.secondary} style={s.inputIcon} />
-                <Text style={s.inputText}>{tipoNombreSeleccionado}</Text>
-              </TouchableOpacity>
-
-              <Text style={s.fieldLabel}>Conductor asignado</Text>
-              <TouchableOpacity style={s.inputRow} onPress={() => setModalConductorVisible(true)}>
-                <Ionicons name="person-outline" size={20} color={T.text.secondary} style={s.inputIcon} />
-                <Text style={s.inputText}>{conductorNombreSeleccionado}</Text>
-=======
               <Text style={s.fieldLabel}>Conductor</Text>
               <TouchableOpacity style={s.inputRow} onPress={() => setModalConductorVisible(true)}>
                 <Ionicons name="person-outline" size={20} color={T.icon.secondary} style={s.inputIcon} />
@@ -716,7 +523,6 @@ export default function VehiculosScreen() {
                 <Text style={s.inputText}>
                   {tiposVehiculo.find(t => t.id === formTipoVehiculoId)?.nombre || "Seleccionar tipo"}
                 </Text>
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
               </TouchableOpacity>
             </ScrollView>
 
@@ -725,33 +531,17 @@ export default function VehiculosScreen() {
                 <Text style={s.btnCancelText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.btnSave} onPress={handleGuardar} disabled={guardando}>
-<<<<<<< HEAD
-                {guardando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnSaveText}>Guardar</Text>}
-=======
                 {guardando ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <Text style={s.btnSaveText}>Guardar</Text>
                 )}
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-<<<<<<< HEAD
-      {/* Modal seleccionar conductor */}
-      <Modal visible={modalConductorVisible} transparent animationType="slide" onRequestClose={() => setModalConductorVisible(false)}>
-        <View style={s.overlay}>
-          <View style={s.modalBox}>
-            <View style={s.modalHead}>
-              <Text style={s.modalTitle}>Seleccionar conductor</Text>
-              <TouchableOpacity onPress={() => setModalConductorVisible(false)}>
-                <Ionicons name="close" size={24} color={T.text.secondary} />
-              </TouchableOpacity>
-            </View>
-=======
       {/* MODAL DESACTIVAR CON DEPENDENCIAS */}
       <Modal visible={modalDesactivarVisible} animationType="slide" transparent>
         <View style={s.overlay}>
@@ -865,7 +655,6 @@ export default function VehiculosScreen() {
                 <Ionicons name="close" size={24} color={T.icon.secondary} />
               </TouchableOpacity>
             </View>
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
             <ScrollView>
               {conductores.map((c) => (
                 <TouchableOpacity
@@ -876,18 +665,12 @@ export default function VehiculosScreen() {
                     setModalConductorVisible(false);
                   }}
                 >
-<<<<<<< HEAD
-                  <Ionicons name="person-outline" size={20} color={T.text.secondary} />
-                  <Text style={s.modalItemText}>{c.nombre}</Text>
-                  {formConductorId === c.id && <Ionicons name="checkmark" size={20} color="#22C55E" />}
-=======
                   <Ionicons
                     name={formConductorId === c.id ? "radio-button-on" : "radio-button-off"}
                     size={22}
                     color={formConductorId === c.id ? T.icon.active : T.icon.secondary}
                   />
                   <Text style={s.modalItemText}>{c.nombre}</Text>
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -895,21 +678,12 @@ export default function VehiculosScreen() {
         </View>
       </Modal>
 
-<<<<<<< HEAD
-      {/* Modal seleccionar tipo vehículo */}
-      <Modal visible={modalTipoVisible} transparent animationType="slide" onRequestClose={() => setModalTipoVisible(false)}>
-        <View style={s.overlay}>
-          <View style={s.modalBox}>
-            <View style={s.modalHead}>
-              <Text style={s.modalTitle}>Seleccionar tipo</Text>
-=======
       {/* MODAL SELECCIONAR TIPO */}
       <Modal visible={modalTipoVisible} animationType="slide" transparent>
         <View style={s.overlay}>
           <View style={s.modalBox}>
             <View style={s.modalHead}>
               <Text style={s.modalTitle}>Seleccionar tipo de vehículo</Text>
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
               <TouchableOpacity onPress={() => setModalTipoVisible(false)}>
                 <Ionicons name="close" size={24} color={T.icon.secondary} />
               </TouchableOpacity>
@@ -924,11 +698,6 @@ export default function VehiculosScreen() {
                     setModalTipoVisible(false);
                   }}
                 >
-<<<<<<< HEAD
-                  <Ionicons name="bus-outline" size={20} color={T.text.secondary} />
-                  <Text style={s.modalItemText}>{t.nombre}</Text>
-                  {formTipoVehiculoId === t.id && <Ionicons name="checkmark" size={20} color="#22C55E" />}
-=======
                   <Ionicons
                     name={formTipoVehiculoId === t.id ? "radio-button-on" : "radio-button-off"}
                     size={22}
@@ -938,62 +707,12 @@ export default function VehiculosScreen() {
                     <Text style={s.modalItemText}>{t.nombre}</Text>
                     {t.descripcion && <Text style={s.fieldHint}>{t.descripcion}</Text>}
                   </View>
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
         </View>
       </Modal>
-<<<<<<< HEAD
-
-      {/* Modal confirmación borrado */}
-      <Modal visible={confirmVisible} transparent animationType="fade" onRequestClose={() => setConfirmVisible(false)}>
-        <View style={s.overlay}>
-          <View style={[s.modalBox, { maxHeight: "70%", margin: 20, borderRadius: 24 }]}>
-            <View style={s.confirmBody}>
-              <View style={[s.confirmIconCircle, { backgroundColor: "#FEE2E2" }]}>
-                <Ionicons name="trash-outline" size={36} color="#EF4444" />
-              </View>
-              <Text style={s.confirmTitle}>Eliminar vehículo</Text>
-              <Text style={s.confirmSubtext}>
-                ¿Estás seguro de eliminar este vehículo? Esta acción no se puede deshacer.
-              </Text>
-
-              {tieneDependencias === "bloqueado" && infoDependencia && (
-                <View style={s.confirmCard}>
-                  <Text style={[s.confirmRowLabel, { textAlign: "center", marginTop: 8 }]}>
-                    No se puede eliminar este vehículo porque está asignado a:
-                  </Text>
-                  <View style={s.confirmRow}>
-                    <Text style={s.confirmRowLabel}>📋 {infoDependencia.ruta}</Text>
-                  </View>
-                  <Text style={[s.confirmRowLabel, { textAlign: "center", marginBottom: 8 }]}>
-                    Desasigna la ruta antes de continuar.
-                  </Text>
-                </View>
-              )}
-
-              <View style={{ flexDirection: "row", gap: 12, marginTop: 16, width: "100%" }}>
-                <TouchableOpacity style={[s.btnCancel, { flex: 1 }]} onPress={() => setConfirmVisible(false)}>
-                  <Text style={s.btnCancelText}>Cancelar</Text>
-                </TouchableOpacity>
-                {tieneDependencias !== "bloqueado" && (
-                  <TouchableOpacity
-                    style={[s.btnSave, { flex: 1, backgroundColor: "#EF4444" }]}
-                    onPress={handleEliminar}
-                    disabled={eliminando}
-                  >
-                    {eliminando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnSaveText}>Eliminar</Text>}
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
-=======
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
     </View>
   );
 }
@@ -1001,10 +720,6 @@ export default function VehiculosScreen() {
 // Estilos
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: T.background },
-<<<<<<< HEAD
-
-=======
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
   searchWrap: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: T.input.background,
@@ -1013,12 +728,7 @@ const s = StyleSheet.create({
     marginHorizontal: 16, marginTop: 16, marginBottom: 8,
     paddingHorizontal: 14, paddingVertical: 10,
   },
-<<<<<<< HEAD
-  searchInput: { flex: 1, fontSize: 14, color: T.input.text },
-
-=======
   searchInput: { flex: 1, fontSize: 14, color: T.input.text, marginLeft: 8 },
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
   errorBanner: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: "rgba(239,68,68,0.08)",
@@ -1026,18 +736,9 @@ const s = StyleSheet.create({
     marginHorizontal: 16, marginBottom: 8, borderRadius: 12, padding: 12, gap: 8,
   },
   errorText: { color: T.icon.error, fontSize: 13, flex: 1 },
-<<<<<<< HEAD
-
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  loadingText: { color: T.text.secondary, fontSize: 14 },
-
-  list: { paddingHorizontal: 16, paddingBottom: 32, gap: 12, paddingTop: 8 },
-
-=======
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   loadingText: { color: T.text.secondary, fontSize: 14 },
   list: { paddingHorizontal: 16, paddingBottom: 32, gap: 12, paddingTop: 8 },
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
   card: {
     backgroundColor: T.cards.background,
     borderRadius: T.cards.borderRadius,
@@ -1056,10 +757,6 @@ const s = StyleSheet.create({
   cardInfo: { gap: 8 },
   infoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   infoValue: { fontSize: 13, color: T.text.secondary, fontWeight: "500" },
-<<<<<<< HEAD
-
-=======
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   modalBox: {
     backgroundColor: "#fff",
@@ -1078,10 +775,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 14,
     borderTopWidth: 1, borderTopColor: T.cards.border,
   },
-<<<<<<< HEAD
-
-=======
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
   fieldLabel: { fontSize: 13, fontWeight: "600", color: T.text.secondary, marginBottom: 6, marginTop: 14 },
   fieldHint: { fontSize: 11, color: T.text.tertiary, marginTop: 3 },
   inputRow: {
@@ -1091,10 +784,6 @@ const s = StyleSheet.create({
   },
   inputIcon: { marginRight: 10 },
   inputText: { flex: 1, fontSize: 15, color: T.text.primary },
-<<<<<<< HEAD
-
-=======
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
   modalItem: {
     flexDirection: "row", alignItems: "center", gap: 12,
     paddingVertical: 14, paddingHorizontal: 20,
@@ -1102,10 +791,6 @@ const s = StyleSheet.create({
   },
   modalItemSelected: { backgroundColor: "#F0FDF4" },
   modalItemText: { flex: 1, fontSize: 15, color: T.text.primary },
-<<<<<<< HEAD
-
-=======
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
   btnCancel: {
     flex: 1, borderWidth: 1, borderColor: T.cards.border,
     borderRadius: T.Button.secondary.borderRadius,
@@ -1119,10 +804,6 @@ const s = StyleSheet.create({
     paddingVertical: 13, alignItems: "center",
   },
   btnSaveText: { color: "#fff", fontWeight: "800", fontSize: 14 },
-<<<<<<< HEAD
-
-=======
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
   confirmBody: { alignItems: "center", padding: 20, gap: 12 },
   confirmIconCircle: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
   confirmTitle: { fontSize: 16, fontWeight: "800", textAlign: "center", color: T.text.primary },

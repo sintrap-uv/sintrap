@@ -39,10 +39,6 @@ export default function EstadisticasScreen() {
   const params = useLocalSearchParams();
   const returnTo = params.returnTo;
   const vieneDelPerfil = returnTo === "perfil";
-<<<<<<< HEAD
-  const insets = useSafeAreaInsets();
-=======
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
   const [periodo, setPeriodo] = useState("mes");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -138,20 +134,6 @@ export default function EstadisticasScreen() {
         subtitulo="Reportes y análisis del sistema"
         showBack={vieneDelPerfil}
         onBack={handleBack}
-<<<<<<< HEAD
-        iconoDerecha={!vieneDelPerfil ? (
-          <TouchableOpacity onPress={handleGoToProfile}>
-            <Ionicons name="settings-outline" size={36} color="#fff" />
-          </TouchableOpacity>
-        ) : null}
-      />
-
-      <ScrollView
-        style={[
-          styles.container,
-          { backgroundColor: T.background },
-        ]}
-=======
         iconoDerecha={
           !vieneDelPerfil ? (
             <TouchableOpacity onPress={handleGoToProfile}>
@@ -163,7 +145,6 @@ export default function EstadisticasScreen() {
 
       <ScrollView
         style={[styles.container, { backgroundColor: T.background }]}
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerContent}>
@@ -192,19 +173,11 @@ export default function EstadisticasScreen() {
           cargando={cargando}
         />
         <GraficaRutasEstado datos={rutasEstado} cargando={cargando} />
-<<<<<<< HEAD
-        <GraficaReportesTipo datos={reportesTipo} cargando={cargando} />
-=======
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
         <GraficaDistribucionTurnos
           datos={distribucionTurnos}
           cargando={cargando}
         />
         <GraficaOcupacionRutas datos={ocupacionRutas} cargando={cargando} />
-<<<<<<< HEAD
-        <GraficaTendenciaReportes datos={tendenciaReportes} cargando={cargando} />
-=======
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
         <GraficaEstadoVehiculos datos={estadoVehiculos} cargando={cargando} />
       </ScrollView>
     </View>
@@ -223,9 +196,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
-<<<<<<< HEAD
-});
-=======
 });
 
->>>>>>> e75f8cdf54b5bbeb49a28a21f0e063034484be63
