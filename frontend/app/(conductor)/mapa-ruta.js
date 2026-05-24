@@ -239,13 +239,6 @@ export default function MapaRutaConductor() {
           <Ionicons name="map-outline" size={56} color="#D1D5DB" />
           <Text style={s.errorTitulo}>Sin ruta disponible</Text>
           <Text style={s.textoSecundario}>{error}</Text>
-          <TouchableOpacity
-            style={s.btnVolver}
-            onPress={() => routerNav.back()}
-            activeOpacity={0.8}
-          >
-            <Text style={s.btnVolverTexto}>Volver</Text>
-          </TouchableOpacity>
         </View>
       </View>
     );

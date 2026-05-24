@@ -7,6 +7,8 @@ import { supabase } from "./supabase";
 export async function getDashboardConductor(conductorId) {
   try {
     const hoy = new Date().toLocaleDateString("en-CA");
+    //console.log("Buscando turno para conductor:", conductorId);
+    //console.log("Fecha de hoy:", hoy);
 
     // ── Turno de hoy + vehículo ─────────────────────────────────────
     const { data: turno, error: eTurno } = await supabase

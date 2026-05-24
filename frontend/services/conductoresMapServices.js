@@ -45,7 +45,7 @@ export async function UbicacionUsuarioActualizada(userId, direccion, latitud, lo
                 direccion: direccion,
                 latitud: latitud,
                 longitud: longitud,
-                updated_at: new Date().toISOString(), // ✅ Agrega esto
+                updated_at: new Date().toISOString(),
                 fecha: new Date().toISOString(),
             },
             { onConflict: 'usuario_id' }
