@@ -6,7 +6,7 @@ import { supabase } from "./supabase";
  */
 export async function getDashboardConductor(conductorId) {
   try {
-    const hoy = new Date().toISOString().split("T")[0];
+    const hoy = new Date().toLocaleDateString("en-CA");
 
     // ── Turno de hoy + vehículo ─────────────────────────────────────
     const { data: turno, error: eTurno } = await supabase
@@ -43,6 +43,16 @@ export async function getDashboardConductor(conductorId) {
 
     const rutaId = rutaHorario?.ruta_id;
 
+    // ── Trayecto como WKT via RPC ───────────────────────────────────
+    // Supabase no puede serializar columnas geometry directamente,
+    // por eso usamos la función get_trayecto_wkt creada en Supabase.
+    let trayectoWKT = null;
+    if (rutaId) {
+      const { data: trayectoData, error: eTrayecto } = await supabase
+        .rpc("get_trayecto_wkt", { p_ruta_id: rutaId });
+      if (!eTrayecto) trayectoWKT = trayectoData;
+    }
+
     // ── Carga en paralelo ───────────────────────────────────────────
     const [
       { data: paradasData },
@@ -51,11 +61,11 @@ export async function getDashboardConductor(conductorId) {
       { data: reportesPendientes },
     ] = await Promise.all([
 
-      // Paradas de la ruta
+      // Paradas de la ruta con coordenadas
       rutaId
         ? supabase
             .from("ruta_paradas")
-            .select("orden, tiempo_desde_inicio, paradas ( id, nombre )")
+            .select("orden, tiempo_desde_inicio, paradas ( id, nombre, latitud, longitud )")
             .eq("ruta_id", rutaId)
             .order("orden")
         : Promise.resolve({ data: [] }),
@@ -73,7 +83,7 @@ export async function getDashboardConductor(conductorId) {
       supabase
         .from("turnos")
         .select(`
-          fecha, estado, hora_inicio_real, hora_fin_real,
+          fecha, estado, hora_inicio, hora_fin,
           vehiculo_id,
           vehiculo:vehiculos ( placa )
         `)
@@ -82,7 +92,7 @@ export async function getDashboardConductor(conductorId) {
         .order("fecha", { ascending: false })
         .limit(4),
 
-      // Reportes pendientes que involucran al conductor
+      // Reportes pendientes
       supabase
         .from("reportes")
         .select("id, tipo, descripcion, estado, fecha")
@@ -103,15 +113,15 @@ export async function getDashboardConductor(conductorId) {
           .maybeSingle();
 
         return {
-          fecha: h.fecha,
-          estado: h.estado,
-          nombreTurno: rutaHistorial?.nombre_turno,
-          horaInicio: rutaHistorial?.hora_inicio,
-          horaFin: rutaHistorial?.hora_fin,
-          numeroRuta: rutaHistorial?.rutas?.numero_ruta,
-          placa: h.vehiculo?.placa,
+          fecha:          h.fecha,
+          estado:         h.estado,
+          nombreTurno:    rutaHistorial?.nombre_turno,
+          horaInicio:     rutaHistorial?.hora_inicio,
+          horaFin:        rutaHistorial?.hora_fin,
+          numeroRuta:     rutaHistorial?.rutas?.numero_ruta,
+          placa:          h.vehiculo?.placa,
           horaInicioReal: h.hora_inicio_real,
-          horaFinReal: h.hora_fin_real,
+          horaFinReal:    h.hora_fin_real,
         };
       })
     );
@@ -123,16 +133,18 @@ export async function getDashboardConductor(conductorId) {
       usuariosPorParada[pid] = (usuariosPorParada[pid] ?? 0) + 1;
     });
 
-    // ── Paradas enriquecidas con conteo ─────────────────────────────
+    // ── Paradas enriquecidas con conteo y coordenadas ───────────────
     const paradas = (paradasData ?? []).map((rp) => ({
-      id:              rp.paradas.id,
-      nombre:          rp.paradas.nombre,
-      orden:           rp.orden,
-      eta:             rp.tiempo_desde_inicio,
-      usuariosSuben:   usuariosPorParada[rp.paradas.id] ?? 0,
+      id:            rp.paradas.id,
+      nombre:        rp.paradas.nombre,
+      latitud:       rp.paradas.latitud,
+      longitud:      rp.paradas.longitud,
+      orden:         rp.orden,
+      eta:           rp.tiempo_desde_inicio,
+      usuariosSuben: usuariosPorParada[rp.paradas.id] ?? 0,
     }));
 
-    const ruta = rutaHorario?.rutas;
+    const ruta     = rutaHorario?.rutas;
     const vehiculo = turno.vehiculos;
     const totalPasajeros = Object.values(usuariosPorParada).reduce((a, b) => a + b, 0);
 
@@ -155,19 +167,20 @@ export async function getDashboardConductor(conductorId) {
               numeroRuta: ruta.numero_ruta,
               nombre:     ruta.nombre,
               color:      ruta.color,
+              trayecto:   trayectoWKT, // ← WKT desde RPC: "LINESTRING(lon lat, ...)"
             }
           : null,
         vehiculo: vehiculo
           ? {
-              id:       vehiculo.id,
-              placa:    vehiculo.placa,
+              id:        vehiculo.id,
+              placa:     vehiculo.placa,
               capacidad: vehiculo.tipo_vehiculo?.capacidad_max ?? 0,
-              tipo:     vehiculo.tipo_vehiculo?.nombre ?? "Buseta",
+              tipo:      vehiculo.tipo_vehiculo?.nombre ?? "Buseta",
             }
           : null,
         paradas,
         totalPasajeros,
-        historial: historialConRutas,
+        historial:          historialConRutas,
         reportesPendientes: reportesPendientes ?? [],
       },
     };
