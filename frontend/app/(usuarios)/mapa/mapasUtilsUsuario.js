@@ -1,8 +1,49 @@
 /**
+ * Calcula la parada más cercana a la posición del usuario.
+ * Usa la fórmula de Haversine para distancia entre coordenadas.
+ */
+export const calcularParadaMasCercana = (ubicacionUsuario, paradas) => {
+  if (!ubicacionUsuario || !paradas || paradas.length === 0) return null;
+
+  const haversine = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  let paradaMasCercana = null;
+  let distanciaMinima = Infinity;
+
+  paradas.forEach((parada) => {
+    if (parada.paradas?.latitud && parada.paradas?.longitud) {
+      const distancia = haversine(
+        ubicacionUsuario.latitud,
+        ubicacionUsuario.longitud,
+        parada.paradas.latitud,
+        parada.paradas.longitud,
+      );
+      if (distancia < distanciaMinima) {
+        distanciaMinima = distancia;
+        paradaMasCercana = {
+          ...parada,
+          distancia: Math.round(distancia * 1000),
+        };
+      }
+    }
+  });
+
+  return paradaMasCercana;
+};
+
+/**
  * Genera el HTML de Leaflet para visualizar la ruta asignada del usuario.
- * Incluye: trayecto, paradas, origen/destino, posición del bus y usuario.
- *
- * NUEVO: Ahora usa OSRM para calcular trayecto que sigue las calles
  */
 export const generarHtmlMapaRutaUsuario = ({
   rutaTrayecto,
@@ -11,36 +52,38 @@ export const generarHtmlMapaRutaUsuario = ({
   paradaDestino,
   ubicacionUsuario,
   ubicacionBus,
-  colorRuta = "#22C55E",
+  paradaMasCercana,
+  colorRuta = "#3B82F6",
 }) => {
-  const paradasJS = paradas.map((p) => generarJSMarcadorParada(p)).join("\n");
+  const paradasJS = paradas
+    .map((p) =>
+      generarJSMarcadorParada(
+        p,
+        paradaMasCercana?.paradas?.id === p.paradas?.id,
+      ),
+    )
+    .join("\n");
 
   const origenJS = paradaOrigen ? generarJSMarcadorOrigen(paradaOrigen) : "";
-
   const destinoJS = paradaDestino
     ? generarJSMarcadorDestino(paradaDestino)
     : "";
-
   const busJS = ubicacionBus ? generarJSMarcadorBus(ubicacionBus) : "";
-
   const usuarioJS = ubicacionUsuario
     ? generarJSMarcadorUsuario(ubicacionUsuario)
     : "";
 
-  // Centro inicial: preferentemente en parada origen, luego en Tuluá
   const centroLat = paradaOrigen?.latitud ?? 4.0863;
   const centroLon = paradaOrigen?.longitud ?? -76.195;
   const zoomInicial = 14;
 
-  // Convertir paradas a coordenadas para OSRM
   const coordenadasParadas = paradas
     .sort((a, b) => a.orden - b.orden)
-    .map((p) => ({
-      lat: p.paradas.latitud,
-      lon: p.paradas.longitud,
-    }));
+    .filter((p) => p.paradas?.latitud && p.paradas?.longitud)
+    .map((p) => ({ lat: p.paradas.latitud, lon: p.paradas.longitud }));
 
   const coordenadasParadasJS = JSON.stringify(coordenadasParadas);
+  const paradaMasCercanaJS = JSON.stringify(paradaMasCercana);
 
   return `
 <!DOCTYPE html>
@@ -52,334 +95,293 @@ export const generarHtmlMapaRutaUsuario = ({
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
     <style>
         html, body, #map {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
+            width: 100%; height: 100%;
+            margin: 0; padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
+
+        /* Pulso para parada más cercana */
+        @keyframes pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(245,158,11,0.7); }
+            70%  { box-shadow: 0 0 0 10px rgba(245,158,11,0); }
+            100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+        }
+        .pulse-marker { animation: pulse 2s infinite; border-radius: 50%; }
+
+        /* Pulso para ubicación del usuario */
+        @keyframes pulseUser {
+            0%   { box-shadow: 0 0 0 0 rgba(139,92,246,0.6); }
+            70%  { box-shadow: 0 0 0 12px rgba(139,92,246,0); }
+            100% { box-shadow: 0 0 0 0 rgba(139,92,246,0); }
+        }
+        .pulse-user { animation: pulseUser 2s infinite; border-radius: 50%; }
+
         .leaflet-popup-content-wrapper {
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            border: none;
         }
         .leaflet-popup-content {
+            margin: 10px 14px;
             font-size: 12px;
-            margin: 0;
         }
         .popup-titulo {
-            font-weight: bold;
-            color: #1F2937;
-            margin-bottom: 4px;
+            font-weight: 700;
+            color: #111827;
+            font-size: 13px;
+            margin-bottom: 5px;
         }
         .popup-dato {
             color: #6B7280;
             font-size: 11px;
+            margin: 2px 0;
+            line-height: 1.5;
         }
+        .popup-badge {
+            display: inline-block;
+            border-radius: 6px;
+            padding: 2px 7px;
+            font-size: 10px;
+            font-weight: 700;
+            margin-top: 5px;
+        }
+        .popup-badge-near    { background: #FEF3C7; color: #92400E; }
+        .popup-badge-origen  { background: #DCFCE7; color: #15803D; }
+        .popup-badge-destino { background: #FEE2E2; color: #B91C1C; }
+        .popup-badge-bus     { background: #FEF3C7; color: #92400E; }
+        .leaflet-popup-tip   { background: white; }
     </style>
 </head>
 <body>
 <div id="map"></div>
 <script>
-    var map = L.map('map').setView([${centroLat}, ${centroLon}], ${zoomInicial});
+    var map = L.map('map', { zoomControl: false }).setView([${centroLat}, ${centroLon}], ${zoomInicial});
 
-    // Capa base: OpenStreetMap
+    // Control de zoom en esquina inferior derecha
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19,
-        minZoom: 12
+        minZoom: 11
     }).addTo(map);
 
-    // Grupo de capas para actualizar fácilmente
-    var capasActualizables = {
-        bus: null,
-        usuario: null,
-        trayecto: null
-    };
+    var capasActualizables = { bus: null, usuario: null, trayecto: null };
+    var paradasOrdenadas   = ${coordenadasParadasJS};
+    var paradaMasCercana   = ${paradaMasCercanaJS};
 
-    // Coordenadas de las paradas en orden
-    var paradasOrdenadas = ${coordenadasParadasJS};
-
-    // FUNCIÓN: Dibujar ruta siguiendo calles usando OSRM
+    // ── Trazado OSRM ──────────────────────────────────────────────────────
     function dibujarRutaOSRM() {
-        if (paradasOrdenadas.length < 2) {
-            console.warn('Se necesitan al menos 2 paradas para dibujar ruta');
-            return;
-        }
+        if (paradasOrdenadas.length < 2) return;
 
-        // Construir URL de OSRM con todas las paradas
         var coordsString = paradasOrdenadas
             .map(function(p) { return p.lon + ',' + p.lat; })
             .join(';');
 
-        var urlOSRM = 'https://router.project-osrm.org/route/v1/driving/' + 
-                      coordsString + 
-                      '?geometries=geojson&overview=full';
-
-        fetch(urlOSRM)
-            .then(function(response) { return response.json(); })
+        fetch('https://router.project-osrm.org/route/v1/driving/' + coordsString + '?geometries=geojson&overview=full')
+            .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.routes && data.routes.length > 0) {
-                    var rutaCompleta = data.routes[0].geometry.coordinates;
-                    
-                    // Convertir [lon, lat] a [lat, lon] para Leaflet
-                    var coordsLeaflet = rutaCompleta.map(function(p) {
+                    var coords = data.routes[0].geometry.coordinates.map(function(p) {
                         return [p[1], p[0]];
                     });
-
-                    // Dibujar polyline siguiendo las calles
-                    capasActualizables.trayecto = L.polyline(coordsLeaflet, {
+                    // Sombra de la ruta
+                    L.polyline(coords, { color: 'rgba(0,0,0,0.12)', weight: 8, opacity: 1 }).addTo(map);
+                    // Línea principal
+                    capasActualizables.trayecto = L.polyline(coords, {
                         color: '${colorRuta}',
-                        weight: 4,
-                        opacity: 0.8,
-                        dashArray: 'none'
+                        weight: 5,
+                        opacity: 0.9,
                     }).addTo(map);
-
-                    // Ajustar vista del mapa para que se vea toda la ruta
                     map.fitBounds(capasActualizables.trayecto.getBounds(), {
-                        padding: [50, 50],
-                        maxZoom: ${zoomInicial}
+                        padding: [60, 60],
+                        maxZoom: 16
                     });
-
-                    console.log('Ruta dibujada correctamente siguiendo calles');
                 } else {
-                    console.error('OSRM no pudo calcular la ruta');
                     dibujarRutaDirecta();
                 }
             })
-            .catch(function(error) {
-                console.error('Error llamando a OSRM:', error);
-                dibujarRutaDirecta();
-            });
+            .catch(function() { dibujarRutaDirecta(); });
     }
 
-    // Fallback: dibujar línea recta si OSRM falla
     function dibujarRutaDirecta() {
         if (paradasOrdenadas.length < 2) return;
-
-        var coordsLeaflet = paradasOrdenadas.map(function(p) {
-            return [p.lat, p.lon];
-        });
-
-        capasActualizables.trayecto = L.polyline(coordsLeaflet, {
-            color: '${colorRuta}',
-            weight: 4,
-            opacity: 0.6,
-            dashArray: '5, 5'
-        }).addTo(map);
-
-        console.log('Ruta dibujada como línea directa (OSRM no disponible)');
+        capasActualizables.trayecto = L.polyline(
+            paradasOrdenadas.map(function(p) { return [p.lat, p.lon]; }),
+            { color: '${colorRuta}', weight: 4, opacity: 0.6, dashArray: '8,6' }
+        ).addTo(map);
     }
 
-    // Agregar paradas
+    // ── Marcadores ────────────────────────────────────────────────────────
     ${paradasJS}
-
-    // Agregar origen y destino
     ${origenJS}
     ${destinoJS}
-
-    // Agregar posiciones
     ${busJS}
     ${usuarioJS}
 
-    // Dibujar trayecto DESPUÉS de agregar marcadores
     dibujarRutaOSRM();
 
-    // Listener para mensajes desde React Native
-    window.addEventListener('message', function(event) {
+    // ── Mensajes desde React Native ───────────────────────────────────────
+    function manejarMensaje(event) {
         try {
             var datos = JSON.parse(event.data);
 
             if (datos.tipo === 'actualizarUbicacionBus') {
-                if (capasActualizables.bus) {
-                    map.removeLayer(capasActualizables.bus);
-                }
+                if (capasActualizables.bus) map.removeLayer(capasActualizables.bus);
                 capasActualizables.bus = L.marker([datos.latitud, datos.longitud], {
-                    icon: crearIconoBus(),
+                    icon: iconBus(),
                     zIndexOffset: 1000
-                }).bindPopup(crearPopupBus(datos)).addTo(map);
-
-                if (datos.centrar) {
-                    map.setView([datos.latitud, datos.longitud], ${zoomInicial});
-                }
+                }).bindPopup(popupBus(datos)).addTo(map);
+                if (datos.centrar) map.flyTo([datos.latitud, datos.longitud], 16, { duration: 1 });
             }
 
             if (datos.tipo === 'actualizarUbicacionUsuario') {
-                if (capasActualizables.usuario) {
-                    map.removeLayer(capasActualizables.usuario);
-                }
+                if (capasActualizables.usuario) map.removeLayer(capasActualizables.usuario);
                 capasActualizables.usuario = L.marker([datos.latitud, datos.longitud], {
-                    icon: crearIconoUsuario()
+                    icon: iconUsuario()
                 }).bindPopup('<div class="popup-titulo">Tu ubicación</div>').addTo(map);
             }
-        } catch(e) {
-            console.error('Error parseando mensaje:', e);
-        }
-    });
 
-    // Funciones auxiliares
-    function crearIconoBus() {
+            if (datos.tipo === 'centrarMapa') {
+                map.flyTo([datos.lat, datos.lon], 17, { duration: 1.2 });
+            }
+        } catch(e) {}
+    }
+
+    window.addEventListener('message', manejarMensaje);
+    document.addEventListener('message', manejarMensaje);
+
+    // ── Iconos ────────────────────────────────────────────────────────────
+    function iconBus() {
         return L.divIcon({
             className: '',
-            html: '<div style="background:#F59E0B;border:3px solid white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;color:white;box-shadow:0 2px 6px rgba(0,0,0,0.3);">🚌</div>',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-            popupAnchor: [0, -10]
+            html: '<div style="width:36px;height:36px;background:#F59E0B;border-radius:50%;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 8px rgba(245,158,11,0.5);">🚌</div>',
+            iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -20]
         });
     }
-
-    function crearIconoUsuario() {
+    function iconUsuario() {
         return L.divIcon({
-            className: '',
-            html: '<div style="background:#8B5CF6;border:3px solid white;border-radius:50%;width:16px;height:16px;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>',
-            iconSize: [16, 16],
-            iconAnchor: [8, 8],
-            popupAnchor: [0, -8]
+            className: 'pulse-user',
+            html: '<div style="width:18px;height:18px;background:#8B5CF6;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(139,92,246,0.5);"></div>',
+            iconSize: [18, 18], iconAnchor: [9, 9], popupAnchor: [0, -10]
         });
     }
-
-    function crearPopupBus(datos) {
-        var tiempoActual = new Date(datos.updated_at).toLocaleTimeString('es-CO', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        return '<div class="popup-titulo">Posición actual del bus</div>' +
-               '<div class="popup-dato">Velocidad: ' + (datos.velocidad || '0') + ' km/h</div>' +
-               '<div class="popup-dato">Actualizado: ' + tiempoActual + '</div>';
+    function popupBus(datos) {
+        var t = datos.updated_at
+            ? new Date(datos.updated_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+            : '--:--';
+        return '<div class="popup-titulo">Bus en ruta</div>' +
+               '<div class="popup-dato">Velocidad: <strong>' + (datos.velocidad || 0) + ' km/h</strong></div>' +
+               '<div class="popup-dato">Actualizado: ' + t + '</div>' +
+               '<span class="popup-badge popup-badge-bus">EN LÍNEA</span>';
     }
 
-    console.log('Mapa de ruta del usuario cargado correctamente');
+    console.log('Mapa cargado');
 <\/script>
 </body>
 </html>
   `;
 };
 
-/**
- * Genera marcador para una parada intermedia.
- */
-function generarJSMarcadorParada(parada) {
-  if (
-    !parada?.paradas ||
-    parada.paradas.latitud == null ||
-    parada.paradas.longitud == null
-  ) {
-    return "";
-  }
+// ── Marcadores ────────────────────────────────────────────────────────────────
+
+function generarJSMarcadorParada(parada, esMasCercana = false) {
+  if (!parada?.paradas?.latitud || !parada?.paradas?.longitud) return "";
 
   const { latitud, longitud, nombre, descripcion } = parada.paradas;
   const orden = parada.orden;
 
-  const popupContent = `
-    <div class="popup-titulo">Parada ${orden}: ${nombre}</div>
+  const color = esMasCercana ? "#F59E0B" : "#3B82F6";
+  const size = esMasCercana ? 20 : 14;
+  const clase = esMasCercana ? "pulse-marker" : "";
+  const badge = esMasCercana
+    ? '<span class="popup-badge popup-badge-near">Estás cerca</span>'
+    : "";
+
+  const popup = `
+    <div class="popup-titulo">P${orden}: ${nombre}</div>
     ${descripcion ? '<div class="popup-dato">' + descripcion + "</div>" : ""}
-    ${parada.tiempo_desde_inicio ? '<div class="popup-dato">Tiempo desde inicio: ' + parada.tiempo_desde_inicio + " min</div>" : ""}
+    ${parada.tiempo_desde_inicio != null ? '<div class="popup-dato">' + parada.tiempo_desde_inicio + " min desde inicio</div>" : ""}
+    ${badge}
   `;
 
   return `
     L.marker([${latitud}, ${longitud}], {
         icon: L.divIcon({
-            className: '',
-            html: '<div style="background:#3B82F6;border:2px solid white;border-radius:50%;width:14px;height:14px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:white;">${orden}</div>',
-            iconSize: [14, 14],
-            iconAnchor: [7, 7],
-            popupAnchor: [0, -7]
+            className: '${clase}',
+            html: '<div style="width:${size}px;height:${size}px;background:${color};border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${size <= 14 ? 8 : 10}px;font-weight:700;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.25);">${orden}</div>',
+            iconSize: [${size}, ${size}],
+            iconAnchor: [${size / 2}, ${size / 2}],
+            popupAnchor: [0, -${size / 2 + 2}]
         })
-    }).bindPopup(\`${popupContent}\`).addTo(map);
+    }).bindPopup(\`${popup}\`).addTo(map);
   `;
 }
 
-/**
- * Genera marcador para parada de origen (punto de subida).
- */
 function generarJSMarcadorOrigen(parada) {
   if (!parada?.latitud || !parada?.longitud) return "";
-
   const { latitud, longitud, nombre } = parada;
-
   return `
     L.marker([${latitud}, ${longitud}], {
         icon: L.divIcon({
             className: '',
-            html: '<div style="background:#22C55E;border:3px solid white;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-weight:bold;color:white;font-size:12px;box-shadow:0 2px 8px rgba(34,197,94,0.4);">↑</div>',
-            iconSize: [18, 18],
-            iconAnchor: [9, 9],
-            popupAnchor: [0, -9]
+            html: '<div style="width:24px;height:24px;background:#22C55E;border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(34,197,94,0.5);"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="12" y2="8"/><line x1="16" y1="12" x2="12" y2="8"/></svg></div>',
+            iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -14]
         }),
-        zIndexOffset: 500
-    }).bindPopup('<div class="popup-titulo">Tu parada de origen</div><div class="popup-dato">${nombre}</div>').openPopup().addTo(map);
+        zIndexOffset: 600
+    }).bindPopup('<div class="popup-titulo">Tu parada de origen</div><div class="popup-dato">${nombre}</div><span class="popup-badge popup-badge-origen">ORIGEN</span>').openPopup().addTo(map);
   `;
 }
 
-/**
- * Genera marcador para parada de destino (punto de bajada).
- */
 function generarJSMarcadorDestino(parada) {
   if (!parada?.latitud || !parada?.longitud) return "";
-
   const { latitud, longitud, nombre } = parada;
-
   return `
     L.marker([${latitud}, ${longitud}], {
         icon: L.divIcon({
             className: '',
-            html: '<div style="background:#EF4444;border:3px solid white;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-weight:bold;color:white;font-size:12px;box-shadow:0 2px 8px rgba(239,68,68,0.4);">↓</div>',
-            iconSize: [18, 18],
-            iconAnchor: [9, 9],
-            popupAnchor: [0, -9]
+            html: '<div style="width:24px;height:24px;background:#EF4444;border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(239,68,68,0.5);"><svg width="12" height="12" viewBox="0 0 24 24" fill="#fff"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div>',
+            iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -14]
         }),
-        zIndexOffset: 500
-    }).bindPopup('<div class="popup-titulo">Tu parada de destino</div><div class="popup-dato">${nombre}</div>').addTo(map);
+        zIndexOffset: 600
+    }).bindPopup('<div class="popup-titulo">Tu parada de destino</div><div class="popup-dato">${nombre}</div><span class="popup-badge popup-badge-destino">DESTINO</span>').addTo(map);
   `;
 }
 
-/**
- * Genera marcador para la posición actual del bus.
- */
 function generarJSMarcadorBus(bus) {
   if (bus.latitud == null || bus.longitud == null) return "";
-
   const { latitud, longitud, velocidad, updated_at } = bus;
-  const tiempoActual = new Date(updated_at).toLocaleTimeString("es-CO", {
+  const tiempo = new Date(updated_at).toLocaleTimeString("es-CO", {
     hour: "2-digit",
     minute: "2-digit",
   });
-
-  const popupContent = `
-    <div class="popup-titulo">Posición actual del bus</div>
-    <div class="popup-dato">Velocidad: ${velocidad || "0"} km/h</div>
-    <div class="popup-dato">Actualizado: ${tiempoActual}</div>
+  const popup = `
+    <div class="popup-titulo">Bus en ruta</div>
+    <div class="popup-dato">Velocidad: <strong>${velocidad || 0} km/h</strong></div>
+    <div class="popup-dato">Actualizado: ${tiempo}</div>
+    <span class="popup-badge popup-badge-bus">EN LÍNEA</span>
   `;
-
   return `
     capasActualizables.bus = L.marker([${latitud}, ${longitud}], {
         icon: L.divIcon({
             className: '',
-            html: '<div style="background:#F59E0B;border:3px solid white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;color:white;box-shadow:0 2px 6px rgba(0,0,0,0.3);">🚌</div>',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-            popupAnchor: [0, -10]
+            html: '<div style="width:36px;height:36px;background:#F59E0B;border-radius:50%;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 8px rgba(245,158,11,0.5);">🚌</div>',
+            iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -20]
         }),
         zIndexOffset: 1000
-    }).bindPopup(\`${popupContent}\`).addTo(map);
+    }).bindPopup(\`${popup}\`).addTo(map);
   `;
 }
 
-/**
- * Genera marcador para la posición del usuario.
- */
 function generarJSMarcadorUsuario(usuario) {
   if (usuario.latitud == null || usuario.longitud == null) return "";
-
   const { latitud, longitud } = usuario;
-
   return `
     capasActualizables.usuario = L.marker([${latitud}, ${longitud}], {
         icon: L.divIcon({
-            className: '',
-            html: '<div style="background:#8B5CF6;border:3px solid white;border-radius:50%;width:16px;height:16px;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>',
-            iconSize: [16, 16],
-            iconAnchor: [8, 8],
-            popupAnchor: [0, -8]
+            className: 'pulse-user',
+            html: '<div style="width:18px;height:18px;background:#8B5CF6;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(139,92,246,0.5);"></div>',
+            iconSize: [18, 18], iconAnchor: [9, 9], popupAnchor: [0, -10]
         })
     }).bindPopup('<div class="popup-titulo">Tu ubicación actual</div>').addTo(map);
   `;
