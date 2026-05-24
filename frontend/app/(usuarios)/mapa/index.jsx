@@ -20,7 +20,9 @@ import {
   obtenerRutaActualUsuario,
   obtenerParadasRuta,
   obtenerUbicacionBusActual,
+  obtenerRutaCompletoId,
 } from "../../../services/rutaServices";
+import { getRutasCercanas } from "../../../services/dashboardUsuarioService";
 import { ObtenerDireccionUsuario } from "../../../services/geocalizacion";
 import { generarHtmlMapaRutaUsuario } from "./mapasUtilsUsuario";
 import { StyleSheet } from "react-native";
@@ -154,43 +156,6 @@ const MapaRutaUsuario = () => {
     }
   }, [user?.id]);
 
-  // NUEVO: Obtener parada origen y destino directamente de la BD
-  useEffect(() => {
-    const obtenerParadasEspeciales = async () => {
-      if (!ruta?.parada_origen_id || !ruta?.parada_destino_id) return;
-
-      try {
-        // Consultar parada origen
-        const { data: origen, error: errorOrigen } = await supabase
-          .from("paradas")
-          .select("id, nombre, latitud, longitud, descripcion")
-          .eq("id", ruta.parada_origen_id)
-          .eq("activa", true)
-          .single();
-
-        if (!errorOrigen && origen) {
-          setParadaOrigen(origen);
-        }
-
-        // Consultar parada destino
-        const { data: destino, error: errorDestino } = await supabase
-          .from("paradas")
-          .select("id, nombre, latitud, longitud, descripcion")
-          .eq("id", ruta.parada_destino_id)
-          .eq("activa", true)
-          .single();
-
-        if (!errorDestino && destino) {
-          setParadaDestino(destino);
-        }
-      } catch (err) {
-        console.error("Error obteniendo paradas especiales:", err);
-      }
-    };
-
-    obtenerParadasEspeciales();
-  }, [ruta?.parada_origen_id, ruta?.parada_destino_id]);
-
   // Actualizar ubicación del bus cada 10 segundos
   useEffect(() => {
     if (!ruta?.ruta_id) return;
@@ -225,31 +190,67 @@ const MapaRutaUsuario = () => {
       setCargando(true);
       setError(null);
 
-      // 1. Obtener ruta del usuario
-      const rutaData = await obtenerRutaActualUsuario(user.id);
+      // 1. Obtener rutas cercanas al usuario
+      const rutasCercanas = await getRutasCercanas(user.id);
+      if (!rutasCercanas || rutasCercanas.length === 0) {
+        setError("No hay rutas cercanas a tu ubicación");
+        return;
+      }
+
+      // 2. Tomar la PRIMERA ruta (la más cercana)
+      const rutaMasCercana = rutasCercanas[0];
+      
+      // 3. Obtener datos completos de esa ruta
+      const rutaData = await obtenerRutaCompletoId(rutaMasCercana.rutaId);
       if (!rutaData) {
-        setError("No tienes ninguna ruta asignada en este momento");
+        setError("No se pudo cargar la ruta más cercana");
         return;
       }
 
       setRuta(rutaData);
+      setParadas(rutaData.paradas || []);
 
-      // 2. Obtener paradas
-      const paradasData = await obtenerParadasRuta(rutaData.ruta_id);
-      setParadas(paradasData);
-
-      // 3. Obtener ubicación actual del bus
-      const busData = await obtenerUbicacionBusActual(rutaData.ruta_id);
+      // 4. Obtener ubicación actual del bus
+      const busData = await obtenerUbicacionBusActual(rutaMasCercana.rutaId);
       setUbicacionBus(busData);
 
-      // 4. Obtener ubicación del usuario (si está disponible)
+      // 5. Obtener ubicación del usuario (si está disponible)
       const userLocation = await ObtenerDireccionUsuario(user.id);
       if (userLocation) {
         setUbicacionUsuario(userLocation);
       }
 
+      // 6. Obtener parada origen y destino desde BD
+      // Para la ruta más cercana, buscar si hay asignación específica de origen/destino
+      const { data: asignacionUsuario } = await supabase
+        .from("asignacion_usuario_ruta")
+        .select("parada_origen_id, parada_destino_id")
+        .eq("usuario_id", user.id)
+        .eq("ruta_id", rutaMasCercana.rutaId)
+        .order("fecha_asignacion", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (asignacionUsuario?.parada_origen_id) {
+        const { data: origen } = await supabase
+          .from("paradas")
+          .select("id, nombre, latitud, longitud, descripcion")
+          .eq("id", asignacionUsuario.parada_origen_id)
+          .single();
+        if (origen) setParadaOrigen(origen);
+      }
+
+      if (asignacionUsuario?.parada_destino_id) {
+        const { data: destino } = await supabase
+          .from("paradas")
+          .select("id, nombre, latitud, longitud, descripcion")
+          .eq("id", asignacionUsuario.parada_destino_id)
+          .single();
+        if (destino) setParadaDestino(destino);
+      }
+
       setUltimaActualizacion(new Date());
-      showSuccess("Ruta cargada correctamente");
+      showSuccess("Ruta más cercana cargada correctamente");
     } catch (err) {
       console.error("Error cargando datos:", err);
       setError(err.message || "Error al cargar la ruta");
