@@ -1,4 +1,3 @@
-// app/(conductor)/mapa-ruta.js
 import { useRef, useState, useEffect } from "react";
 import {
   View,
@@ -17,9 +16,7 @@ import theme from "../../constants/theme";
 
 const T = theme.lightMode;
 
-// ─── Parser WKT → [[lat, lon], ...] ─────────────────────────────────────────
-// PostGIS guarda el trayecto como "LINESTRING(lon lat, lon lat, ...)"
-// Leaflet necesita [[lat, lon], [lat, lon], ...]
+// Parser WKT → [[lat, lon], ...]
 const parsearTrayecto = (wkt) => {
   if (!wkt) return [];
   try {
@@ -34,12 +31,13 @@ const parsearTrayecto = (wkt) => {
   }
 };
 
-// ─── HTML del mapa (solo lectura) ────────────────────────────────────────────
-const generarHtmlMapaRuta = ({ coordenadas, paradas, centroInicial }) => {
+// ### HTML del mapa — usa OSRM para trazar sobre calles reales #### 
+const generarHtmlMapaRuta = ({ puntos, paradas, centroInicial }) => {
+
+  // Marcadores rojos numerados para las paradas
   const paradaMarkersJS = paradas
     .filter((p) => p.latitud && p.longitud)
-    .map(
-      (p, i) => `
+    .map((p, i) => `
       L.marker([${p.latitud}, ${p.longitud}], {
         icon: L.divIcon({
           className: '',
@@ -48,18 +46,12 @@ const generarHtmlMapaRuta = ({ coordenadas, paradas, centroInicial }) => {
           iconAnchor: [11, 11],
         })
       }).addTo(map).bindPopup(${JSON.stringify(p.nombre || `Parada ${i + 1}`)});
-    `
-    )
+    `)
     .join("\n");
 
-  const rutaJS =
-    coordenadas.length > 0
-      ? `
-      var coords = ${JSON.stringify(coordenadas)};
-      var poly = L.polyline(coords, { color: '#22C55E', weight: 5, opacity: 0.85 }).addTo(map);
-      map.fitBounds(poly.getBounds(), { padding: [40, 40] });
-    `
-      : `map.setView([${centroInicial}], 14);`;
+  // Puntos del trayecto como array JS
+
+  const puntosJS = JSON.stringify(puntos); 
 
   return `
 <!DOCTYPE html>
@@ -78,20 +70,80 @@ const generarHtmlMapaRuta = ({ coordenadas, paradas, centroInicial }) => {
   var map = L.map('map', { zoomControl: true }).setView([${centroInicial}], 14);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-  ${rutaJS}
+  // Paradas
   ${paradaMarkersJS}
 
-  window.ReactNativeWebView && window.ReactNativeWebView.postMessage(
-    JSON.stringify({ tipo: 'listo' })
-  );
+  // Puntos del trayecto guardados en la BD
+  var puntosTrayecto = ${puntosJS};
+
+  // Trazar la ruta por calles reales usando OSRM
+  // Construye la URL con todos los puntos en secuencia
+  function trazarRutaOSRM(puntos) {
+    if (!puntos || puntos.length < 2) return;
+
+    // OSRM espera coordenadas como lon,lat separadas por ;
+    var coords = puntos.map(function(p) {
+      return p[1] + ',' + p[0]; // lon,lat
+    }).join(';');
+
+    var url = 'https://router.project-osrm.org/route/v1/driving/' + coords + '?geometries=geojson&overview=full';
+
+    fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.routes && data.routes.length > 0) {
+          var coordenadasRuta = data.routes[0].geometry.coordinates.map(function(p) {
+            return [p[1], p[0]]; // GeoJSON viene como [lon, lat], Leaflet necesita [lat, lon]
+          });
+
+          var polyline = L.polyline(coordenadasRuta, {
+            color: '#080aa1',
+            weight: 5,
+            opacity: 0.85
+          }).addTo(map);
+
+          // Ajustar la vista para mostrar toda la ruta
+          map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+        } else {
+          // Fallback: trazar línea directa si OSRM no responde
+          var polyline = L.polyline(puntos, {
+            color: '#080aa1',
+            weight: 5,
+            opacity: 0.85,
+            dashArray: '8,4'
+          }).addTo(map);
+          map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+        }
+        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(
+          JSON.stringify({ tipo: 'listo' })
+        );
+      })
+      .catch(function(err) {
+        // Fallback sin conexión: línea directa entre puntos
+        var polyline = L.polyline(puntos, {
+          color: '#080aa1',
+          weight: 5,
+          opacity: 0.7,
+          dashArray: '8,4'
+        }).addTo(map);
+        map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(
+          JSON.stringify({ tipo: 'listo' })
+        );
+      });
+  }
+
+  trazarRutaOSRM(puntosTrayecto);
 <\/script>
 </body>
 </html>`;
 };
 
-// ─── Componente principal ────────────────────────────────────────────────────
+// ##### Componente principal #####
+
 export default function MapaRutaConductor() {
-  const router  = useRouter();
+  const router     = useRef(null);
+  const routerNav  = useRouter();
   const webViewRef = useRef(null);
 
   const [cargando,  setCargando]  = useState(true);
@@ -114,16 +166,13 @@ export default function MapaRutaConductor() {
 
         const { ruta, paradas } = resultado.data;
 
-        // Debug temporal — quitar una vez confirmado que funciona
-        console.log("TRAYECTO RAW:", ruta?.trayecto);
-        console.log("PARADAS:", JSON.stringify(paradas?.slice(0, 2)));
+        // Parsear WKT → [[lat, lon], ...]
+        const puntos = parsearTrayecto(ruta?.trayecto);
 
-        const coordenadas = parsearTrayecto(ruta?.trayecto);
-
-        // Centro: primer punto del trayecto → primera parada → fallback empresa
+        // Centro: primer punto del trayecto → primera parada → empresa
         const centro =
-          coordenadas.length > 0
-            ? `${coordenadas[0][0]}, ${coordenadas[0][1]}`
+          puntos.length > 0
+            ? `${puntos[0][0]}, ${puntos[0][1]}`
             : paradas?.length > 0 && paradas[0].latitud
             ? `${paradas[0].latitud}, ${paradas[0].longitud}`
             : "4.0863, -76.195";
@@ -135,7 +184,7 @@ export default function MapaRutaConductor() {
 
         setHtmlMapa(
           generarHtmlMapaRuta({
-            coordenadas,
+            puntos,
             paradas: paradas ?? [],
             centroInicial: centro,
           })
@@ -152,14 +201,11 @@ export default function MapaRutaConductor() {
 
   const handleMensaje = (event) => {
     try {
-      const datos = JSON.parse(event.nativeEvent.data);
-      if (datos.tipo === "listo") {
-        // mapa listo
-      }
+      JSON.parse(event.nativeEvent.data);
     } catch (_) {}
   };
 
-  // ── Cargando ───────────────────────────────────────────────────────────────
+  // Cargando
   if (cargando) {
     return (
       <View style={s.root}>
@@ -168,7 +214,7 @@ export default function MapaRutaConductor() {
           subtitulo="Cargando..."
           mode="light"
           showBack
-          onBack={() => router.back()}
+          onBack={() => routerNav.back()}
         />
         <View style={s.centrado}>
           <ActivityIndicator size="large" color={T.Button.primary.background} />
@@ -178,7 +224,7 @@ export default function MapaRutaConductor() {
     );
   }
 
-  // ── Error / sin ruta ───────────────────────────────────────────────────────
+  //  Error / sin ruta 
   if (error) {
     return (
       <View style={s.root}>
@@ -187,18 +233,25 @@ export default function MapaRutaConductor() {
           subtitulo="Sin ruta"
           mode="light"
           showBack
-          onBack={() => router.back()}
+          onBack={() => routerNav.back()}
         />
         <View style={s.centrado}>
           <Ionicons name="map-outline" size={56} color="#D1D5DB" />
           <Text style={s.errorTitulo}>Sin ruta disponible</Text>
           <Text style={s.textoSecundario}>{error}</Text>
+          <TouchableOpacity
+            style={s.btnVolver}
+            onPress={() => routerNav.back()}
+            activeOpacity={0.8}
+          >
+            <Text style={s.btnVolverTexto}>Volver</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
   }
 
-  // ── Mapa ───────────────────────────────────────────────────────────────────
+  // Mapa
   return (
     <View style={s.root}>
       <Header
@@ -208,7 +261,7 @@ export default function MapaRutaConductor() {
         }
         mode="light"
         showBack
-        onBack={() => router.back()}
+        onBack={() => routerNav.back()}
       />
 
       <WebView

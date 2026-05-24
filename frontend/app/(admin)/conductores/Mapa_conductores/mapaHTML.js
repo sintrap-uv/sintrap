@@ -266,7 +266,7 @@ if (datos.tipo === 'limpiarParadas') {
 
                 if (data.ruta.routes && data.ruta.routes.length > 0) {
                     var puntos = data.ruta.routes[0].geometry.coordinates.map(function(p) { return [p[1], p[0]]; });
-                    L.polyline(puntos, { color: '#22C55E', weight: 4 }).addTo(map);
+                    L.polyline(puntos, { color: '#1335cf', weight: 4 }).addTo(map);
 
                     segmentosRuta.push({ id: nuevoId, puntos: puntos });
 
@@ -274,7 +274,7 @@ if (datos.tipo === 'limpiarParadas') {
                 } else {
                     L.polyline(
                         [[puntoAnteriorLat, puntoAnteriorLon], [data.calleLat, data.callelon]],
-                        { color: '#22C55E', weight: 4, dashArray: '5,5' }
+                        { color: '#1335cf', weight: 4, dashArray: '5,5' }
                     ).addTo(map);
                 }
 
