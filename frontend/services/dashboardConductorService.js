@@ -60,6 +60,7 @@ export async function getDashboardConductor(conductorId) {
         rutas ( id, numero_ruta, nombre, color )
       `)
       .eq("vehiculo_id", vehiculoId)
+      .limit(1)
       .maybeSingle();
 
     if (eRutaHorario) throw eRutaHorario;
