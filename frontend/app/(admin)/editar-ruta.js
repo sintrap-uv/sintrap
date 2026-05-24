@@ -135,6 +135,21 @@ export default function EditarRutaScreen() {
         setHoraInicio(horarioData.hora_inicio || "06:00");
         setHoraFin(horarioData.hora_fin || "18:00");
 
+        // ================================================
+        // Cargar los días de operación desde ruta_horarios
+        // ================================================
+        const { lunes, martes, miercoles, jueves, viernes, sabado, domingo } = horarioData;
+        
+        if (lunes && martes && miercoles && jueves && viernes && !sabado && !domingo) {
+          setDiasTipo("entre_semana");
+        } else if (!lunes && !martes && !miercoles && !jueves && !viernes && sabado && domingo) {
+          setDiasTipo("fines_semana");
+        } else if (lunes && martes && miercoles && jueves && viernes && sabado && domingo) {
+          setDiasTipo("todos");
+        } else {
+          setDiasTipo("personalizado");
+        }
+
         // Obtener el conductor del vehículo seleccionado
         if (horarioData.vehiculo_id) {
           const { data: vehiculoData } = await supabase
@@ -194,6 +209,17 @@ export default function EditarRutaScreen() {
 
       let errorHorario = null;
 
+      // Calcular los días según el tipo seleccionado
+      const dias = {
+        lunes: diasTipo === "entre_semana" || diasTipo === "todos",
+        martes: diasTipo === "entre_semana" || diasTipo === "todos",
+        miercoles: diasTipo === "entre_semana" || diasTipo === "todos",
+        jueves: diasTipo === "entre_semana" || diasTipo === "todos",
+        viernes: diasTipo === "entre_semana" || diasTipo === "todos",
+        sabado: diasTipo === "fines_semana" || diasTipo === "todos",
+        domingo: diasTipo === "fines_semana" || diasTipo === "todos",
+      };
+
       if (horarioExistente) {
         // Actualizar horario existente
         const { error } = await supabase
@@ -204,6 +230,7 @@ export default function EditarRutaScreen() {
             hora_inicio: horaInicio,
             hora_fin: horaFin,
             activo: true,
+            ...dias,
           })
           .eq("ruta_id", id);
         errorHorario = error;
@@ -218,6 +245,7 @@ export default function EditarRutaScreen() {
             hora_inicio: horaInicio,
             hora_fin: horaFin,
             activo: true,
+            ...dias,
           });
         errorHorario = error;
       }
