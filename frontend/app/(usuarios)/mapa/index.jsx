@@ -15,6 +15,7 @@ import Header from "../../../components/Header";
 import theme from "../../../constants/theme";
 import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../context/ToastContext";
+import { supabase } from "../../../services/supabase";
 import {
   obtenerRutaActualUsuario,
   obtenerParadasRuta,
@@ -32,7 +33,7 @@ const styles = StyleSheet.create({
     backgroundColor: T.background,
   },
   mapContainer: {
-    flex: 1,
+    flex: 4.5, // MEJORADO: Más grande (de flex: 1)
   },
   loadingContainer: {
     flex: 1,
@@ -62,32 +63,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   infoPanel: {
+    flex: 1.5, // MEJORADO: Reducido (ocupaba todo)
     backgroundColor: T.cards.background,
     borderTopWidth: 1,
     borderColor: T.input.border,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     paddingBottom: 20,
   },
   routeTitle: {
     color: T.text.primary,
     fontWeight: "bold",
-    fontSize: 16,
-    marginBottom: 12,
+    fontSize: 14, // MEJORADO: Reducido de 16
+    marginBottom: 8, // MEJORADO: Reducido de 12
   },
   infoRow: {
-    marginBottom: 8,
+    marginBottom: 4, // MEJORADO: Reducido de 8 (más compacto)
     flexDirection: "row",
     alignItems: "flex-start",
   },
   infoLabel: {
     color: T.text.secondary,
-    fontSize: 12,
+    fontSize: 11, // MEJORADO: Reducido de 12
     fontWeight: "500",
-    width: 80,
+    width: 70,
   },
   infoValue: {
     color: T.text.primary,
-    fontSize: 12,
+    fontSize: 11, // MEJORADO: Reducido de 12
     flex: 1,
   },
   actionButton: {
@@ -98,13 +101,16 @@ const styles = StyleSheet.create({
     backgroundColor: T.Button.primary.background,
     alignItems: "center",
   },
+  actionButtonWarning: {
+    backgroundColor: "#F59E0B", // Botón notificación en naranja
+  },
   actionButtonText: {
     color: T.Button.primary.Text,
     fontSize: 12,
     fontWeight: "600",
   },
   statusBadge: {
-    marginTop: 12,
+    marginTop: 8, // MEJORADO: Reducido de 12
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 4,
@@ -133,6 +139,11 @@ const MapaRutaUsuario = () => {
   const [error, setError] = useState(null);
   const [ultimaActualizacion, setUltimaActualizacion] = useState(new Date());
 
+  // NUEVO: Estados para parada origen y destino (consultadas independientemente)
+  const [paradaOrigen, setParadaOrigen] = useState(null);
+  const [paradaDestino, setParadaDestino] = useState(null);
+  const [notificandoAdmin, setNotificandoAdmin] = useState(false);
+
   const webViewRef = useRef(null);
   const timerActualizacionRef = useRef(null);
 
@@ -143,6 +154,43 @@ const MapaRutaUsuario = () => {
     }
   }, [user?.id]);
 
+  // NUEVO: Obtener parada origen y destino directamente de la BD
+  useEffect(() => {
+    const obtenerParadasEspeciales = async () => {
+      if (!ruta?.parada_origen_id || !ruta?.parada_destino_id) return;
+
+      try {
+        // Consultar parada origen
+        const { data: origen, error: errorOrigen } = await supabase
+          .from("paradas")
+          .select("id, nombre, latitud, longitud, descripcion")
+          .eq("id", ruta.parada_origen_id)
+          .eq("activa", true)
+          .single();
+
+        if (!errorOrigen && origen) {
+          setParadaOrigen(origen);
+        }
+
+        // Consultar parada destino
+        const { data: destino, error: errorDestino } = await supabase
+          .from("paradas")
+          .select("id, nombre, latitud, longitud, descripcion")
+          .eq("id", ruta.parada_destino_id)
+          .eq("activa", true)
+          .single();
+
+        if (!errorDestino && destino) {
+          setParadaDestino(destino);
+        }
+      } catch (err) {
+        console.error("Error obteniendo paradas especiales:", err);
+      }
+    };
+
+    obtenerParadasEspeciales();
+  }, [ruta?.parada_origen_id, ruta?.parada_destino_id]);
+
   // Actualizar ubicación del bus cada 10 segundos
   useEffect(() => {
     if (!ruta?.ruta_id) return;
@@ -151,7 +199,6 @@ const MapaRutaUsuario = () => {
       const busData = await obtenerUbicacionBusActual(ruta.ruta_id);
       if (busData) {
         setUbicacionBus(busData);
-        // Enviar al WebView para actualizar marcador
         webViewRef.current?.postMessage(
           JSON.stringify({
             tipo: "actualizarUbicacionBus",
@@ -218,6 +265,30 @@ const MapaRutaUsuario = () => {
     await cargarDatos();
   };
 
+  // NUEVO: Notificar al administrador
+  const notificarAdministrador = async () => {
+    try {
+      setNotificandoAdmin(true);
+
+      const { error } = await supabase.from("notificaciones").insert({
+        usuario_id: user.id,
+        tipo: "solicitud_ruta",
+        titulo: "Usuario sin ruta asignada",
+        mensaje: `El usuario ${user.profile?.nombre || "sin nombre"} (${user.email}) requiere asignación de ruta`,
+        leido: false,
+      });
+
+      if (error) throw error;
+
+      showSuccess("Notificación enviada al administrador");
+    } catch (err) {
+      console.error("Error notificando:", err);
+      showError("Error al enviar notificación");
+    } finally {
+      setNotificandoAdmin(false);
+    }
+  };
+
   if (cargando) {
     return (
       <View style={[styles.contenedor]}>
@@ -252,9 +323,24 @@ const MapaRutaUsuario = () => {
           <Text style={styles.errorSubText}>
             Contacta con el administrador si crees que esto es un error
           </Text>
+
+          {/* NUEVO: Botón para notificar al administrador */}
           <TouchableOpacity
-            style={[styles.actionButton, { marginTop: 24 }]}
+            style={[styles.actionButton, styles.actionButtonWarning]}
+            onPress={notificarAdministrador}
+            disabled={notificandoAdmin}
+          >
+            <Text style={styles.actionButtonText}>
+              {notificandoAdmin
+                ? "Enviando notificación..."
+                : "Notificar al administrador"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionButton}
             onPress={handleRefresh}
+            disabled={refrescando}
           >
             <Text style={styles.actionButtonText}>Intentar de nuevo</Text>
           </TouchableOpacity>
@@ -262,13 +348,6 @@ const MapaRutaUsuario = () => {
       </View>
     );
   }
-
-  const paradaOrigen = paradas.find(
-    (p) => p.parada_id === ruta?.parada_origen_id,
-  )?.paradas;
-  const paradaDestino = paradas.find(
-    (p) => p.parada_id === ruta?.parada_destino_id,
-  )?.paradas;
 
   const htmlMapa = generarHtmlMapaRutaUsuario({
     rutaTrayecto: ruta?.rutas?.trayecto,
@@ -319,7 +398,7 @@ const MapaRutaUsuario = () => {
 
       <ScrollView
         style={styles.infoPanel}
-        scrollEnabled={false}
+        scrollEnabled={true}
         refreshControl={
           <RefreshControl
             refreshing={refrescando}
@@ -335,14 +414,14 @@ const MapaRutaUsuario = () => {
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Origen:</Text>
           <Text style={styles.infoValue}>
-            {paradaOrigen?.nombre || "No asignado"}
+            {paradaOrigen?.nombre || "Cargando..."}
           </Text>
         </View>
 
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Destino:</Text>
           <Text style={styles.infoValue}>
-            {paradaDestino?.nombre || "No asignado"}
+            {paradaDestino?.nombre || "Cargando..."}
           </Text>
         </View>
 

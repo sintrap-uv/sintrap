@@ -2,15 +2,7 @@
  * Genera el HTML de Leaflet para visualizar la ruta asignada del usuario.
  * Incluye: trayecto, paradas, origen/destino, posición del bus y usuario.
  *
- * @param {Object} config - Objeto de configuración
- * @param {string} config.rutaTrayecto - Trayecto en formato WKB o array de coordenadas
- * @param {Array} config.paradas - Array de paradas con coordenadas
- * @param {Object} config.paradaOrigen - Parada de origen (objeto con latitud, longitud, nombre)
- * @param {Object} config.paradaDestino - Parada de destino
- * @param {Object} config.ubicacionUsuario - Posición del usuario {latitud, longitud}
- * @param {Object} config.ubicacionBus - Posición del bus {latitud, longitud, velocidad, updated_at}
- * @param {string} config.colorRuta - Color hexadecimal de la ruta (default: #3B82F6)
- * @returns {string} HTML completo para renderizar en WebView
+ * NUEVO: Ahora usa OSRM para calcular trayecto que sigue las calles
  */
 export const generarHtmlMapaRutaUsuario = ({
   rutaTrayecto,
@@ -19,36 +11,36 @@ export const generarHtmlMapaRutaUsuario = ({
   paradaDestino,
   ubicacionUsuario,
   ubicacionBus,
-  colorRuta = '#3B82F6'
+  colorRuta = "#22C55E",
 }) => {
-  const trayectoJS = rutaTrayecto
-    ? generarJSLineaRuta(rutaTrayecto, colorRuta)
-    : '';
+  const paradasJS = paradas.map((p) => generarJSMarcadorParada(p)).join("\n");
 
-  const paradasJS = paradas
-    .map(p => generarJSMarcadorParada(p))
-    .join('\n');
-
-  const origenJS = paradaOrigen
-    ? generarJSMarcadorOrigen(paradaOrigen)
-    : '';
+  const origenJS = paradaOrigen ? generarJSMarcadorOrigen(paradaOrigen) : "";
 
   const destinoJS = paradaDestino
     ? generarJSMarcadorDestino(paradaDestino)
-    : '';
+    : "";
 
-  const busJS = ubicacionBus
-    ? generarJSMarcadorBus(ubicacionBus)
-    : '';
+  const busJS = ubicacionBus ? generarJSMarcadorBus(ubicacionBus) : "";
 
   const usuarioJS = ubicacionUsuario
     ? generarJSMarcadorUsuario(ubicacionUsuario)
-    : '';
+    : "";
 
   // Centro inicial: preferentemente en parada origen, luego en Tuluá
   const centroLat = paradaOrigen?.latitud ?? 4.0863;
   const centroLon = paradaOrigen?.longitud ?? -76.195;
-  const zoomInicial = 15;
+  const zoomInicial = 14;
+
+  // Convertir paradas a coordenadas para OSRM
+  const coordenadasParadas = paradas
+    .sort((a, b) => a.orden - b.orden)
+    .map((p) => ({
+      lat: p.paradas.latitud,
+      lon: p.paradas.longitud,
+    }));
+
+  const coordenadasParadasJS = JSON.stringify(coordenadasParadas);
 
   return `
 <!DOCTYPE html>
@@ -104,8 +96,79 @@ export const generarHtmlMapaRutaUsuario = ({
         trayecto: null
     };
 
-    // Agregar trayecto
-    ${trayectoJS}
+    // Coordenadas de las paradas en orden
+    var paradasOrdenadas = ${coordenadasParadasJS};
+
+    // FUNCIÓN: Dibujar ruta siguiendo calles usando OSRM
+    function dibujarRutaOSRM() {
+        if (paradasOrdenadas.length < 2) {
+            console.warn('Se necesitan al menos 2 paradas para dibujar ruta');
+            return;
+        }
+
+        // Construir URL de OSRM con todas las paradas
+        var coordsString = paradasOrdenadas
+            .map(function(p) { return p.lon + ',' + p.lat; })
+            .join(';');
+
+        var urlOSRM = 'https://router.project-osrm.org/route/v1/driving/' + 
+                      coordsString + 
+                      '?geometries=geojson&overview=full';
+
+        fetch(urlOSRM)
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (data.routes && data.routes.length > 0) {
+                    var rutaCompleta = data.routes[0].geometry.coordinates;
+                    
+                    // Convertir [lon, lat] a [lat, lon] para Leaflet
+                    var coordsLeaflet = rutaCompleta.map(function(p) {
+                        return [p[1], p[0]];
+                    });
+
+                    // Dibujar polyline siguiendo las calles
+                    capasActualizables.trayecto = L.polyline(coordsLeaflet, {
+                        color: '${colorRuta}',
+                        weight: 4,
+                        opacity: 0.8,
+                        dashArray: 'none'
+                    }).addTo(map);
+
+                    // Ajustar vista del mapa para que se vea toda la ruta
+                    map.fitBounds(capasActualizables.trayecto.getBounds(), {
+                        padding: [50, 50],
+                        maxZoom: ${zoomInicial}
+                    });
+
+                    console.log('Ruta dibujada correctamente siguiendo calles');
+                } else {
+                    console.error('OSRM no pudo calcular la ruta');
+                    dibujarRutaDirecta();
+                }
+            })
+            .catch(function(error) {
+                console.error('Error llamando a OSRM:', error);
+                dibujarRutaDirecta();
+            });
+    }
+
+    // Fallback: dibujar línea recta si OSRM falla
+    function dibujarRutaDirecta() {
+        if (paradasOrdenadas.length < 2) return;
+
+        var coordsLeaflet = paradasOrdenadas.map(function(p) {
+            return [p.lat, p.lon];
+        });
+
+        capasActualizables.trayecto = L.polyline(coordsLeaflet, {
+            color: '${colorRuta}',
+            weight: 4,
+            opacity: 0.6,
+            dashArray: '5, 5'
+        }).addTo(map);
+
+        console.log('Ruta dibujada como línea directa (OSRM no disponible)');
+    }
 
     // Agregar paradas
     ${paradasJS}
@@ -117,6 +180,9 @@ export const generarHtmlMapaRutaUsuario = ({
     // Agregar posiciones
     ${busJS}
     ${usuarioJS}
+
+    // Dibujar trayecto DESPUÉS de agregar marcadores
+    dibujarRutaOSRM();
 
     // Listener para mensajes desde React Native
     window.addEventListener('message', function(event) {
@@ -132,7 +198,6 @@ export const generarHtmlMapaRutaUsuario = ({
                     zIndexOffset: 1000
                 }).bindPopup(crearPopupBus(datos)).addTo(map);
 
-                // Centrar mapa en bus si está alejado
                 if (datos.centrar) {
                     map.setView([datos.latitud, datos.longitud], ${zoomInicial});
                 }
@@ -151,7 +216,7 @@ export const generarHtmlMapaRutaUsuario = ({
         }
     });
 
-    // Función auxiliar: crear icono del bus
+    // Funciones auxiliares
     function crearIconoBus() {
         return L.divIcon({
             className: '',
@@ -190,46 +255,15 @@ export const generarHtmlMapaRutaUsuario = ({
 };
 
 /**
- * Genera JavaScript para dibujar el trayecto (LineString) en el mapa.
- * Soporta tanto arrays de coordenadas como WKB.
- */
-function generarJSLineaRuta(trayecto, color) {
-  // Si es un string (WKB), intentar decodificar
-  // Si es un array, usarlo directamente
-  let coordenadas = [];
-
-  if (typeof trayecto === 'string') {
-    // WKB: implementación simplificada
-    // En producción, usar librería 'wkx' o backend RPC
-    coordenadas = decodificarWKBLinestring(trayecto);
-  } else if (Array.isArray(trayecto)) {
-    coordenadas = trayecto.map(p => [p[1], p[0]]); // invertir lon/lat a lat/lon
-  }
-
-  if (!coordenadas.length) {
-    return '// No hay trayecto disponible';
-  }
-
-  return `
-    capasActualizables.trayecto = L.polyline(${JSON.stringify(coordenadas)}, {
-        color: '${color}',
-        weight: 4,
-        opacity: 0.8,
-        dashArray: 'none'
-    }).addTo(map);
-    map.fitBounds(${JSON.stringify([
-      [Math.min(...coordenadas.map(c => c[0])), Math.min(...coordenadas.map(c => c[1]))],
-      [Math.max(...coordenadas.map(c => c[0])), Math.max(...coordenadas.map(c => c[1]))]
-    ])}, { padding: [50, 50], maxZoom: 15 });
-  `;
-}
-
-/**
  * Genera marcador para una parada intermedia.
  */
 function generarJSMarcadorParada(parada) {
-  if (!parada?.paradas || parada.paradas.latitud == null || parada.paradas.longitud == null) {
-    return '';
+  if (
+    !parada?.paradas ||
+    parada.paradas.latitud == null ||
+    parada.paradas.longitud == null
+  ) {
+    return "";
   }
 
   const { latitud, longitud, nombre, descripcion } = parada.paradas;
@@ -237,8 +271,8 @@ function generarJSMarcadorParada(parada) {
 
   const popupContent = `
     <div class="popup-titulo">Parada ${orden}: ${nombre}</div>
-    ${descripcion ? '<div class="popup-dato">' + descripcion + '</div>' : ''}
-    ${parada.tiempo_desde_inicio ? '<div class="popup-dato">Tiempo desde inicio: ' + parada.tiempo_desde_inicio + ' min</div>' : ''}
+    ${descripcion ? '<div class="popup-dato">' + descripcion + "</div>" : ""}
+    ${parada.tiempo_desde_inicio ? '<div class="popup-dato">Tiempo desde inicio: ' + parada.tiempo_desde_inicio + " min</div>" : ""}
   `;
 
   return `
@@ -258,7 +292,7 @@ function generarJSMarcadorParada(parada) {
  * Genera marcador para parada de origen (punto de subida).
  */
 function generarJSMarcadorOrigen(parada) {
-  if (!parada?.latitud || !parada?.longitud) return '';
+  if (!parada?.latitud || !parada?.longitud) return "";
 
   const { latitud, longitud, nombre } = parada;
 
@@ -280,7 +314,7 @@ function generarJSMarcadorOrigen(parada) {
  * Genera marcador para parada de destino (punto de bajada).
  */
 function generarJSMarcadorDestino(parada) {
-  if (!parada?.latitud || !parada?.longitud) return '';
+  if (!parada?.latitud || !parada?.longitud) return "";
 
   const { latitud, longitud, nombre } = parada;
 
@@ -302,17 +336,17 @@ function generarJSMarcadorDestino(parada) {
  * Genera marcador para la posición actual del bus.
  */
 function generarJSMarcadorBus(bus) {
-  if (bus.latitud == null || bus.longitud == null) return '';
+  if (bus.latitud == null || bus.longitud == null) return "";
 
   const { latitud, longitud, velocidad, updated_at } = bus;
-  const tiempoActual = new Date(updated_at).toLocaleTimeString('es-CO', {
-    hour: '2-digit',
-    minute: '2-digit'
+  const tiempoActual = new Date(updated_at).toLocaleTimeString("es-CO", {
+    hour: "2-digit",
+    minute: "2-digit",
   });
 
   const popupContent = `
     <div class="popup-titulo">Posición actual del bus</div>
-    <div class="popup-dato">Velocidad: ${velocidad || '0'} km/h</div>
+    <div class="popup-dato">Velocidad: ${velocidad || "0"} km/h</div>
     <div class="popup-dato">Actualizado: ${tiempoActual}</div>
   `;
 
@@ -334,7 +368,7 @@ function generarJSMarcadorBus(bus) {
  * Genera marcador para la posición del usuario.
  */
 function generarJSMarcadorUsuario(usuario) {
-  if (usuario.latitud == null || usuario.longitud == null) return '';
+  if (usuario.latitud == null || usuario.longitud == null) return "";
 
   const { latitud, longitud } = usuario;
 
@@ -349,19 +383,4 @@ function generarJSMarcadorUsuario(usuario) {
         })
     }).bindPopup('<div class="popup-titulo">Tu ubicación actual</div>').addTo(map);
   `;
-}
-
-/**
- * Decodifica un WKB LineString básico.
- * Implementación simplificada; para casos complejos usar librería 'wkx'.
- */
-function decodificarWKBLinestring(wkb) {
-  // Este es un placeholder
-  // En producción:
-  // 1. Usar RPC en backend que retorne array JSON
-  // 2. O usar librería npm 'wkx' para decodificar en cliente
-  // 3. O convertir en backend con ST_AsGeoJSON
-
-  console.warn('WKB decoding no implementado; usar backend RPC con ST_AsGeoJSON');
-  return [];
 }

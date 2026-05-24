@@ -616,53 +616,58 @@ export async function getRutasConTrayecto() {
     }
 }
 
-// ============================================================================
-// AGREGAR ESTAS FUNCIONES AL FINAL DE TU rutaServices.js EXISTENTE
-// Copiar y pegar TODO el contenido de abajo al final del archivo
-// ============================================================================
-
 /**
  * Obtiene la ruta activa asignada al usuario autenticado.
- * Incluye datos de la ruta (trayecto, color) y paradas asociadas.
- *
- * @param {string} userId - ID del usuario autenticado
- * @returns {Object|null} Objeto con usuario_ruta + rutas embedded, o null si no existe
+ * Convierte trayecto de WKB a GeoJSON automáticamente en Supabase
  */
 export const obtenerRutaActualUsuario = async (userId) => {
   if (!userId) return null;
 
   try {
-    const { data, error } = await supabase
-      .from('usuario_ruta')
-      .select(`
-        id,
-        usuario_id,
-        ruta_id,
-        parada_origen_id,
-        parada_destino_id,
-        activa,
-        fecha_asignacion,
-        turno_id,
-        rutas(
-          id,
-          numero_ruta,
-          nombre,
-          trayecto,
-          color,
-          activa,
-          updated_at
-        )
-      `)
-      .eq('usuario_id', userId)
-      .eq('activa', true)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('obtener_ruta_usuario_con_geojson', {
+      p_usuario_id: userId
+    });
 
     if (error) {
       console.error('Error obteniendo ruta del usuario:', error);
       return null;
     }
 
-    return data;
+    if (!data || data.length === 0) return null;
+
+    const row = data[0];
+
+    // Parsear trayecto GeoJSON
+    let trayectoParsado = null;
+    try {
+      if (typeof row.trayecto_json === 'string') {
+        trayectoParsado = JSON.parse(row.trayecto_json);
+      } else {
+        trayectoParsado = row.trayecto_json;
+      }
+    } catch (e) {
+      console.warn('Error parseando trayecto:', e);
+    }
+
+    return {
+      id: row.id,
+      usuario_id: row.usuario_id,
+      ruta_id: row.ruta_id,
+      parada_origen_id: row.parada_origen_id,
+      parada_destino_id: row.parada_destino_id,
+      activa: row.activa,
+      fecha_asignacion: row.fecha_asignacion,
+      turno_id: row.turno_id,
+      rutas: {
+        id: row.ruta_id_ref,
+        numero_ruta: row.numero_ruta,
+        nombre: row.nombre,
+        trayecto: trayectoParsado,  // ← GeoJSON con coordinates
+        color: row.color,
+        activa: row.ruta_activa,
+        updated_at: row.updated_at
+      }
+    };
   } catch (error) {
     console.error('Exception en obtenerRutaActualUsuario:', error);
     return null;
@@ -839,5 +844,32 @@ export const obtenerTodasRutasUsuario = async (userId) => {
   } catch (error) {
     console.error('Exception en obtenerTodasRutasUsuario:', error);
     return [];
+  }
+};
+
+/**
+ * Obtiene una parada específica por ID.
+ * Usado para obtener parada origen/destino independiente de ruta_paradas.
+ */
+export const obtenerParadaPorId = async (paradaId) => {
+  if (!paradaId) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('paradas')
+      .select('id, nombre, latitud, longitud, descripcion')
+      .eq('id', paradaId)
+      .eq('activa', true)
+      .single();
+
+    if (error) {
+      console.error('Error obteniendo parada:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Exception en obtenerParadaPorId:', error);
+    return null;
   }
 };
