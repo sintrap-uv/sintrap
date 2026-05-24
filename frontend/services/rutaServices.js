@@ -102,10 +102,14 @@ export const guardarRutaCompleta = async (
         // 5. Guardar las paradas de bus (tipo 'parada_bus')
         for (let i = 0; i < puntosParada.length; i++) {
             const puntoGeo = `POINT(${puntosParada[i].lon} ${puntosParada[i].lat})`;
+
+            //Para guardar el nombre de la parada 
+            const nombreParada = puntosParada[i].direccion || `Parada bus ${i + 1}`;
+
             const { data: parada, error: errorParada } = await supabase
                 .from('paradas')
                 .insert({
-                    nombre: `Parada bus ${i + 1}`,
+                    nombre: nombreParada,
                     ubicacion: puntoGeo,
                     activa: true,
                     tipo: 'parada_bus',
