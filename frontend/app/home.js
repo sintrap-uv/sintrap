@@ -34,6 +34,7 @@ import ConfiguracionBuses from "./(admin)/configurar-buses";
 import { ObtenerDireccionUsuario } from "../services/geocalizacion";
 import CajaDireccion from "../components/ModalDireccion";
 import TodasLasRutasScreen from "./(admin)/rutas";
+import EnviarAviso from "./(admin)/EnviarAviso";
 
 export default function Home() {
   const router = useRouter();
@@ -209,21 +210,7 @@ export default function Home() {
         </View>
       ),
 
-      agregar: () => (
-        <View style={{ flex: 1 }}>
-          <Header
-            titulo="Reportar incidente"
-            subtitulo="Notifica cualquier novedad"
-            showBack={false}
-            iconoDerecha={
-              <TouchableOpacity onPress={handleGoToProfile}>
-                <Ionicons name="settings-outline" size={36} color="#fff" />
-              </TouchableOpacity>
-            }
-          />
-          <TabPendiente nombre="Reportar incidente" icono="warning-outline" />
-        </View>
-      ),
+      agregar: () => <EnviarAviso></EnviarAviso>, // para crear reporte desde el conductor
       
       bus: () => <MisBusesScreen />,
 

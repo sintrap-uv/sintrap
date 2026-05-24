@@ -104,10 +104,10 @@ const inp = StyleSheet.create({
     flexDirection: "row", alignItems: "center",
     backgroundColor: C.inputBg,
     borderRadius: 14, borderWidth: 1.5,
-    paddingHorizontal: 5, paddingVertical: 5,
+    paddingHorizontal: 8, paddingVertical: 8,
   },
-  icon:  { marginRight: 10 },
-  field: { flex: 1, fontSize: 14, color: C.text, letterSpacing: 0.1 },
+  icon:  { marginRight: 25 },
+  field: { flex: 1, fontSize: 14, color: C.text, letterSpacing: 0.9 },
 });
 
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────
@@ -177,13 +177,10 @@ export default function Login() {
       <View style={s.circle1} pointerEvents="none" />
       <View style={s.circle2} pointerEvents="none" />
 
-      <ScrollView
-        contentContainerStyle={s.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        keyboardDismissMode="on-drag"
-      //contentInsetAdjustmentBehavior="always"
-      >
+      <View style={s.scroll}>
+         
+       
+      
         {/* ── Logo ── */}
         <View style={s.logoArea}>
           <View style={s.logoGlow} />
@@ -273,7 +270,7 @@ export default function Login() {
         </View>
 
         <Text style={s.footer}>Sintrap © 2026 · Todos los derechos reservados</Text>
-      </ScrollView>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -352,11 +349,11 @@ const s = StyleSheet.create({
 
   // Registro
   registerBtn: {
-    borderWidth: 1.5, borderColor: "#F5C2C2",
-    backgroundColor: C.redSoft,
+    borderWidth: 1.5, borderColor: C.green,
+    backgroundColor: "transparent",
     borderRadius: 16, paddingVertical: 15, alignItems: "center",
   },
-  registerText: { fontSize: 15, fontWeight: "700", color: C.red, letterSpacing: 0.2 },
+  registerText: { fontSize: 15, fontWeight: "700", color: C.green, letterSpacing: 0.2 },
 
   // Footer
   footer: { marginTop: 28, fontSize: 10, color: "#A1A1AA", textAlign: "center", letterSpacing: 0.3 },
