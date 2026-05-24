@@ -97,7 +97,7 @@ const generarHtmlMapaRuta = ({ puntos, paradas, centroInicial }) => {
           });
 
           var polyline = L.polyline(coordenadasRuta, {
-            color: '#080aa1',
+            color: '#3B82F6',
             weight: 5,
             opacity: 0.85
           }).addTo(map);
@@ -107,7 +107,7 @@ const generarHtmlMapaRuta = ({ puntos, paradas, centroInicial }) => {
         } else {
           // Fallback: trazar línea directa si OSRM no responde
           var polyline = L.polyline(puntos, {
-            color: '#080aa1',
+            color: '#3B82F6',
             weight: 5,
             opacity: 0.85,
             dashArray: '8,4'
