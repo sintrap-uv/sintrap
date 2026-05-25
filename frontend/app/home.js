@@ -14,6 +14,7 @@ import BotonesFlotantes from "../components/BotonesFlotantes";
 import { getProfile } from "../services/profileService";
 import { getCurrentUser, signOut } from "../services/auth";
 import Header from "../components/Header";
+import MisTurnos from "./(conductor)/MisTurnos";
 
 // ── Importa aquí los componentes de cada tab ──────────────────
 import EditarPerfilForm from "../components/forms/EditarPerfilForm";
@@ -194,6 +195,8 @@ export default function Home() {
     // ── CONDUCTOR ──
     conductor: {
       inicio: () => <DashboardConductor />,
+
+      turnos: () => <MisTurnos />,
       
       rutas: () => <MapaRutaConductor />,
 

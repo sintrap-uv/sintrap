@@ -15,6 +15,7 @@ import { supabase } from "../../services/supabase";
 import { getProfile } from "../../services/profileService";
 import ProfileCard from "../../components/ProfileCard";
 import theme from "../../constants/theme";
+import { getDiasTexto } from "../../utils/diasUtils";
 import Header from "../../components/Header";
 import {
   getDashboardConductor,
@@ -23,6 +24,7 @@ import {
   nombreTurno,
 } from "../../services/dashboardConductorService";
 import * as Location from "expo-location";
+import { useToast } from "../../context/ToastContext";
 
 const T = theme.lightMode;
 
@@ -96,6 +98,7 @@ export default function DashboardConductor() {
   const params = useLocalSearchParams();
   const returnTo = params.returnTo;
   const vieneDelPerfil = returnTo === "perfil";
+  const { showSuccess, showError, showWarning } = useToast();
 
   const [mostrarPerfil, setMostrarPerfil] = useState(false);
   const [perfil, setPerfil] = useState(null);
@@ -165,6 +168,7 @@ export default function DashboardConductor() {
       }
     } catch (e) {
       console.error("Error dashboard conductor:", e.message);
+      showError("Error al cargar los datos del dashboard");
     } finally {
       setCargando(false);
       setRefrescando(false);
@@ -205,7 +209,7 @@ export default function DashboardConductor() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permiso requerido", "Activa la ubicación para actualizar tu posición.");
+        showWarning("Activa la ubicación para actualizar tu posición");
         return;
       }
       const loc = await Location.getCurrentPositionAsync({
@@ -217,9 +221,9 @@ export default function DashboardConductor() {
         loc.coords.longitude,
         null
       );
-      Alert.alert("Ubicación actualizada", "Tu posición fue registrada correctamente.");
+      showSuccess("Ubicación actualizada correctamente");
     } catch (e) {
-      Alert.alert("Error", e.message);
+      showError(e.message);
     } finally {
       setActualizando(false);
     }
@@ -337,6 +341,10 @@ export default function DashboardConductor() {
                 {formatearHora(turno.horaInicio)} → {formatearHora(turno.horaFin)}
               </Text>
             </View>
+            <View style={styles.horarioDato}>
+              <MaterialCommunityIcons name="calendar-week" size={14} color={T.text.secondary} />
+              <Text style={styles.horarioDatoTexto}>{getDiasTexto(turno.dias)}</Text>
+            </View>
           </View>
 
           <View style={styles.busRow}>
@@ -441,37 +449,38 @@ export default function DashboardConductor() {
           <View style={styles.seccion}>
             <Text style={styles.tituloSeccion}>Turnos anteriores</Text>
             {historial.map((h, i) => {
+              const cfg = TURNO_ESTADO_CONFIG[h.estado] ?? TURNO_ESTADO_CONFIG.completado;
               const duracionMin = h.horaInicioReal && h.horaFinReal
                 ? Math.round((new Date(h.horaFinReal) - new Date(h.horaInicioReal)) / 60000)
                 : null;
+              const icono = h.estado === "completado" ? "check-circle" : 
+                            h.estado === "cancelado" ? "close-circle" : "clock-outline";
               return (
                 <View key={i} style={styles.historialItem}>
-                  <View style={[styles.historialEstado, { backgroundColor: "#F3F4F6" }]}>
+                  <View style={[styles.historialEstado, { backgroundColor: cfg.bg }]}>
                     <MaterialCommunityIcons
-                      name="check-circle"
+                      name={icono}
                       size={16}
-                      color="#6B7280"
+                      color={cfg.color}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.historialFecha}>
-                      {new Date(h.fecha).toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" })}
-                      {" · Ruta "}{h.numeroRuta}
+                      Ruta {h.numeroRuta} · {h.nombreTurno ? nombreTurno(h.nombreTurno) : 'Turno'}
                     </Text>
                     <Text style={styles.historialDetalle}>
-                      {nombreTurno(h.nombreTurno)} · {h.placa}
+                      {h.placa}
                       {duracionMin ? ` · ${duracionMin} min` : ""}
                     </Text>
                   </View>
-                  <View style={[styles.chip, { backgroundColor: "#F3F4F6" }]}>
-                    <Text style={[styles.chipTexto, { color: "#6B7280" }]}>Completado</Text>
+                  <View style={[styles.chip, { backgroundColor: cfg.bg }]}>
+                    <Text style={[styles.chipTexto, { color: cfg.color }]}>{cfg.label}</Text>
                   </View>
                 </View>
               );
             })}
           </View>
         )}
-
       </ScrollView>
     </View>
   );
@@ -575,7 +584,12 @@ const styles = StyleSheet.create({
   historialEstado: { width: 34, height: 34, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   historialFecha: { fontSize: 13, fontWeight: "600", color: T.text.primary },
   historialDetalle: { fontSize: 11, color: T.text.secondary, marginTop: 2 },
-
+  historialDias: {
+    fontSize: 11,
+    color: T.text.secondary,
+    marginTop: 4,
+  },
+  
   btnReportar: {
     flexDirection: "row",
     alignItems: "center",

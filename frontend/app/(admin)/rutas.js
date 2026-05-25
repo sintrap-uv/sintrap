@@ -13,7 +13,9 @@ import { useFocusEffect, useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import theme from "../../constants/theme";
+import { getDiasTexto } from "../../utils/diasUtils";
 import Header from "../../components/Header";
+import { useToast } from "../../context/ToastContext";
 
 const T = theme.lightMode;
 
@@ -22,6 +24,7 @@ export default function TodasLasRutasScreen() {
   const params = useLocalSearchParams();
   const returnTo = params.returnTo;
   const vieneDelPerfil = returnTo === "perfil";
+  const { showSuccess, showError } = useToast();
   const [rutas, setRutas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
@@ -63,6 +66,13 @@ export default function TodasLasRutasScreen() {
         .select(`
           ruta_id,
           tipo_turno_id,
+          lunes,
+          martes,
+          miercoles,
+          jueves,
+          viernes,
+          sabado,
+          domingo,
           vehiculos!vehiculo_id (
             id,
             placa,
@@ -107,6 +117,13 @@ export default function TodasLasRutasScreen() {
             capacidad: capacidad,
             usuariosAsignados: usuariosEnTurno,
             porcentaje: porcentaje,
+            lunes: asig.lunes,
+            martes: asig.martes,
+            miercoles: asig.miercoles,
+            jueves: asig.jueves,
+            viernes: asig.viernes,
+            sabado: asig.sabado,
+            domingo: asig.domingo,
           };
         });
 
@@ -119,6 +136,7 @@ export default function TodasLasRutasScreen() {
       setRutas(rutasConDetalles);
     } catch (error) {
       console.error("Error cargando rutas:", error);
+      showError("Error al cargar las rutas");
     } finally {
       setCargando(false);
       setRefrescando(false);
@@ -155,10 +173,10 @@ export default function TodasLasRutasScreen() {
 
               if (error) throw error;
 
-              Alert.alert("Éxito", "Ruta eliminada correctamente");
+              showSuccess("Ruta eliminada correctamente");
               cargarRutas(true);
             } catch (error) {
-              Alert.alert("Error", "No se pudo eliminar la ruta");
+              showError("No se pudo eliminar la ruta");
             }
           },
         },
@@ -205,6 +223,12 @@ export default function TodasLasRutasScreen() {
                   <Text style={styles.turnoHorario}>
                     {turno.hora_inicio?.slice(0, 5)} - {turno.hora_fin?.slice(0, 5)}
                   </Text>
+                </View>
+
+                {/* Mostrar días de operación */}
+                <View style={styles.diasContainer}>
+                  <MaterialCommunityIcons name="calendar-week" size={14} color={T.text.secondary} />
+                  <Text style={styles.diasTexto}>{getDiasTexto(turno)}</Text>
                 </View>
 
                 {turno.vehiculo ? (
@@ -342,6 +366,17 @@ const styles = StyleSheet.create({
   turnoHorario: {
     fontSize: 12,
     color: "#6B7280",
+  },
+  diasContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+    paddingTop: 4,
+  },
+  diasTexto: {
+    fontSize: 12,
+    color: T.text.secondary,
   },
   vehiculoInfo: {
     flexDirection: "row",

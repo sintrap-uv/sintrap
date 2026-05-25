@@ -7,7 +7,6 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -16,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { createDriverAccount, updateDriver } from "../../../services/driverService";
 import theme from "../../../constants/theme";
 import Header from "../../../components/Header";
+import { useToast } from "../../../context/ToastContext";
 
 const T = theme.lightMode;
 
@@ -49,6 +49,7 @@ function validarForm(form, esNuevo) {
 export default function GestionConductorScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { showSuccess, showError } = useToast();
 
   // modo: 'nuevo' | 'editar'  — viene del router.push de index.jsx
   const esNuevo = params.modo === "nuevo";
@@ -82,18 +83,16 @@ export default function GestionConductorScreen() {
       if (esNuevo) {
         const { error } = await createDriverAccount(form);
         if (error) throw new Error(error.message ?? "Error al crear conductor");
-        Alert.alert("✓ Conductor creado", `${form.nombre} fue registrado exitosamente.`, [
-          { text: "OK", onPress: () => router.back() },
-        ]);
+        showSuccess(`${form.nombre} fue registrado exitosamente.`);
+        router.back();
       } else {
         const { error } = await updateDriver(params.conductorId, form);
         if (error) throw new Error(error.message ?? "Error al actualizar");
-        Alert.alert("✓ Conductor actualizado", "Los datos fueron guardados.", [
-          { text: "OK", onPress: () => router.back() },
-        ]);
+        showSuccess("Los datos fueron guardados correctamente.");
+        router.back();
       }
     } catch (e) {
-      Alert.alert("Error", e.message);
+      showError(e.message);
     } finally {
       setGuardando(false);
     }
@@ -105,7 +104,7 @@ export default function GestionConductorScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/*Header — titulo/subtitulo directo, sin HEADER_CONFIGS ni perfil */}
+      {/*Header — titulo/subtitulo directo */}
       <Header
         titulo={esNuevo ? "Nuevo conductor" : "Editar conductor"}
         subtitulo={esNuevo ? "Completa los datos para registrar" : "Modifica los datos del conductor"}
@@ -388,5 +387,5 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   botonCancelarTexto: { color: T.text.secondary, fontSize: 15 },
-  asterisk: { color: "#EF4444" },   // ← # faltaba en tu versión
+  asterisk: { color: "#EF4444" },
 });

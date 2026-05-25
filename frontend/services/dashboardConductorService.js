@@ -1,6 +1,55 @@
 import { supabase } from "./supabase";
 
 /**
+ * Obtiene TODOS los turnos de un conductor (para MisTurnos)
+ * @param {string} conductorId - UUID del conductor
+ */
+export async function getTurnosConductor(conductorId) {
+  try {
+    const { data, error } = await supabase.rpc('get_conductor_turnos', {
+      p_conductor_id: conductorId,
+    });
+    
+    if (error) {
+      console.error("RPC Error:", error);
+      return { success: false, error: error.message };
+    }
+    
+    const turnos = Array.isArray(data) ? data.map(turno => ({
+      turno_id: turno.turno_id,
+      fecha: turno.fecha,
+      estado: turno.estado,
+      hora_inicio_real: turno.hora_inicio_real,
+      hora_fin_real: turno.hora_fin_real,
+      numero_ruta: turno.numero_ruta,
+      ruta_nombre: turno.ruta_nombre,
+      vehiculo_id: turno.vehiculo_id,
+      placa: turno.placa,
+      vehiculo_tipo: turno.vehiculo_tipo,
+      capacidad: turno.capacidad,
+      hora_inicio: turno.hora_inicio,
+      hora_fin: turno.hora_fin,
+      cantidad_pasajeros: turno.cantidad_pasajeros || 0,
+      dias: {
+        lunes: turno.lunes,
+        martes: turno.martes,
+        miercoles: turno.miercoles,
+        jueves: turno.jueves,
+        viernes: turno.viernes,
+        sabado: turno.sabado,
+        domingo: turno.domingo,
+      },
+    })) : [];
+    
+    return { success: true, data: turnos };
+  } catch (err) {
+    console.error("Catch Error:", err);
+    return { success: false, error: err.message };
+  }
+}
+
+
+/**
  * Carga todos los datos del dashboard del conductor en paralelo.
  * @param {string} conductorId - UUID del conductor autenticado
  */
@@ -41,11 +90,12 @@ export async function getDashboardConductor(conductorId) {
     const { data: rh1, error: e1 } = await supabase
       .from("ruta_horarios")
       .select(`
-        id, nombre_turno, hora_inicio, hora_fin, ruta_id,
+        id, nombre_turno, hora_inicio, hora_fin,
+         lunes, martes, miercoles, jueves, viernes, sabado, domingo,
+        ruta_id,
         rutas ( id, numero_ruta, nombre, color )
       `)
-      .eq("turno_id", turno.id)
-      .eq("activo", true)
+      .eq("vehiculo_id", vehiculoId)
       .limit(1)
       .maybeSingle();
 
@@ -229,7 +279,7 @@ export async function actualizarEstadoTurno(turnoId, nuevoEstado) {
       .update(cambios)
       .eq("id", turnoId)
       .select()
-      .single();
+      .maybeSingle();
     if (error) throw error;
     return { success: true, data };
   } catch (error) {
