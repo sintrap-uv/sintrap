@@ -110,27 +110,37 @@ export async function getVehiculosDisponibles(horaInicio, horaFin, diasSemana) {
   }
 }
 
-export async function getConductoresDisponibles(horaInicio, horaFin, diasSemana) {
-  try {
-    const vehiculosDisponibles = await getVehiculosDisponibles(horaInicio, horaFin, diasSemana);
-    const conductoresIds = vehiculosDisponibles.map(v => v.conductor_id).filter(id => id != null);
+export async function getConductoresDisponibles(horaInicio) {
+  const vehiculosDisponibles = await getVehiculosDisponibles(horaInicio);
+  const conductoresIds = vehiculosDisponibles.map(v => v.conductor_id).filter(id => id != null);
 
-    if (conductoresIds.length === 0) return [];
+  if (conductoresIds.length === 0) return [];
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, nombre')
-      .eq('rol', 'conductor')
-      .in('id', conductoresIds);
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, nombre')
+    .eq('rol', 'conductor')
+    .in('id', conductoresIds);
 
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error en getConductoresDisponibles:', error);
-    return [];
-  }
+  if (error) throw error;
+  return data || [];
 }
 
+/**
+ * Verifica si un vehículo tiene dependencias (rutas/horarios activos)
+ * Llamar ANTES de intentar desactivar un vehículo
+ * 
+ * @param {number} vehiculoId - ID del vehículo a verificar
+ * @returns {Promise<Object>} - Objeto con información de dependencias
+ * 
+ * Ejemplo de retorno:
+ * {
+ *   tiene_dependencias: true,
+ *   horarios_activos: 2,
+ *   rutas: [{ruta_id: 1, numero_ruta: 1, nombre: "Ruta Centro", ...}],
+ *   usuarios_afectados: 15
+ * }
+ */
 export async function verificarDependenciasVehiculo(vehiculoId) {
   try {
     const { data, error } = await supabase.rpc('fn_verificar_dependencias_vehiculo', {
@@ -145,6 +155,31 @@ export async function verificarDependenciasVehiculo(vehiculoId) {
   }
 }
 
+/**
+ * Busca vehículos disponibles para reemplazar uno que se desactivará
+ * Validación cruzada: horario + días + capacidad + SOAT vigente
+ * 
+ * @param {string} horaInicio - Hora inicio formato "HH:MM:SS"
+ * @param {string} horaFin - Hora fin formato "HH:MM:SS"
+ * @param {number} capacidadMin - Capacidad mínima requerida
+ * @param {Object} diasSemana - Objeto con días: {lunes: true, martes: true, ...}
+ * @returns {Promise<Array>} - Array de vehículos disponibles ordenados por capacidad óptima
+ * 
+ * Ejemplo de retorno:
+ * [
+ *   {
+ *     vehiculo_id: 46,
+ *     placa: "KYT66L",
+ *     conductor_id: "uuid...",
+ *     conductor_nombre: "Juan Pérez",
+ *     tipo_vehiculo: "buseta",
+ *     capacidad_max: 20,
+ *     fecha_vencimiento_soat: "2027-05-03",
+ *     dias_restantes_soat: 365,
+ *     tiene_conductor: true
+ *   }
+ * ]
+ */
 export async function buscarVehiculosReemplazo(horaInicio, horaFin, capacidadMin, diasSemana) {
   try {
     const { data, error } = await supabase.rpc('fn_buscar_vehiculos_reemplazo', {
@@ -162,6 +197,23 @@ export async function buscarVehiculosReemplazo(horaInicio, horaFin, capacidadMin
   }
 }
 
+/**
+ * Reasigna un vehículo de reemplazo en múltiples horarios
+ * Llamar después de que el admin confirma el vehículo de reemplazo
+ * 
+ * @param {Array<number>} horarioIds - Array de IDs de ruta_horarios a actualizar
+ * @param {number} nuevoVehiculoId - ID del vehículo que reemplazará al anterior
+ * @returns {Promise<Object>} - Resultado de la operación
+ * 
+ * Ejemplo de retorno:
+ * {
+ *   success: true,
+ *   updated_count: 3,
+ *   horario_ids: [1, 2, 3],
+ *   nuevo_vehiculo_id: 46,
+ *   rutas_afectadas: [1, 2]
+ * }
+ */
 export async function reasignarVehiculoEnHorarios(horarioIds, nuevoVehiculoId) {
   try {
     const { data, error } = await supabase.rpc('fn_reasignar_vehiculo_en_horarios', {
@@ -177,6 +229,24 @@ export async function reasignarVehiculoEnHorarios(horarioIds, nuevoVehiculoId) {
   }
 }
 
+/**
+ * Notifica a usuarios afectados por cambio de vehículo
+ * Crea notificaciones en tabla 'notificaciones' para todos los usuarios de las rutas
+ * 
+ * @param {Array<number>} rutaIds - Array de IDs de rutas afectadas
+ * @param {string} placaAnterior - Placa del vehículo que se reemplazó
+ * @param {string} placaNueva - Placa del nuevo vehículo (opcional)
+ * @param {string} tipoCambio - 'cambio_vehiculo' | 'ruta_suspendida'
+ * @returns {Promise<Object>} - Resultado con cantidad de notificaciones creadas
+ * 
+ * Ejemplo de retorno:
+ * {
+ *   success: true,
+ *   notificaciones_creadas: 15,
+ *   usuarios_notificados: 15,
+ *   tipo_notificacion: 'cambio_ruta'
+ * }
+ */
 export async function notificarCambioVehiculo(rutaIds, placaAnterior, placaNueva = null, tipoCambio = 'cambio_vehiculo') {
   try {
     const { data, error } = await supabase.rpc('fn_notificar_cambio_vehiculo', {
@@ -194,6 +264,26 @@ export async function notificarCambioVehiculo(rutaIds, placaAnterior, placaNueva
   }
 }
 
+/**
+ * Desactiva una ruta completa cuando no hay vehículo de reemplazo
+ * Marca rutas.activa = false y ruta_horarios.activo = false
+ * Notifica automáticamente a usuarios afectados
+ * 
+ * @param {number} rutaId - ID de la ruta a desactivar
+ * @param {string} motivo - Motivo de la desactivación
+ * @param {string} placaVehiculo - Placa del vehículo (opcional)
+ * @returns {Promise<Object>} - Resultado de la operación
+ * 
+ * Ejemplo de retorno:
+ * {
+ *   success: true,
+ *   ruta_id: 1,
+ *   horarios_desactivados: 3,
+ *   usuarios_afectados: 15,
+ *   motivo: "Vehículo fuera de servicio sin reemplazo disponible",
+ *   notificaciones: { ... }
+ * }
+ */
 export async function desactivarRutaCompleta(rutaId, motivo, placaVehiculo = null) {
   try {
     const { data, error } = await supabase.rpc('fn_desactivar_ruta_completa', {
@@ -210,6 +300,14 @@ export async function desactivarRutaCompleta(rutaId, motivo, placaVehiculo = nul
   }
 }
 
+/**
+ * Desactiva un vehículo (actualiza activo = false)
+ * NOTA: El trigger fn_validar_soat_vehiculo NO bloquea la desactivación
+ * Esta función debe llamarse DESPUÉS de verificar dependencias y gestionar reemplazo
+ * 
+ * @param {number} vehiculoId - ID del vehículo a desactivar
+ * @returns {Promise<Object>} - Resultado de la operación
+ */
 export async function desactivarVehiculo(vehiculoId) {
   try {
     const { data, error } = await supabase
@@ -217,7 +315,7 @@ export async function desactivarVehiculo(vehiculoId) {
       .update({ activo: false })
       .eq('id', vehiculoId)
       .select()
-      .maybeSingle();
+      .single();
 
     if (error) throw error;
     return { success: true, data };
@@ -227,6 +325,13 @@ export async function desactivarVehiculo(vehiculoId) {
   }
 }
 
+/**
+ * Obtener información completa de un vehículo incluyendo tipo
+ * Útil para obtener la placa y capacidad antes de buscar reemplazo
+ * 
+ * @param {number} vehiculoId - ID del vehículo
+ * @returns {Promise<Object>} - Datos completos del vehículo
+ */
 export async function obtenerVehiculoCompleto(vehiculoId) {
   try {
     const { data, error } = await supabase
@@ -247,7 +352,7 @@ export async function obtenerVehiculoCompleto(vehiculoId) {
         )
       `)
       .eq('id', vehiculoId)
-      .maybeSingle();
+      .single();
 
     if (error) throw error;
     return data;
