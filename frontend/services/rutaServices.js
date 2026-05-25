@@ -26,122 +26,123 @@ export const guardarRutaCompleta = async (
       .eq("numero_ruta", parseInt(numeroRuta))
       .maybeSingle();
 
-        if (rutaExistente) {
-            throw new Error(`Ya existe una ruta con el número ${numeroRuta}`);
-        }
+    if (rutaExistente) {
+      throw new Error(`Ya existe una ruta con el número ${numeroRuta}`);
+    }
 
-        // Validar conflicto de horario con el mismo vehículo
-        const { data: conflicto } = await supabase
-            .from('ruta_horarios')
-            .select('id')
-            .eq('vehiculo_id', vehiculoId)
-            .eq('hora_inicio', horaInicio)
-            .maybeSingle();
+    // Validar conflicto de horario con el mismo vehículo
+    const { data: conflicto } = await supabase
+      .from('ruta_horarios')
+      .select('id')
+      .eq('vehiculo_id', vehiculoId)
+      .eq('hora_inicio', horaInicio)
+      .maybeSingle();
 
-        if (conflicto) {
-            throw new Error('Este vehículo ya tiene una ruta asignada en ese horario');
-        }
+    if (conflicto) {
+      throw new Error('Este vehículo ya tiene una ruta asignada en ese horario');
+    }
 
-        // 1. Guardar la ruta con el trayecto en la columna geometry (RPC)
-        // La RPC guardar_ruta ya guarda el trayecto en rutas.trayecto como LINESTRING
-        const { data, error } = await supabase.rpc('guardar_ruta', {
-            p_nombre: nombre,
-            p_numero_ruta: parseInt(numeroRuta),
-            p_puntos: puntosRuta.map(p => ({ lon: p.lon, lat: p.lat }))
+    // 1. Guardar la ruta con el trayecto en la columna geometry (RPC)
+    // La RPC guardar_ruta ya guarda el trayecto en rutas.trayecto como LINESTRING
+    const { data, error } = await supabase.rpc('guardar_ruta', {
+      p_nombre: nombre,
+      p_numero_ruta: parseInt(numeroRuta),
+      p_puntos: puntosRuta.map(p => ({ lon: p.lon, lat: p.lat }))
+    });
+    if (error) throw error;
+
+    rutaId = data?.id ?? data;
+
+    // 2. Calcular días según el tipo seleccionado
+    const dias = {
+      lunes: diasTipo.lunes ?? false,
+      martes: diasTipo.martes ?? false,
+      miercoles: diasTipo.miercoles ?? false,
+      jueves: diasTipo.jueves ?? false,
+      viernes: diasTipo.viernes ?? false,
+      sabado: diasTipo.sabado ?? false,
+      domingo: diasTipo.domingo ?? false,
+    };
+
+    // 3. Obtener el nombre del turno en minúsculas (para el enum)
+    let nombreTurno = null;
+    if (turno_id) {
+      const { data: turnoData, error: turnoError } = await supabase
+        .from('tipos_turno')
+        .select('nombre')
+        .eq('id', turno_id)
+        .single();
+
+      if (turnoError) {
+        console.warn('No se pudo obtener el nombre del turno:', turnoError);
+      } else if (turnoData?.nombre) {
+        // Convertir a minúsculas: 'Mañana' -> 'mañana', etc.
+        nombreTurno = turnoData.nombre.toLowerCase();
+      }
+    }
+
+    // 4. Insertar el horario en ruta_horarios
+    //    IMPORTANTE: La columna del enum se llama 'turno_nombre' según el error de Supabase.
+    //    Si en tu tabla se llama 'nombre_turno', cámbiala aquí.
+    const { error: errorHorario } = await supabase
+      .from('ruta_horarios')
+      .insert({
+        ruta_id: parseInt(rutaId),
+        hora_inicio: horaInicio,
+        hora_fin: horaFin,
+        vehiculo_id: vehiculoId,
+        tipo_turno_id: turno_id,
+        ...dias,
+        activo: true
+      });
+
+    if (errorHorario) throw errorHorario;
+
+
+    // 5. Guardar las paradas de bus (tipo 'parada_bus')
+    for (let i = 0; i < puntosParada.length; i++) {
+      const puntoGeo = `POINT(${puntosParada[i].lon} ${puntosParada[i].lat})`;
+
+      //Para guardar el nombre de la parada 
+      const nombreParada = puntosParada[i].direccion || `Parada bus ${i + 1}`;
+
+      const { data: parada, error: errorParada } = await supabase
+        .from('paradas')
+        .insert({
+          nombre: nombreParada,
+          ubicacion: puntoGeo,
+          activa: true,
+          tipo: 'parada_bus',
+          latitud: puntosParada[i].lat,  // ← correcto
+          longitud: puntosParada[i].lon,
+        })
+        .select()
+        .single();
+
+      if (errorParada) throw errorParada;
+
+      const { error: errorRutaParada } = await supabase
+        .from('ruta_paradas')
+        .insert({
+          ruta_id: parseInt(rutaId),
+          parada_id: parada.id,
+          orden: puntosRuta.length + i + 1
         });
-        if (error) throw error;
 
-        rutaId = data?.id ?? data;
+      if (errorRutaParada) throw errorRutaParada;
+    }
 
-        // 2. Calcular días según el tipo seleccionado
-        const dias = {
-            lunes: diasTipo.lunes ?? false,
-            martes: diasTipo.martes ?? false,
-            miercoles: diasTipo.miercoles ?? false,
-            jueves: diasTipo.jueves ?? false,
-            viernes: diasTipo.viernes ?? false,
-            sabado: diasTipo.sabado ?? false,
-            domingo: diasTipo.domingo ?? false,
-        };
+    return rutaId;
 
-        // 3. Obtener el nombre del turno en minúsculas (para el enum)
-        let nombreTurno = null;
-        if (turno_id) {
-            const { data: turnoData, error: turnoError } = await supabase
-                .from('tipos_turno')
-                .select('nombre')
-                .eq('id', turno_id)
-                .single();
-
-            if (turnoError) {
-                console.warn('No se pudo obtener el nombre del turno:', turnoError);
-            } else if (turnoData?.nombre) {
-                // Convertir a minúsculas: 'Mañana' -> 'mañana', etc.
-                nombreTurno = turnoData.nombre.toLowerCase();
-            }
-        }
-
-        // 4. Insertar el horario en ruta_horarios
-        //    IMPORTANTE: La columna del enum se llama 'turno_nombre' según el error de Supabase.
-        //    Si en tu tabla se llama 'nombre_turno', cámbiala aquí.
-        const { error: errorHorario } = await supabase
-            .from('ruta_horarios')
-            .insert({
-                ruta_id: parseInt(rutaId),
-                hora_inicio: horaInicio,
-                hora_fin: horaFin,
-                vehiculo_id: vehiculoId,
-                tipo_turno_id: turno_id,
-                ...dias,
-                activo: true
-            });
-
-        if (errorHorario) throw errorHorario;
-
-
-        // 5. Guardar las paradas de bus (tipo 'parada_bus')
-        for (let i = 0; i < puntosParada.length; i++) {
-            const puntoGeo = `POINT(${puntosParada[i].lon} ${puntosParada[i].lat})`;
-
-            //Para guardar el nombre de la parada 
-            const nombreParada = puntosParada[i].direccion || `Parada bus ${i + 1}`;
-
-            const { data: parada, error: errorParada } = await supabase
-                .from('paradas')
-                .insert({
-                    nombre: nombreParada,
-                    ubicacion: puntoGeo,
-                    activa: true,
-                    tipo: 'parada_bus',
-                    latitud: puntosParada[i].lat,  // ← correcto
-                    longitud: puntosParada[i].lon,
-                })
-                .select()
-                .single();
-
-            if (errorParada) throw errorParada;
-
-            const { error: errorRutaParada } = await supabase
-                .from('ruta_paradas')
-                .insert({
-                    ruta_id: parseInt(rutaId),
-                    parada_id: parada.id,
-                    orden: puntosRuta.length + i + 1
-                });
-
-            if (errorRutaParada) throw errorRutaParada;
-        }
-
-        return rutaId;
-
-    } catch (error) {
-        // Rollback manual en caso de fallo
-        if (rutaId) {
-            await supabase.from('ruta_paradas').delete().eq('ruta_id', rutaId);
-            await supabase.from('ruta_horarios').delete().eq('ruta_id', rutaId);
-            await supabase.from('rutas').delete().eq('id', rutaId);
-        }
-        throw error;
+  } catch (error) {
+    // Rollback manual en caso de fallo
+    if (rutaId) {
+      await supabase.from('ruta_paradas').delete().eq('ruta_id', rutaId);
+      await supabase.from('ruta_horarios').delete().eq('ruta_id', rutaId);
+      await supabase.from('rutas').delete().eq('id', rutaId);
+    }
+    throw error;
+  }
 };
 
 export async function obtenerRutas() {
