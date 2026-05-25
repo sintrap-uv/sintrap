@@ -15,6 +15,7 @@ import { getCurrentUser } from "../../services/auth";
 import { getTurnosConductor } from "../../services/dashboardConductorService";
 import Header from "../../components/Header";
 import theme from "../../constants/theme";
+import { getDiasTexto } from "../../utils/diasUtils";
 
 const T = theme.lightMode;
 
@@ -44,14 +45,6 @@ function ChipEstado({ estado }) {
 }
 
 function TarjetaTurno({ turno }) {
-  const fecha = new Date(turno.fecha);
-  const fechaFormateada = fecha.toLocaleDateString("es-CO", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-
   return (
     <View style={styles.tarjeta}>
       <View style={styles.tarjetaHeader}>
@@ -66,8 +59,8 @@ function TarjetaTurno({ turno }) {
 
       <View style={styles.tarjetaBody}>
         <View style={styles.infoRow}>
-          <Ionicons name="calendar-outline" size={16} color={T.text.secondary} />
-          <Text style={styles.infoText}>{fechaFormateada}</Text>
+          <MaterialCommunityIcons name="calendar-week" size={16} color={T.text.secondary} />
+          <Text style={styles.infoText}>{getDiasTexto(turno.dias)}</Text>
         </View>
 
         <View style={styles.infoRow}>
@@ -229,7 +222,7 @@ export default function MisTurnos() {
         onBack={handleBack}
         iconoDerecha={!vieneDelPerfil ? (
           <TouchableOpacity onPress={handleGoToProfile}>
-            <Ionicons name="settings-outline" size={24} color="#fff" />
+            <Ionicons name="settings-outline" size={36} color="#fff" />
           </TouchableOpacity>
         ) : null}
       />
@@ -291,61 +284,28 @@ const styles = StyleSheet.create({
   vacioTitulo: { fontSize: 18, fontWeight: "600", color: T.text.primary, textAlign: "center" },
   vacioSubtexto: { fontSize: 14, color: T.text.secondary, textAlign: "center", marginTop: 4 },
 
-  filtrosContainer: {
-    backgroundColor: T.background,
-  },
-  filtrosContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 10,
-  },
+  filtrosContainer: { backgroundColor: T.background },
+  filtrosContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   filtroBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: T.cards.border,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: "#fff", borderWidth: 1, borderColor: T.cards.border,
   },
-  filtroBtnActivo: {
-    backgroundColor: T.Button.primary.background,
-    borderColor: T.Button.primary.background,
-  },
-  filtroTexto: {
-    fontSize: 13,
-    color: T.text.secondary,
-    fontWeight: "500",
-  },
-  filtroTextoActivo: {
-    color: "#fff",
-  },
+  filtroBtnActivo: { backgroundColor: T.Button.primary.background, borderColor: T.Button.primary.background },
+  filtroTexto: { fontSize: 13, color: T.text.secondary, fontWeight: "500" },
+  filtroTextoActivo: { color: "#fff" },
 
   lista: { padding: 16, gap: 12, paddingBottom: 32 },
 
   tarjeta: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: T.cards.border,
+    backgroundColor: "#fff", borderRadius: 16, padding: 16,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 8, elevation: 3,
+    borderWidth: 1, borderColor: T.cards.border,
   },
   tarjetaHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start",
+    marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
   },
   rutaInfo: { flex: 1, marginRight: 12 },
   rutaNumero: { fontSize: 12, fontWeight: "600", color: T.text.secondary, textTransform: "uppercase" },
@@ -354,14 +314,7 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   infoText: { fontSize: 13, color: T.text.secondary, flex: 1 },
 
-  estadoChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
+  estadoChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   estadoDot: { width: 6, height: 6, borderRadius: 3 },
   estadoTexto: { fontSize: 11, fontWeight: "600" },
 });

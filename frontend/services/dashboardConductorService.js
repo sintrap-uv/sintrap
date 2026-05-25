@@ -15,13 +15,39 @@ export async function getTurnosConductor(conductorId) {
       return { success: false, error: error.message };
     }
     
-    const turnos = Array.isArray(data) ? data : [];
+    const turnos = Array.isArray(data) ? data.map(turno => ({
+      turno_id: turno.turno_id,
+      fecha: turno.fecha,
+      estado: turno.estado,
+      hora_inicio_real: turno.hora_inicio_real,
+      hora_fin_real: turno.hora_fin_real,
+      numero_ruta: turno.numero_ruta,
+      ruta_nombre: turno.ruta_nombre,
+      vehiculo_id: turno.vehiculo_id,
+      placa: turno.placa,
+      vehiculo_tipo: turno.vehiculo_tipo,
+      capacidad: turno.capacidad,
+      hora_inicio: turno.hora_inicio,
+      hora_fin: turno.hora_fin,
+      cantidad_pasajeros: turno.cantidad_pasajeros || 0,
+      dias: {
+        lunes: turno.lunes,
+        martes: turno.martes,
+        miercoles: turno.miercoles,
+        jueves: turno.jueves,
+        viernes: turno.viernes,
+        sabado: turno.sabado,
+        domingo: turno.domingo,
+      },
+    })) : [];
+    
     return { success: true, data: turnos };
   } catch (err) {
     console.error("Catch Error:", err);
     return { success: false, error: err.message };
   }
 }
+
 
 /**
  * Carga todos los datos del dashboard del conductor en paralelo.
@@ -56,6 +82,7 @@ export async function getDashboardConductor(conductorId) {
       .from("ruta_horarios")
       .select(`
         id, nombre_turno, hora_inicio, hora_fin,
+         lunes, martes, miercoles, jueves, viernes, sabado, domingo,
         ruta_id,
         rutas ( id, numero_ruta, nombre, color )
       `)
@@ -116,30 +143,40 @@ export async function getDashboardConductor(conductorId) {
 
     // ── Para el historial, obtener la ruta de cada vehículo ─────────
     const historialConRutas = await Promise.all(
-      (historialData ?? []).map(async (h) => {
-        const { data: rutaHistorial } = await supabase
-          .from("ruta_horarios")
-          .select(`
-            nombre_turno, hora_inicio, hora_fin,
-            rutas ( numero_ruta )
-          `)
-          .eq("vehiculo_id", h.vehiculo_id)
-          .maybeSingle();
+  (historialData ?? []).map(async (h) => {
+    const { data: rutaHistorial } = await supabase
+      .from("ruta_horarios")
+      .select(`
+        nombre_turno, hora_inicio, hora_fin,
+        lunes, martes, miercoles, jueves, viernes, sabado, domingo,
+        rutas ( numero_ruta )
+      `)
+      .eq("vehiculo_id", h.vehiculo_id)
+      .limit(1)
+      .maybeSingle();
 
-        return {
-          fecha: h.fecha,
-          estado: h.estado,
-          nombreTurno: rutaHistorial?.nombre_turno,
-          horaInicio: rutaHistorial?.hora_inicio,
-          horaFin: rutaHistorial?.hora_fin,
-          numeroRuta: rutaHistorial?.rutas?.numero_ruta,
-          placa: h.vehiculo?.placa,
-          horaInicioReal: h.hora_inicio_real,
-          horaFinReal: h.hora_fin_real,
-        };
-      })
-    );
-
+    return {
+      fecha: h.fecha,
+      estado: h.estado,
+      nombreTurno: rutaHistorial?.nombre_turno,
+      horaInicio: rutaHistorial?.hora_inicio,
+      horaFin: rutaHistorial?.hora_fin,
+      numeroRuta: rutaHistorial?.rutas?.numero_ruta,
+      placa: h.vehiculo?.placa,
+      horaInicioReal: h.hora_inicio_real,
+      horaFinReal: h.hora_fin_real,
+      dias: {
+        lunes: rutaHistorial?.lunes,
+        martes: rutaHistorial?.martes,
+        miercoles: rutaHistorial?.miercoles,
+        jueves: rutaHistorial?.jueves,
+        viernes: rutaHistorial?.viernes,
+        sabado: rutaHistorial?.sabado,
+        domingo: rutaHistorial?.domingo,
+      },
+    };
+  })
+);
     // ── Agrupar usuarios por parada ─────────────────────────────────
     const usuariosPorParada = {};
     (pasajerosData ?? []).forEach((ur) => {
@@ -172,6 +209,15 @@ export async function getDashboardConductor(conductorId) {
           nombreTurno:    rutaHorario?.nombre_turno,
           horaInicio:     rutaHorario?.hora_inicio,
           horaFin:        rutaHorario?.hora_fin,
+          dias: {
+        lunes: rutaHorario?.lunes,
+        martes: rutaHorario?.martes,
+        miercoles: rutaHorario?.miercoles,
+        jueves: rutaHorario?.jueves,
+        viernes: rutaHorario?.viernes,
+        sabado: rutaHorario?.sabado,
+        domingo: rutaHorario?.domingo,
+      },
         },
         ruta: ruta
           ? {
@@ -218,7 +264,7 @@ export async function actualizarEstadoTurno(turnoId, nuevoEstado) {
       .update(cambios)
       .eq("id", turnoId)
       .select()
-      .single();
+      .maybeSingle();
     if (error) throw error;
     return { success: true, data };
   } catch (error) {

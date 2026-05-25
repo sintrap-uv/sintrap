@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
 } from "react-native";
@@ -18,14 +17,51 @@ import { obtenerVehiculos } from "../../services/vehicleService";
 import { getAllDrivers } from "../../services/driverService";
 import Header from "../../components/Header";
 import theme from "../../constants/theme";
+import { useToast } from "../../context/ToastContext";
 
 const T = theme.lightMode;
+
+// Componente para seleccionar días manualmente
+function SelectorDiasManual({ dias, onToggleDia }) {
+  const diasSemana = [
+    { key: 'lunes', label: 'Lun', value: dias.lunes },
+    { key: 'martes', label: 'Mar', value: dias.martes },
+    { key: 'miercoles', label: 'Mié', value: dias.miercoles },
+    { key: 'jueves', label: 'Jue', value: dias.jueves },
+    { key: 'viernes', label: 'Vie', value: dias.viernes },
+    { key: 'sabado', label: 'Sáb', value: dias.sabado },
+    { key: 'domingo', label: 'Dom', value: dias.domingo },
+  ];
+
+  return (
+    <View style={styles.diasManualesContainer}>
+      {diasSemana.map((dia) => (
+        <TouchableOpacity
+          key={dia.key}
+          style={[
+            styles.diaBtn,
+            dia.value && styles.diaBtnActivo,
+          ]}
+          onPress={() => onToggleDia(dia.key)}
+        >
+          <Text style={[
+            styles.diaBtnTexto,
+            dia.value && styles.diaBtnTextoActivo,
+          ]}>
+            {dia.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
 
 export default function EditarRutaScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const id = params.id;
   const returnTo = params.returnTo;
+  const { showSuccess, showError, showWarning } = useToast();
 
   // Estados para datos de la ruta
   const [nombreRuta, setNombreRuta] = useState("");
@@ -44,6 +80,16 @@ export default function EditarRutaScreen() {
   const [horaInicio, setHoraInicio] = useState("06:00");
   const [horaFin, setHoraFin] = useState("18:00");
   const [diasTipo, setDiasTipo] = useState("entre_semana");
+  const [modoSeleccion, setModoSeleccion] = useState("rapido");
+  const [diasManuales, setDiasManuales] = useState({
+    lunes: true,
+    martes: true,
+    miercoles: true,
+    jueves: true,
+    viernes: true,
+    sabado: false,
+    domingo: false,
+  });
   const [vehiculoAntiguoId, setVehiculoAntiguoId] = useState(null);
 
   // Estados para pickers
@@ -135,18 +181,26 @@ export default function EditarRutaScreen() {
         setHoraInicio(horarioData.hora_inicio || "06:00");
         setHoraFin(horarioData.hora_fin || "18:00");
 
-        // ================================================
-        // Cargar los días de operación desde ruta_horarios
-        // ================================================
+        // Cargar días manuales
         const { lunes, martes, miercoles, jueves, viernes, sabado, domingo } = horarioData;
+        setDiasManuales({ lunes, martes, miercoles, jueves, viernes, sabado, domingo });
+
+        // Determinar si es personalizado y el tipo
+        const esEntreSemana = (lunes && martes && miercoles && jueves && viernes && !sabado && !domingo);
+        const esFinesSemana = (!lunes && !martes && !miercoles && !jueves && !viernes && sabado && domingo);
+        const esTodos = (lunes && martes && miercoles && jueves && viernes && sabado && domingo);
         
-        if (lunes && martes && miercoles && jueves && viernes && !sabado && !domingo) {
+        if (esEntreSemana) {
+          setModoSeleccion("rapido");
           setDiasTipo("entre_semana");
-        } else if (!lunes && !martes && !miercoles && !jueves && !viernes && sabado && domingo) {
+        } else if (esFinesSemana) {
+          setModoSeleccion("rapido");
           setDiasTipo("fines_semana");
-        } else if (lunes && martes && miercoles && jueves && viernes && sabado && domingo) {
+        } else if (esTodos) {
+          setModoSeleccion("rapido");
           setDiasTipo("todos");
         } else {
+          setModoSeleccion("manual");
           setDiasTipo("personalizado");
         }
 
@@ -165,7 +219,7 @@ export default function EditarRutaScreen() {
       }
     } catch (error) {
       console.error("Error cargando datos:", error);
-      Alert.alert("Error", "No se pudieron cargar los datos");
+      showError("No se pudieron cargar los datos");
     } finally {
       setCargando(false);
     }
@@ -201,7 +255,7 @@ export default function EditarRutaScreen() {
       if (errorRuta) throw errorRuta;
 
       // 2. Verificar si ya existe un horario para esta ruta
-      const { data: horarioExistente, error: checkError } = await supabase
+      const { data: horarioExistente } = await supabase
         .from("ruta_horarios")
         .select("id")
         .eq("ruta_id", id)
@@ -209,16 +263,21 @@ export default function EditarRutaScreen() {
 
       let errorHorario = null;
 
-      // Calcular los días según el tipo seleccionado
-      const dias = {
-        lunes: diasTipo === "entre_semana" || diasTipo === "todos",
-        martes: diasTipo === "entre_semana" || diasTipo === "todos",
-        miercoles: diasTipo === "entre_semana" || diasTipo === "todos",
-        jueves: diasTipo === "entre_semana" || diasTipo === "todos",
-        viernes: diasTipo === "entre_semana" || diasTipo === "todos",
-        sabado: diasTipo === "fines_semana" || diasTipo === "todos",
-        domingo: diasTipo === "fines_semana" || diasTipo === "todos",
-      };
+      // Calcular los días según el modo seleccionado
+      let dias;
+      if (modoSeleccion === "rapido") {
+        dias = {
+          lunes: diasTipo === "entre_semana" || diasTipo === "todos",
+          martes: diasTipo === "entre_semana" || diasTipo === "todos",
+          miercoles: diasTipo === "entre_semana" || diasTipo === "todos",
+          jueves: diasTipo === "entre_semana" || diasTipo === "todos",
+          viernes: diasTipo === "entre_semana" || diasTipo === "todos",
+          sabado: diasTipo === "fines_semana" || diasTipo === "todos",
+          domingo: diasTipo === "fines_semana" || diasTipo === "todos",
+        };
+      } else {
+        dias = diasManuales;
+      }
 
       if (horarioExistente) {
         // Actualizar horario existente
@@ -252,41 +311,31 @@ export default function EditarRutaScreen() {
 
       if (errorHorario) throw errorHorario;
 
-      // 3. IMPORTANTE: Actualizar el conductor del vehículo NUEVO
+      // 3. Actualizar el conductor del vehículo NUEVO (silenciosamente)
       if (vehiculoId && conductorId) {
-        const { error: errorUpdateVehiculo } = await supabase
+        supabase
           .from("vehiculos")
-          .update({
-            conductor_id: conductorId,
-          })
-          .eq("id", vehiculoId);
-
-        if (errorUpdateVehiculo) {
-          console.error("Error actualizando conductor del vehículo:", errorUpdateVehiculo);
-          Alert.alert("Advertencia", "La ruta se guardó pero no se pudo actualizar el conductor del vehículo");
-        }
+          .update({ conductor_id: conductorId })
+          .eq("id", vehiculoId)
+          .then(({ error }) => {
+            if (error) console.log("Nota:", error.message);
+          });
       }
 
       // 4. Limpiar el conductor del vehículo ANTIGUO (si cambió)
       if (vehiculoAntiguoId && vehiculoAntiguoId !== vehiculoId) {
-        const { error: errorLimpiarVehiculo } = await supabase
+        supabase
           .from("vehiculos")
-          .update({
-            conductor_id: null,
-          })
+          .update({ conductor_id: null })
           .eq("id", vehiculoAntiguoId);
-
-        if (errorLimpiarVehiculo) {
-          console.error("Error limpiando conductor del vehículo antiguo:", errorLimpiarVehiculo);
-        }
       }
 
-      Alert.alert("Éxito", "Ruta actualizada correctamente", [
-        { text: "OK", onPress: handleBack },
-      ]);
+      showSuccess("Ruta actualizada correctamente");
+      handleBack();
+      
     } catch (error) {
       console.error("Error guardando:", error);
-      Alert.alert("Error", `No se pudo actualizar la ruta: ${error.message}`);
+      showError(`No se pudo actualizar la ruta: ${error.message}`);
     } finally {
       setGuardando(false);
     }
@@ -305,6 +354,14 @@ export default function EditarRutaScreen() {
     if (vehiculoSeleccionado && vehiculoSeleccionado.conductor_id) {
       setConductorId(vehiculoSeleccionado.conductor_id);
     }
+  };
+
+  // Toggle día manual
+  const toggleDiaManual = (dia) => {
+    setDiasManuales(prev => ({
+      ...prev,
+      [dia]: !prev[dia]
+    }));
   };
 
   if (cargando) {
@@ -447,13 +504,41 @@ export default function EditarRutaScreen() {
           {errores.turno && <Text style={styles.errorText}>{errores.turno}</Text>}
 
           <Text style={styles.labelSeccion}>Días de operación</Text>
-          <View style={styles.selectorContenedor}>
-            <Picker selectedValue={diasTipo} onValueChange={setDiasTipo} style={{ color: T.input.text }}>
-              <Picker.Item label="Entre semana (Lun - Vie)" value="entre_semana" />
-              <Picker.Item label="Fines de semana (Sab - Dom)" value="fines_semana" />
-              <Picker.Item label="Todos los días" value="todos" />
-            </Picker>
+          
+          {/* Switch entre modo rápido y manual */}
+          <View style={styles.modoSelector}>
+            <TouchableOpacity
+              style={[styles.modoBtn, modoSeleccion === "rapido" && styles.modoBtnActivo]}
+              onPress={() => setModoSeleccion("rapido")}
+            >
+              <Text style={[styles.modoBtnTexto, modoSeleccion === "rapido" && styles.modoBtnTextoActivo]}>
+                Opciones rápidas
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modoBtn, modoSeleccion === "manual" && styles.modoBtnActivo]}
+              onPress={() => setModoSeleccion("manual")}
+            >
+              <Text style={[styles.modoBtnTexto, modoSeleccion === "manual" && styles.modoBtnTextoActivo]}>
+                Selección manual
+              </Text>
+            </TouchableOpacity>
           </View>
+
+          {modoSeleccion === "rapido" ? (
+            <View style={styles.selectorContenedor}>
+              <Picker selectedValue={diasTipo} onValueChange={setDiasTipo} style={{ color: T.input.text }}>
+                <Picker.Item label="Entre semana (Lun - Vie)" value="entre_semana" />
+                <Picker.Item label="Fines de semana (Sab - Dom)" value="fines_semana" />
+                <Picker.Item label="Todos los días" value="todos" />
+              </Picker>
+            </View>
+          ) : (
+            <SelectorDiasManual 
+              dias={diasManuales} 
+              onToggleDia={toggleDiaManual}
+            />
+          )}
 
           <TouchableOpacity style={styles.guardarBtn} onPress={handleGuardar} disabled={guardando}>
             {guardando ? <ActivityIndicator color="#fff" /> : <Text style={styles.guardarBtnText}>Guardar cambios</Text>}
@@ -520,4 +605,56 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   guardarBtnText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+  
+  // Estilos para días de operación
+  modoSelector: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 12,
+  },
+  modoBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
+  },
+  modoBtnActivo: {
+    backgroundColor: T.Button.primary.background,
+  },
+  modoBtnTexto: {
+    fontSize: 13,
+    color: T.text.secondary,
+    fontWeight: "500",
+  },
+  modoBtnTextoActivo: {
+    color: "#fff",
+  },
+  diasManualesContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 8,
+  },
+  diaBtn: {
+    width: 50,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 25,
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: T.cards.border,
+  },
+  diaBtnActivo: {
+    backgroundColor: T.Button.primary.background,
+    borderColor: T.Button.primary.background,
+  },
+  diaBtnTexto: {
+    fontSize: 14,
+    color: T.text.secondary,
+    fontWeight: "500",
+  },
+  diaBtnTextoActivo: {
+    color: "#fff",
+  },
 });
