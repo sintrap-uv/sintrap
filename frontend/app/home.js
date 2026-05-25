@@ -35,6 +35,8 @@ import ConfiguracionBuses from "./(admin)/configurar-buses";
 import { ObtenerDireccionUsuario } from "../services/geocalizacion";
 import CajaDireccion from "../components/ModalDireccion";
 import TodasLasRutasScreen from "./(admin)/rutas";
+import MapaRutaConductor from "./(conductor)/mapa-ruta";
+import EnviarNotificacion from "./(conductor)/EnviarNotificacion";
 
 export default function Home() {
   const router = useRouter();
@@ -81,35 +83,35 @@ export default function Home() {
 
     try {
       // 1. Obtener colaboradores
-      console.log("📡 Obteniendo colaboradores...");
+      console.log("Obteniendo colaboradores...");
       const data = await ubicacionColaboradores();
       setColaboradores(data);
-      console.log(`✅ Encontrados ${data.length} colaboradores con ubicación`);
+      console.log(`Encontrados ${data.length} colaboradores con ubicación`);
 
       // 2. Mostrar algunos ejemplos
       if (data.length > 0) {
-        console.log("📋 Ejemplo de colaborador:");
+        console.log("Ejemplo de colaborador:");
         console.log(`   Nombre: ${data[0].nombre}`);
         console.log(`   Dirección: ${data[0].ubicacion_usuario?.[0]?.direccion}`);
         console.log(`   Coordenadas: ${data[0].ubicacion_usuario?.[0]?.latidud}, ${data[0].ubicacion_usuario?.[0]?.longitud}`);
       }
 
       // 3. Agrupar por cercanía
-      console.log("🔄 Agrupando por cercanía...");
+      console.log("Agrupando por cercanía...");
       const clusters = agruparPorCercania(data, 0.3);
       setGrupos(clusters);
 
       // 4. Mostrar resultados
-      console.log(`✅ Se crearon ${clusters.length} grupos`);
+      console.log(`Se crearon ${clusters.length} grupos`);
       clusters.forEach((grupo, index) => {
-        console.log(`📦 Grupo ${index + 1}: ${grupo.cantidad} personas`);
+        console.log(`Grupo ${index + 1}: ${grupo.cantidad} personas`);
         grupo.colaboradores.forEach(col => {
           console.log(`   - ${col.nombre}`);
         });
       });
 
     } catch (error) {
-      console.error("❌ Error:", error);
+      console.error("Error:", error);
     } finally {
       setCargandoPrueba(false);
     }
@@ -196,37 +198,9 @@ export default function Home() {
 
       turnos: () => <MisTurnos />,
       
-      rutas: () => (
-        <View style={{ flex: 1 }}>
-          <Header
-            titulo="Mi Ruta"
-            subtitulo="Ruta asignada para hoy"
-            showBack={false}
-            iconoDerecha={
-              <TouchableOpacity onPress={handleGoToProfile}>
-                <Ionicons name="settings-outline" size={36} color="#fff" />
-              </TouchableOpacity>
-            }
-          />
-          <TabPendiente nombre="Mi Ruta" icono="navigate-outline" />
-        </View>
-      ),
+      rutas: () => <MapaRutaConductor />,
 
-      agregar: () => (
-        <View style={{ flex: 1 }}>
-          <Header
-            titulo="Reportar incidente"
-            subtitulo="Notifica cualquier novedad"
-            showBack={false}
-            iconoDerecha={
-              <TouchableOpacity onPress={handleGoToProfile}>
-                <Ionicons name="settings-outline" size={36} color="#fff" />
-              </TouchableOpacity>
-            }
-          />
-          <TabPendiente nombre="Reportar incidente" icono="warning-outline" />
-        </View>
-      ),
+      agregar: () => <EnviarNotificacion />,
       
       bus: () => <MisBusesScreen />,
 
