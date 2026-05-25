@@ -10,7 +10,7 @@ import { supabase } from "../../services/supabase";
 import Header from "../../components/Header";
 import theme from "../../constants/theme";
 import { useToast } from "../../context/ToastContext";
-import theme from "../../constants/theme";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   verificarDependenciasVehiculo,
   buscarVehiculosReemplazo,

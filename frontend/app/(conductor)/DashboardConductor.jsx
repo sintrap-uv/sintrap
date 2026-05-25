@@ -17,7 +17,6 @@ import { supabase } from "../../services/supabase";
 import { getProfile } from "../../services/profileService";
 import ProfileCard from "../../components/ProfileCard";
 import theme from "../../constants/theme";
-import { getDiasTexto } from "../../utils/diasUtils";
 import Header from "../../components/Header";
 import {
   getDashboardConductor,
@@ -26,8 +25,6 @@ import {
   nombreTurno,
   actualizarUbicacionConductor,
 } from "../../services/dashboardConductorService";
-import * as Location from "expo-location";
-import { useToast } from "../../context/ToastContext";
 
 const T = theme.lightMode;
 
@@ -133,28 +130,52 @@ function ItemParadaConductor({ parada, esUltima, esPasada, esActual }) {
     <View style={styles.paradaFila}>
       <View style={styles.paradaConector}>
         <View
-          style={[styles.paradaPunto, { backgroundColor: dotColor, width: dotSize, height: dotSize }]}
+          style={[
+            styles.paradaPunto,
+            {
+              backgroundColor: dotColor,
+              width: dotSize,
+              height: dotSize,
+            },
+          ]}
         />
-        {!esUltima && <View style={[styles.paradaLinea, { backgroundColor: esActual || !esPasada ? "#E5E7EB" : "#D1D5DB" }]} />}
+        {!esUltima && (
+          <View
+            style={[
+              styles.paradaLinea,
+              {
+                backgroundColor: esActual || !esPasada ? "#E5E7EB" : "#D1D5DB",
+              },
+            ]}
+          />
+        )}
       </View>
 
       <View style={styles.paradaContenido}>
         <View style={styles.paradaRow}>
-          <Text style={[styles.paradaNombre, esPasada && styles.paradaPasada]}>
+          <Text
+            style={[styles.paradaNombre, esPasada && styles.paradaPasada]}
+            numberOfLines={2}
+          >
             {esPasada && "✓ "}
             {parada.nombre}
           </Text>
           {esActual && (
             <View style={styles.badgeActual}>
-              <Text style={styles.badgeActualText}>Aquí estamos</Text>
+              <Text style={styles.badgeActualText}>Aquí</Text>
             </View>
           )}
         </View>
 
         <View style={styles.paradaMetadata}>
-          {parada.eta > 0 && (
+          {parada.usuariosSuben > 0 && (
+            <Text style={styles.paradaUsuarios}>
+              {parada.usuariosSuben} usuario{parada.usuariosSuben > 1 ? "s" : ""}
+            </Text>
+          )}
+          {parada.eta != null && (
             <Text style={styles.paradaETA}>
-              {esActual || esPasada ? "Pasó" : `${parada.eta} min`}
+              {esActual || esPasada ? "Pasó" : `ETA ${parada.eta} min`}
             </Text>
           )}
         </View>
@@ -169,7 +190,6 @@ export default function DashboardConductor() {
   const params = useLocalSearchParams();
   const returnTo = params.returnTo;
   const vieneDelPerfil = returnTo === "perfil";
-  const { showSuccess, showError, showWarning } = useToast();
 
   const [mostrarPerfil, setMostrarPerfil] = useState(false);
   const [perfil, setPerfil] = useState(null);
@@ -185,7 +205,6 @@ export default function DashboardConductor() {
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
 
   const [modalEstadoVisible, setModalEstadoVisible] = useState(false);
-  const [estadoNuevo, setEstadoNuevo] = useState(null);
 
   const timerUbicacionRef = useRef(null);
 
@@ -196,10 +215,6 @@ export default function DashboardConductor() {
     } else {
       router.back();
     }
-  };
-
-  const handleGoToProfile = () => {
-    setMostrarPerfil(true);
   };
 
   // ─── Carga inicial
@@ -241,7 +256,7 @@ export default function DashboardConductor() {
       }
     } catch (e) {
       console.error("Error dashboard conductor:", e.message);
-      showError("Error al cargar los datos del dashboard");
+      setSinTurno(true);
     } finally {
       setCargando(false);
       setRefrescando(false);
@@ -271,7 +286,7 @@ export default function DashboardConductor() {
         conductorId,
         loc.coords.latitude,
         loc.coords.longitude,
-        loc.coords.speed
+        loc.coords.speed ?? null
       );
 
       if (resultado.success) {
@@ -289,7 +304,7 @@ export default function DashboardConductor() {
 
   // ─── Timer para actualizar ubicación automáticamente
   useEffect(() => {
-    if (datos?.turno?.estado !== "en_curso") {
+    if (!datos?.turno?.estado || datos.turno.estado !== "en_curso") {
       if (timerUbicacionRef.current) clearInterval(timerUbicacionRef.current);
       return;
     }
@@ -304,7 +319,7 @@ export default function DashboardConductor() {
           conductorId,
           loc.coords.latitude,
           loc.coords.longitude,
-          loc.coords.speed
+          loc.coords.speed ?? null
         );
       } catch (e) {
         console.warn("Error en actualización automática:", e);
@@ -329,7 +344,6 @@ export default function DashboardConductor() {
 
       if (resultado.success) {
         setModalEstadoVisible(false);
-        setEstadoNuevo(null);
         Alert.alert("Éxito", `Turno cambió a ${nombreTurno(nuevoEstado)}`);
         // Recargar datos
         await cargarDatos(true);
@@ -364,31 +378,7 @@ export default function DashboardConductor() {
     );
   }
 
-  const actualizarUbicacion = async () => {
-    setActualizando(true);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        showWarning("Activa la ubicación para actualizar tu posición");
-        return;
-      }
-      const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      await actualizarUbicacionUsuario(
-        conductorId,
-        loc.coords.latitude,
-        loc.coords.longitude,
-        null
-      );
-      showSuccess("Ubicación actualizada correctamente");
-    } catch (e) {
-      showError(e.message);
-    } finally {
-      setActualizando(false);
-    }
-  };
-
+  // ─── Estados de carga
   if (cargando) {
     return (
       <View style={{ flex: 1, backgroundColor: T.background }}>
@@ -409,7 +399,8 @@ export default function DashboardConductor() {
           <Ionicons name="calendar-clear-outline" size={56} color="#D1D5DB" />
           <Text style={styles.sinTurnoTitulo}>Sin turno asignado</Text>
           <Text style={styles.sinTurnoSub}>
-            No tienes un turno programado para hoy. El administrador te asignará uno próximamente.
+            No tienes un turno programado para hoy. El administrador te asignará
+            uno próximamente.
           </Text>
           <TouchableOpacity
             style={styles.btnRefresh}
@@ -428,27 +419,18 @@ export default function DashboardConductor() {
 
   if (!datos) return null;
 
-  const {
-    turno,
-    ruta,
-    horario,
-    vehiculo,
-    paradas,
-    ubicacionActual,
-    ocupacion,
-    historial,
-  } = datos;
+  const { turno, ruta, vehiculo, paradas, totalPasajeros, historial } = datos;
 
-  const porcentaje = ocupacion.maximo > 0
-    ? Math.round((ocupacion.actual / ocupacion.maximo) * 100)
-    : 0;
+  const capacidadMax = vehiculo?.capacidad ?? 0;
+  const porcentaje =
+    capacidadMax > 0 ? Math.round((totalPasajeros / capacidadMax) * 100) : 0;
   const barraColor = getBarraColor(porcentaje);
 
   return (
     <View style={styles.root}>
       <Header
         titulo="Mi turno"
-        subtitulo={`${nombreTurno(horario?.nombreTurno)} · ${ruta?.nombre}`}
+        subtitulo={`Ruta ${ruta?.numeroRuta}: ${ruta?.nombre}`}
         showBack={false}
         iconoDerecha={
           <TouchableOpacity onPress={() => cargarDatos(true)} disabled={refrescando}>
@@ -484,22 +466,25 @@ export default function DashboardConductor() {
           </View>
 
           {/* Horario */}
-          <View style={styles.horarioRow}>
-            <View style={styles.horarioDato}>
-              <Ionicons name="time-outline" size={16} color={T.text.secondary} />
-              <Text style={styles.horarioDatoTexto}>
-                {formatearHora(horario?.horaInicio)} - {formatearHora(horario?.horaFin)}
-              </Text>
-            </View>
-            {horario?.nombreTurno && (
+          {(datos.turno?.horaInicio || datos.turno?.horaFin) && (
+            <View style={styles.horarioRow}>
               <View style={styles.horarioDato}>
-                <Ionicons name="layers-outline" size={16} color={T.text.secondary} />
+                <Ionicons name="time-outline" size={16} color={T.text.secondary} />
                 <Text style={styles.horarioDatoTexto}>
-                  {nombreTurno(horario.nombreTurno)}
+                  {formatearHora(datos.turno?.horaInicio)} -{" "}
+                  {formatearHora(datos.turno?.horaFin)}
                 </Text>
               </View>
-            )}
-          </View>
+              {datos.turno?.nombreTurno && (
+                <View style={styles.horarioDato}>
+                  <Ionicons name="layers-outline" size={16} color={T.text.secondary} />
+                  <Text style={styles.horarioDatoTexto}>
+                    {nombreTurno(datos.turno.nombreTurno)}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Vehículo */}
           {vehiculo && (
@@ -515,7 +500,7 @@ export default function DashboardConductor() {
               <View style={styles.busDato}>
                 <Ionicons name="people-outline" size={16} color={T.text.secondary} />
                 <Text style={styles.busDatoTexto}>
-                  Cap. {vehiculo.capacidadMax} pasajeros
+                  Cap. {vehiculo.capacidad} pasajeros
                 </Text>
               </View>
             </View>
@@ -526,7 +511,7 @@ export default function DashboardConductor() {
             <View style={styles.ocupacionHeader}>
               <Text style={styles.ocupacionLabel}>Ocupación actual</Text>
               <Text style={styles.ocupacionContador}>
-                {ocupacion.actual} / {ocupacion.maximo} pasajeros
+                {totalPasajeros} / {capacidadMax} pasajeros
               </Text>
             </View>
             <View style={styles.barraFondo}>
@@ -553,7 +538,12 @@ export default function DashboardConductor() {
             onPress={() => setModalEstadoVisible(true)}
           >
             <Ionicons name="swap-horizontal" size={18} color={ruta?.color || "#3B82F6"} />
-            <Text style={[styles.btnCambiarEstadoText, { color: ruta?.color || "#3B82F6" }]}>
+            <Text
+              style={[
+                styles.btnCambiarEstadoText,
+                { color: ruta?.color || "#3B82F6" },
+              ]}
+            >
               Cambiar estado
             </Text>
           </TouchableOpacity>
@@ -615,8 +605,8 @@ export default function DashboardConductor() {
             {paradas.length > 0 ? (
               paradas.map((parada, i) => {
                 const esUltima = i === paradas.length - 1;
-                const esPasada = i < 2; // Demo: primeras 2 como pasadas
-                const esActual = i === 2; // Demo: tercera como actual
+                const esPasada = i < 2;
+                const esActual = i === 2;
 
                 return (
                   <ItemParadaConductor
@@ -637,43 +627,44 @@ export default function DashboardConductor() {
         </View>
 
         {/* ─── Historial */}
-        {historial.length > 0 && (
+        {historial && historial.length > 0 && (
           <View style={styles.seccion}>
             <Text style={styles.tituloSeccion}>Turnos anteriores</Text>
             {historial.map((h, i) => {
-              const cfg = TURNO_ESTADO_CONFIG[h.estado] ?? TURNO_ESTADO_CONFIG.completado;
-              const duracionMin = h.horaInicioReal && h.horaFinReal
-                ? Math.round((new Date(h.horaFinReal) - new Date(h.horaInicioReal)) / 60000)
-                : null;
-              const icono = h.estado === "completado" ? "check-circle" : 
-                            h.estado === "cancelado" ? "close-circle" : "clock-outline";
+              const duracionMin =
+                h.hora_inicio_real && h.hora_fin_real
+                  ? Math.round(
+                      (new Date(h.hora_fin_real) - new Date(h.hora_inicio_real)) /
+                        60000
+                    )
+                  : null;
+
               return (
                 <View key={i} style={styles.historialItem}>
-                  <View style={[styles.historialEstado, { backgroundColor: cfg.bg }]}>
+                  <View style={[styles.historialEstado, { backgroundColor: "#F3F4F6" }]}>
                     <MaterialCommunityIcons
-                      name={icono}
+                      name="check-circle"
                       size={16}
-                      color={cfg.color}
+                      color="#6B7280"
                     />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.historialFecha}>
-                      Ruta {h.numeroRuta} · {h.nombreTurno ? nombreTurno(h.nombreTurno) : 'Turno'}
                       {new Date(h.fecha).toLocaleDateString("es-CO", {
                         weekday: "short",
                         day: "numeric",
                         month: "short",
                       })}
-                      {" · Ruta "}
-                      {h.numeroRuta}
                     </Text>
                     <Text style={styles.historialDetalle}>
-                      {h.placa}
+                      {h.vehiculos?.placa || ""}
                       {duracionMin ? ` · ${duracionMin} min` : ""}
                     </Text>
                   </View>
-                  <View style={[styles.chip, { backgroundColor: cfg.bg }]}>
-                    <Text style={[styles.chipTexto, { color: cfg.color }]}>{cfg.label}</Text>
+                  <View style={[styles.chip, { backgroundColor: "#F3F4F6" }]}>
+                    <Text style={[styles.chipTexto, { color: "#6B7280" }]}>
+                      Completado
+                    </Text>
                   </View>
                 </View>
               );
@@ -699,107 +690,6 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   contenido: { padding: 16, paddingBottom: 32, gap: 16 },
 
-  centrado: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 32 },
-  cargandoTexto: { fontSize: 14, color: T.text.secondary },
-  sinTurnoTitulo: { fontSize: 18, fontWeight: "600", color: T.text.primary, textAlign: "center" },
-  sinTurnoSub: { fontSize: 14, color: T.text.secondary, textAlign: "center", lineHeight: 20 },
-
-  heroCard: {
-    backgroundColor: "#fff", borderRadius: 16, padding: 16, borderLeftWidth: 4,
-    gap: 14,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
-  },
-  heroHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  heroLabel: { fontSize: 12, fontWeight: "600", color: T.text.secondary, textTransform: "uppercase", letterSpacing: 0.5 },
-  heroRuta: { fontSize: 16, fontWeight: "700", color: T.text.primary, marginTop: 2 },
-
-  horarioRow: { flexDirection: "row", gap: 16, flexWrap: "wrap" },
-  horarioDato: { flexDirection: "row", alignItems: "center", gap: 5 },
-  horarioDatoTexto: { fontSize: 13, color: T.text.secondary },
-
-  busRow: { flexDirection: "row", gap: 16 },
-  busDato: { flexDirection: "row", alignItems: "center", gap: 5 },
-  busDatoTexto: { fontSize: 13, color: T.text.secondary },
-
-  ocupacionHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
-  ocupacionLabel: { fontSize: 12, color: T.text.secondary },
-  ocupacionContador: { fontSize: 12, fontWeight: "600", color: T.text.primary },
-  barraFondo: { height: 6, backgroundColor: "#F1F5F9", borderRadius: 3, overflow: "hidden" },
-  barraRelleno: { height: 6, borderRadius: 3 },
-
-  porcentajeTexto: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
-
-  cuposDisponibles: {
-    marginTop: 8,
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
-  },
-  cuposDisponiblesTexto: {
-    fontSize: 12,
-    color: T.text.secondary,
-    fontWeight: "500",
-  },
-
-  chip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
-  chipDot: { width: 6, height: 6, borderRadius: 3 },
-  chipTexto: { fontSize: 11, fontWeight: "600" },
-
-  accionesRow: { flexDirection: "row", gap: 8 },
-  accionCard: {
-    flex: 1, alignItems: "center", backgroundColor: "#fff", borderRadius: 12,
-    paddingVertical: 12, gap: 6,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
-  },
-  accionIcono: { width: 42, height: 42, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  accionTexto: { fontSize: 11, fontWeight: "500", color: T.text.primary, textAlign: "center", lineHeight: 15 },
-
-  seccion: { gap: 10 },
-  tituloSeccion: {
-    fontSize: 13, fontWeight: "600", color: T.text.secondary,
-    textTransform: "uppercase", letterSpacing: 0.8,
-  },
-
-  paradasCard: {
-    backgroundColor: "#fff", borderRadius: 12, padding: 16,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
-  },
-  paradaFila: { flexDirection: "row", gap: 12, minHeight: 54 },
-  paradaConector: { alignItems: "center", width: 16 },
-  paradaPunto: { width: 12, height: 12, borderRadius: 6, zIndex: 1 },
-  paradaLinea: { width: 2, flex: 1, marginTop: 4 },
-  paradaContenido: { flex: 1, paddingBottom: 8 },
-  paradaRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
-  paradaNombre: { fontSize: 14, fontWeight: "500", color: T.text.primary },
-  paradaMetadata: { flexDirection: "row", gap: 10, marginTop: 3 },
-  paradaETA: { fontSize: 11, color: T.text.secondary },
-  paradaUsuarios: { flexDirection: "row", alignItems: "center", gap: 3 },
-  paradaUsuariosTexto: { fontSize: 11, color: T.text.secondary },
-  textoSinParadas: { fontSize: 13, color: T.text.secondary, textAlign: "center", paddingVertical: 16 },
-
-  historialItem: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: "#fff", borderRadius: 12, padding: 12,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
-  },
-  historialEstado: { width: 34, height: 34, borderRadius: 9, alignItems: "center", justifyContent: "center" },
-  historialFecha: { fontSize: 13, fontWeight: "600", color: T.text.primary },
-  historialDetalle: { fontSize: 11, color: T.text.secondary, marginTop: 2 },
-  historialDias: {
-    fontSize: 11,
-    color: T.text.secondary,
-    marginTop: 4,
-  },
-  
-  btnReportar: {
-    flexDirection: "row",
   centrado: {
     flex: 1,
     alignItems: "center",
@@ -977,6 +867,7 @@ const styles = StyleSheet.create({
   },
   badgeActualText: { fontSize: 10, fontWeight: "700", color: "#92400E" },
   paradaMetadata: { flexDirection: "row", gap: 10, marginTop: 3 },
+  paradaUsuarios: { fontSize: 11, color: "#3B82F6", fontWeight: "600" },
   paradaETA: { fontSize: 11, color: T.text.secondary, fontWeight: "500" },
   textoSinParadas: {
     fontSize: 13,

@@ -724,7 +724,7 @@ const MapaRutaUsuario = () => {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.btnSecondary}
-            onPress={() => router.push("/home?tab=notificaciones")}
+            onPress={() => router.push("/(notificaiones)/NotificacionesUsuarios")}
           >
             <Text style={styles.btnTextSecondary}>Ver notificaciones</Text>
           </TouchableOpacity>
