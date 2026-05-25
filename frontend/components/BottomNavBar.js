@@ -7,7 +7,7 @@ const NAV_CONFIGS = {
   // Rol: Usuario normal
   usuario: [
     { key: 'inicio', label: 'Inicio', icon: 'home' },
-    { key: 'favoritos', label: 'Favoritos', icon: 'star', },
+    { key: 'mi_ruta', label: 'Mi ruta', icon: 'star', },
     { key: 'rutas', label: 'Rutas', icon: 'location' },
     { key: 'perfil', label: 'Perfil', icon: 'person' },
   ],

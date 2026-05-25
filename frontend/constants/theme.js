@@ -75,7 +75,7 @@ const theme = {
         },
 
         //Cards 
-        //Contenedores de rutas, favoritos y perfil 
+        //Contenedores de rutas, mi_ruta y perfil 
         cards: {
             background:"#FFFFFF",
             border: "#E2E8F0",
@@ -153,7 +153,7 @@ const theme = {
         },
 
         //Cards 
-        //Contenedores de rutas, favoritos y perfil 
+        //Contenedores de rutas, mi_ruta y perfil 
         cards: {
             background:"#1E293B",
             border: "#334155",
