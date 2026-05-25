@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, Alert } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../../services/supabase";
 import { getProfile } from "../../services/profileService";
 import ProfileCard from "../../components/ProfileCard";
 import theme from "../../constants/theme";
 import { signOut } from "../../services/auth";
+import { useToast } from "../../context/ToastContext";
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { showError } = useToast();
  
   const [profile, setProfile] = useState(null);
   const [userEmail, setUserEmail] = useState("");
@@ -35,13 +37,14 @@ export default function ProfileScreen() {
  
           if (error) {
             console.error("Error cargando perfil:", error.message);
-            Alert.alert("Error", "No se pudo cargar el perfil.");
+            showError("No se pudo cargar el perfil.");
             return;
           }
  
           setProfile(data);
         } catch (err) {
           console.error("Error inesperado:", err);
+          showError("Error inesperado al cargar el perfil");
         } finally {
           setLoading(false);
         }
@@ -101,4 +104,4 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.lightMode.background,
   },
-})
+});

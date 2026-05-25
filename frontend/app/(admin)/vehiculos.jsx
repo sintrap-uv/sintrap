@@ -2,12 +2,15 @@ import { useState, useEffect, useCallback } from "react";
 import {
   View, Text, FlatList, TouchableOpacity, Modal,
   Switch, ActivityIndicator, StyleSheet, ScrollView,
-  RefreshControl, TextInput, Alert,
+  RefreshControl, TextInput,
 } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
+import Header from "../../components/Header";
 import theme from "../../constants/theme";
+import { useToast } from "../../context/ToastContext";
 import {
   verificarDependenciasVehiculo,
   buscarVehiculosReemplazo,
@@ -15,12 +18,19 @@ import {
   notificarCambioVehiculo,
   desactivarRutaCompleta,
   desactivarVehiculo,
+  Alert,
   obtenerVehiculoCompleto
 } from "../../services/vehicleService";
 
 const T = theme.lightMode;
 
 export default function VehiculosScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const returnTo = params.returnTo;
+  const vieneDelPerfil = returnTo === "perfil";
+  const { showSuccess, showError, showWarning } = useToast();
+  
   const [vehiculos, setVehiculos] = useState([]);
   const [conductores, setConductores] = useState([]);
   const [tiposVehiculo, setTiposVehiculo] = useState([]);
@@ -55,6 +65,10 @@ export default function VehiculosScreen() {
   const [vehiculosReemplazo, setVehiculosReemplazo] = useState([]);
   const [vehiculoSeleccionadoReemplazo, setVehiculoSeleccionadoReemplazo] = useState(null);
   const [procesandoDesactivacion, setProcesandoDesactivacion] = useState(false);
+
+  const handleGoToProfile = () => {
+    router.push("/home?tab=perfil");
+  };
 
   // ── FETCH VEHÍCULOS 
   const fetchVehiculos = useCallback(async () => {
@@ -189,14 +203,13 @@ export default function VehiculosScreen() {
   try {
     setProcesandoDesactivacion(true);
     
-    // GUARDAR REFERENCIA DEL VEHÍCULO COMPLETO
     setVehiculoDesactivando(vehiculo);
     
     const dependencias = await verificarDependenciasVehiculo(vehiculo.id);
     
     if (!dependencias.tiene_dependencias) {
       await desactivarVehiculo(vehiculo.id);
-      Alert.alert("Éxito", `Vehículo ${vehiculo.placa} desactivado correctamente.`);
+      showSuccess(`Vehículo ${vehiculo.placa} desactivado correctamente.`);
       await fetchVehiculos();
       return;
     }
@@ -218,7 +231,7 @@ export default function VehiculosScreen() {
     setModalDesactivarVisible(true);
     
   } catch (error) {
-    Alert.alert("Error", `No se pudo validar la desactivación: ${error.message}`);
+    showError(`No se pudo validar la desactivación: ${error.message}`);
   } finally {
     setProcesandoDesactivacion(false);
   }
@@ -227,7 +240,7 @@ export default function VehiculosScreen() {
   // ── CONFIRMAR DESACTIVACIÓN CON REEMPLAZO 
   async function confirmarDesactivacionConReemplazo() {
   if (!vehiculoSeleccionadoReemplazo) {
-    Alert.alert("Atención", "Selecciona un vehículo de reemplazo.");
+    showWarning("Selecciona un vehículo de reemplazo.");
     return;
   }
 
@@ -254,19 +267,16 @@ export default function VehiculosScreen() {
 
     await desactivarVehiculo(vehiculoDesactivando.id);
 
-    Alert.alert(
-      "Éxito",
-      `Vehículo ${vehiculoDesactivando.placa} desactivado. Reemplazado por ${vehiculoSeleccionadoReemplazo.placa}.\n\n${dependenciasVehiculo.usuarios_afectados} usuarios notificados.`
-    );
+    showSuccess(`Vehículo ${vehiculoDesactivando.placa} desactivado. Reemplazado por ${vehiculoSeleccionadoReemplazo.placa}.`);
 
     setModalDesactivarVisible(false);
-    setVehiculoDesactivando(null);  // LIMPIAR REFERENCIA
+    setVehiculoDesactivando(null);
     setVehiculoSeleccionadoReemplazo(null);
     cerrarEdicion();
     await fetchVehiculos();
 
   } catch (error) {
-    Alert.alert("Error", `No se pudo completar el reemplazo: ${error.message}`);
+    showError(`No se pudo completar el reemplazo: ${error.message}`);
   } finally {
     setProcesandoDesactivacion(false);
   }
@@ -290,24 +300,21 @@ export default function VehiculosScreen() {
               await desactivarRutaCompleta(
                 ruta.ruta_id,
                 `Vehículo ${vehiculoDesactivando.placa} fuera de servicio sin reemplazo disponible`,
-                vehiculoDesactivando.placa  // USAR vehiculoDesactivando
+                vehiculoDesactivando.placa
               );
             }
 
-            await desactivarVehiculo(vehiculoDesactivando.id);  // USAR vehiculoDesactivando
+            await desactivarVehiculo(vehiculoDesactivando.id);
 
-            Alert.alert(
-              "Ruta desactivada",
-              `Vehículo ${vehiculoDesactivando.placa} desactivado.\n\nRutas desactivadas: ${dependenciasVehiculo.rutas.length}\nUsuarios notificados: ${dependenciasVehiculo.usuarios_afectados}`
-            );
+            showSuccess(`Vehículo ${vehiculoDesactivando.placa} desactivado. Rutas desactivadas: ${dependenciasVehiculo.rutas.length}`);
 
             setModalDesactivarVisible(false);
-            setVehiculoDesactivando(null);  // LIMPIAR REFERENCIA
+            setVehiculoDesactivando(null);
             cerrarEdicion();
             await fetchVehiculos();
 
           } catch (error) {
-            Alert.alert("Error", `No se pudo desactivar la ruta: ${error.message}`);
+            showError(`No se pudo desactivar la ruta: ${error.message}`);
           } finally {
             setProcesandoDesactivacion(false);
           }
@@ -321,9 +328,7 @@ export default function VehiculosScreen() {
   async function handleGuardar() {
     if (!editando) return;
     
-    // Si está intentando desactivar el vehículo
     if (editando.activo === true && formActivo === false) {
-      // Cerrar modal de edición y abrir flujo de desactivación
       cerrarEdicion();
       await validarDesactivacion(editando);
       return;
@@ -346,12 +351,12 @@ export default function VehiculosScreen() {
 
       if (error) throw error;
 
-      Alert.alert("Éxito", "Vehículo actualizado correctamente.");
+      showSuccess("Vehículo actualizado correctamente.");
       cerrarEdicion();
       await fetchVehiculos();
 
     } catch (err) {
-      Alert.alert("Error", err.message);
+      showError(err.message);
     } finally {
       setGuardando(false);
     }
@@ -369,6 +374,15 @@ export default function VehiculosScreen() {
 
   return (
     <View style={s.container}>
+      <Header
+        titulo="Vehículos"
+        subtitulo="Gestión de flota vehicular"
+        iconoDerecha={
+          <TouchableOpacity onPress={handleGoToProfile}>
+            <Ionicons name="settings-outline" size={36} color="#fff" />
+          </TouchableOpacity>
+        }
+      />
       {/* Buscador */}
       <View style={s.searchWrap}>
         <Ionicons name="search-outline" size={18} color={T.icon.secondary} />
@@ -506,7 +520,7 @@ export default function VehiculosScreen() {
             </ScrollView>
 
             <View style={s.modalFoot}>
-              <TouchableOpacity style={s.btnCancel} onPress={cerrarEdicion} disabled={guardando}>
+              <TouchableOpacity style={s.btnCancel} onPress={cerrarEdicion}>
                 <Text style={s.btnCancelText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.btnSave} onPress={handleGuardar} disabled={guardando}>
@@ -696,7 +710,7 @@ export default function VehiculosScreen() {
   );
 }
 
-// ─── ESTILOS ──────────────────────────────────────────────────────────────────
+// Estilos
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: T.background },
   searchWrap: {

@@ -8,7 +8,6 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -21,7 +20,7 @@ import * as Location from "expo-location";
 import { guardarUbicacionUsuario, ObtenerDireccionUsuario } from "../../services/geocalizacion";
 import { useToast } from "../../context/ToastContext";
 
-const T = theme.lightMode; // cambia a theme.darkMode para modo oscuro
+const T = theme.lightMode;
 
 import {
   validarConductor,
@@ -63,15 +62,12 @@ export default function EditarPerfilForm({
       try {
         const resultado = await ObtenerDireccionUsuario(userId);
 
-        // resultado.data es null si el usuario nunca guardó la ubicacion
         if (resultado?.direccion) {
           actualizarCampo("direccion", resultado.direccion);
           setUbicacion((prev) => ({ ...prev, direccion: resultado.direccion }));
         }
-        // Si data es null -> usuario sin ubicación, no se hace nad
-        // El componente muestra "Sin ubicacion guardada"
       } catch (error) {
-        console.error("Error carggando ubicacion previa: ", error);
+        console.error("Error cargando ubicacion previa: ", error);
         showError("Error al cargar la ubicación guardada");
       }
     };
@@ -88,7 +84,7 @@ export default function EditarPerfilForm({
   const seleccionarFoto = async () => {
     const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permiso.granted) {
-       showWarning("Necesitamos acceso a tu galería para cambiar la foto");
+      showWarning("Necesitamos acceso a tu galería para cambiar la foto");
       return;
     }
     const resultado = await ImagePicker.launchImageLibraryAsync({
@@ -113,14 +109,13 @@ export default function EditarPerfilForm({
     try {
       let avatar_url = form.avatar_url;
 
-      // Si se seleccionó una foto nueva (URI local empieza con file://)
       if (avatar_url && avatar_url.startsWith("file:///")) {
         const { publicUrl, error: errorFoto } = await subirAvatar(
           userId,
           avatar_url,
         );
         if (errorFoto) throw new Error("Error subiendo foto: " + errorFoto);
-        avatar_url = publicUrl; // URL públic de supbase Storage
+        avatar_url = publicUrl;
       }
 
       const cambios = {
@@ -136,9 +131,10 @@ export default function EditarPerfilForm({
       if (error) throw new Error(error.message ?? "Error al guardar");
 
       setGuardado(true);
+      showSuccess("Perfil actualizado correctamente");
       if (onGuardado) onGuardado(data);
     } catch (e) {
-      Alert.alert("Error", e.message);
+      showError(e.message);
     } finally {
       setGuardando(false);
     }
@@ -148,24 +144,17 @@ export default function EditarPerfilForm({
     setGuardandoUbicacion(true);
 
     try {
-      // Pedir permiso al sistema operativo
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        showInfo(
-          "Permiso requerido",
-          "Activa el permiso de ubicación en ajustes para usar esta función.",
-        );
+        showInfo("Activa el permiso de ubicación en ajustes para usar esta función.");
         return;
       }
 
-      // Obtner coordenadas del GPS
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
       const { latitude, longitude } = location.coords;
 
-      // Geocdificación inversa . Convierte coords a texto legible
-      // Devuelve un array; tomados el primer resultado [0]
       const [lugar] = await Location.reverseGeocodeAsync({
         latitude,
         longitude,
@@ -174,12 +163,9 @@ export default function EditarPerfilForm({
         ? `${lugar.street ?? ""} ${lugar.streetNumber ?? ""}, ${lugar.city ?? ""}`.trim()
         : "Ubicación obtenida";
 
-      // Actualizar el useState - el usuario ve lar coords en pantalla
       setUbicacion({ latitude, longitude, direccion: direccionTexto });
-      // Sincronizar el campo "direccion" del formulario principal
       actualizarCampo("direccion", direccionTexto);
 
-      // Guardar en supbase
       const { error } = await guardarUbicacionUsuario(
         userId,
         direccionTexto,
@@ -189,9 +175,9 @@ export default function EditarPerfilForm({
 
       if (error) throw new Error(error.message);
 
-      Alert.alert("Ubicacion guardada", `${direccionTexto}`);
+      showSuccess(`Ubicación guardada: ${direccionTexto}`);
     } catch (e) {
-      Alert.alert("Error de ubicación", e.message);
+      showError(e.message);
     } finally {
       setGuardandoUbicacion(false);
     }
@@ -315,7 +301,6 @@ export default function EditarPerfilForm({
         {/* ── SECCIÓN UBICACIÓN ────────────────────────────────── */}
         <Text style={styles.sectionTitle}>Ubicación</Text>
 
-        {/* Chip de estado — muestra la ubicación guardada o avisa que no hay */}
         <View style={styles.ubicacionChip}>
           <View style={styles.ubicacionChipIcono}>
             <Ionicons
@@ -342,7 +327,6 @@ export default function EditarPerfilForm({
           </View>
         </View>
 
-        {/* Botón GPS */}
         <TouchableOpacity
           style={[
             styles.botonUbicacion,
@@ -368,7 +352,6 @@ export default function EditarPerfilForm({
           )}
         </TouchableOpacity>
 
-        {/* Campo dirección editable — se llena con GPS pero el usuario puede cambiarlo */}
         <CampoTexto
           label="Dirección"
           icono="location-outline"
@@ -376,15 +359,12 @@ export default function EditarPerfilForm({
           valor={form.direccion}
           onChange={(v) => {
             actualizarCampo("direccion", v);
-            // Si el usuario edita manualmente, limpia las coords del chip
-            // para que no muestre coordenadas desincronizadas con el texto
             setUbicacion((prev) => ({ ...prev, direccion: v }));
           }}
           error={errores.direccion}
           placeholder="Calle 20 # 49-21"
           autoCapitalize="words"
         />
-        {/* ── FIN SECCIÓN UBICACIÓN ────────────────────────────── */}
 
         {guardado && (
           <View style={styles.mensajeExito}>

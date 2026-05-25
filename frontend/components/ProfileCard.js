@@ -18,6 +18,7 @@ import ResetPassword from "../app/profiles/resetPassword";
 import NotificacionesAdmin from "../app/(notificaciones)/NotificacionesAdmin";
 import NotificacionesUsuario from "../app/(notificaciones)/NotificacionesUsuarios";
 import { useRouter } from "expo-router";
+import { useToast } from "../context/ToastContext";
 
 const t = theme.lightMode;
 
@@ -55,6 +56,7 @@ const ProfileCard = ({
 }) => {
 
   const router = useRouter();
+  const { showInfo } = useToast();
   const [mostrarEditar, setMostrarEditar] = useState(false);
   const [mostrarResetPassword, setMostrarResetPassword] = useState(false);
   const [mostraNotificaaciones, setMostrarNotificaciones] = useState(false);
@@ -187,9 +189,7 @@ const ProfileCard = ({
             <MenuItem
               icon={<Ionicons name="people-outline" size={22} color="#2563EB" />}
               label="Gestión de conductores"
-               showBack={true}
               onPress={() => router.push("/(admin)/conductores?returnTo=perfil")}
-
             />
             <Divider />
             <MenuItem
@@ -221,7 +221,7 @@ const ProfileCard = ({
             <MenuItem
               icon={<MaterialCommunityIcons name="map-marker-path" size={22} color="#D97706" />}
               label="Rutas asignadas"
-              onPress={() => router.push("/(conductor)/DashboardConductor?returnTo=perfil")} 
+              onPress={() => router.push("/(conductor)/MisTurnos?returnTo=perfil")}
             />
             <Divider />
             <TouchableOpacity
@@ -254,13 +254,13 @@ const ProfileCard = ({
         <MenuItem
           icon={<Ionicons name="bus-outline" size={22} color={t.icon.active} />}
           label="Historial de viajes"
-          onPress={() => Alert.alert('En desarrollo', 'Próximamente disponible')}
+          onPress={() => showInfo('En desarrollo', 'Próximamente disponible')}
         />
         <Divider />
         <MenuItem
           icon={<Ionicons name="notifications-outline" size={22} color={t.icon.alert} />}
           label="Notificaciones"
-          onPress={() => router.push("/(notificaciones)/NotificacionesUsuarios?returnTo=perfil")}
+          onPress={() => setMostrarNotificaciones(true)}
         />
       </View>
 
@@ -274,7 +274,7 @@ const ProfileCard = ({
         />
         <Divider />
         <MenuItem
-          icon={<Ionicons name="settings-outline" size={26} color={t.icon.default} />}
+          icon={<Ionicons name="settings-outline" size={22} color={t.icon.default} />}
           label="Configuración"
           onPress={onSettings}
         />
