@@ -1,18 +1,18 @@
 // MapaColaboradores.jsx
 import { useState, useEffect } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import Header from "../../../components/Header";
+import Header from "../../../../components/Header";
 import {
     View, Text, ActivityIndicator,
     TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
-import theme from "../../../constants/theme";
-import { useMapaColaboradores } from "./useMapaColaboradores";
+import theme from "../../../../constants/theme";
+import { useMapaColaboradores } from "./useMapaConductores";
 import { generarHtmlMapa } from "./mapaHTML";
 import PanelRuta from "./PanelRuta/panelOpciones";
-import { styles } from "./MapaColaboradores.styles";
+import { styles } from "./MapaConductores.styles";
 
 const T = theme.lightMode;
 

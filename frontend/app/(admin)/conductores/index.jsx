@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-  Alert,
   RefreshControl,
+  Alert,
   Image,
 } from "react-native";
 import { useFocusEffect, useRouter, useLocalSearchParams } from "expo-router";
@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { getAllDrivers, toggleDriverStatus } from "../../../services/driverService";
 import Header from "../../../components/Header";
 import theme from "../../../constants/theme";
+import { useToast } from "../../../context/ToastContext";
 
 const T = theme.lightMode;
 
@@ -22,6 +23,7 @@ export default function ConductoresScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const returnTo = params.returnTo;
+  const { showSuccess, showError, showWarning } = useToast();
   
   const [conductores, setConductores] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -29,12 +31,12 @@ export default function ConductoresScreen() {
   const [error, setError] = useState(null);
 
   const handleBack = () => {
-  if (returnTo === "perfil") {
-    router.replace("/home?tab=perfil");
-  } else {
-    router.replace("/home");
-  }
-};
+    if (returnTo === "perfil") {
+      router.replace("/home?tab=perfil");
+    } else {
+      router.replace("/home");
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -48,8 +50,12 @@ export default function ConductoresScreen() {
     setError(null);
 
     const { data, error: err } = await getAllDrivers();
-    if (err) setError("No se pudo cargar la lista de conductores.");
-    else setConductores(data ?? []);
+    if (err) {
+      setError("No se pudo cargar la lista de conductores.");
+      showError("No se pudo cargar la lista de conductores");
+    } else {
+      setConductores(data ?? []);
+    }
 
     setCargando(false);
     setRefrescando(false);
@@ -68,13 +74,14 @@ export default function ConductoresScreen() {
           onPress: async () => {
             const { error: err } = await toggleDriverStatus(conductor.id, conductor.activo);
             if (err) {
-              Alert.alert("Error", "No se pudo cambiar el estado.");
+              showError("No se pudo cambiar el estado.");
             } else {
               setConductores((prev) =>
                 prev.map((c) =>
                   c.id === conductor.id ? { ...c, activo: !c.activo } : c
                 )
               );
+              showSuccess(`Conductor ${conductor.activo ? 'desactivado' : 'activado'} correctamente`);
             }
           },
         },
@@ -92,7 +99,7 @@ export default function ConductoresScreen() {
         cedula: conductor.cedula,
         celular: conductor.celular,
         avatar_url: conductor.avatar_url ?? "",
-        returnTo: returnTo, // Pasar el parámetro de retorno a la pantalla de gestión
+        returnTo: returnTo,
       },
     });
   };
@@ -102,7 +109,7 @@ export default function ConductoresScreen() {
       pathname: "/(admin)/conductores/gestion",
       params: { 
         modo: "nuevo",
-        returnTo: returnTo, // Pasar el parámetro de retorno a la pantalla de gestión
+        returnTo: returnTo,
       },
     });
   };
