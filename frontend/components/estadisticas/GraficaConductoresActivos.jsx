@@ -5,6 +5,7 @@ import {
   Text,
   Dimensions,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import theme from "../../constants/theme";
@@ -58,7 +59,7 @@ export default function GraficaConductoresActivos() {
     tendencia.length > 0
       ? Math.round(
           tendencia.reduce((sum, t) => sum + t.conductores_activos, 0) /
-            tendencia.length
+            tendencia.length,
         )
       : 0;
 
@@ -78,25 +79,27 @@ export default function GraficaConductoresActivos() {
       </View>
 
       {tendencia.length > 1 && (
-        <LineChart
-          data={chartData}
-          width={width - 40}
-          height={200}
-          yAxisLabel=""
-          yAxisSuffix=""
-          chartConfig={{
-            backgroundColor: T.cards.background,
-            backgroundGradientFrom: T.cards.background,
-            backgroundGradientTo: T.cards.background,
-            color: () => "#22C55E",
-            strokeWidth: 2,
-            useShadowColorFromDataset: false,
-            labelColor: (opacity = 1) => T.text.tertiary,
-          }}
-          withDots={true}
-          withInnerLines={true}
-          withOuterLines={true}
-        />
+        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+          <LineChart
+            data={chartData}
+            width={width - 40}
+            height={200}
+            yAxisLabel=""
+            yAxisSuffix=""
+            chartConfig={{
+              backgroundColor: T.cards.background,
+              backgroundGradientFrom: T.cards.background,
+              backgroundGradientTo: T.cards.background,
+              color: () => "#22C55E",
+              strokeWidth: 2,
+              useShadowColorFromDataset: false,
+              labelColor: (opacity = 1) => T.text.tertiary,
+            }}
+            withDots={true}
+            withInnerLines={true}
+            withOuterLines={true}
+          />
+        </ScrollView>
       )}
 
       <View style={styles.estadistica}>

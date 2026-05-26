@@ -9,38 +9,40 @@ export async function getTurnosConductor(conductorId) {
     const { data, error } = await supabase.rpc('get_conductor_turnos', {
       p_conductor_id: conductorId,
     });
-    
+
     if (error) {
       console.error("RPC Error:", error);
       return { success: false, error: error.message };
     }
-    
-    const turnos = Array.isArray(data) ? data.map(turno => ({
-      turno_id: turno.turno_id,
-      fecha: turno.fecha,
-      estado: turno.estado,
-      hora_inicio_real: turno.hora_inicio_real,
-      hora_fin_real: turno.hora_fin_real,
-      numero_ruta: turno.numero_ruta,
-      ruta_nombre: turno.ruta_nombre,
-      vehiculo_id: turno.vehiculo_id,
-      placa: turno.placa,
-      vehiculo_tipo: turno.vehiculo_tipo,
-      capacidad: turno.capacidad,
-      hora_inicio: turno.hora_inicio,
-      hora_fin: turno.hora_fin,
-      cantidad_pasajeros: turno.cantidad_pasajeros || 0,
-      dias: {
-        lunes: turno.lunes,
-        martes: turno.martes,
-        miercoles: turno.miercoles,
-        jueves: turno.jueves,
-        viernes: turno.viernes,
-        sabado: turno.sabado,
-        domingo: turno.domingo,
-      },
-    })) : [];
-    
+
+    const turnos = Array.isArray(data)
+      ? data.map((turno) => ({
+          turno_id: turno.turno_id,
+          fecha: turno.fecha,
+          estado: turno.estado,
+          hora_inicio_real: turno.hora_inicio_real,
+          hora_fin_real: turno.hora_fin_real,
+          numero_ruta: turno.numero_ruta,
+          ruta_nombre: turno.ruta_nombre,
+          vehiculo_id: turno.vehiculo_id,
+          placa: turno.placa,
+          vehiculo_tipo: turno.vehiculo_tipo,
+          capacidad: turno.capacidad,
+          hora_inicio: turno.hora_inicio,
+          hora_fin: turno.hora_fin,
+          cantidad_pasajeros: turno.cantidad_pasajeros || 0,
+          dias: {
+            lunes: turno.lunes,
+            martes: turno.martes,
+            miercoles: turno.miercoles,
+            jueves: turno.jueves,
+            viernes: turno.viernes,
+            sabado: turno.sabado,
+            domingo: turno.domingo,
+          },
+        }))
+      : [];
+
     return { success: true, data: turnos };
   } catch (err) {
     console.error("Catch Error:", err);
@@ -48,242 +50,346 @@ export async function getTurnosConductor(conductorId) {
   }
 }
 
-
 /**
- * Carga todos los datos del dashboard del conductor en paralelo.
+ * Carga todos los datos del dashboard del conductor.
  * @param {string} conductorId - UUID del conductor autenticado
  */
-export async function getDashboardConductor(conductorId) {
+export const getDashboardConductor = async (conductorId) => {
   try {
-    const hoy = new Date().toISOString().split("T")[0];
+    if (!conductorId) {
+      return { success: false, error: "Conductor ID requerido" };
+    }
 
-    // ── Turno de hoy + vehículo ─────────────────────────────────────
-    const { data: turno, error: eTurno } = await supabase
+    const hoy = new Date().toLocaleDateString("en-CA");
+
+    const { data: turnos, error: eTurno } = await supabase
       .from("turnos")
-      .select(`
-        id, estado, fecha, hora_inicio_real, hora_fin_real,
+      .select(
+        `
+        id,
+        conductor_id,
         vehiculo_id,
-        vehiculos (
-          id, placa, 
-          tipo_vehiculo:tipo_vehiculo_id ( nombre, capacidad_max )
-        )
-      `)
+        fecha,
+        estado,
+        hora_inicio_real,
+        hora_fin_real
+      `
+      )
       .eq("conductor_id", conductorId)
       .eq("fecha", hoy)
+      .in("estado", ["en_curso", "programado"])
+      .order("estado", { ascending: false })
+      .limit(1);
+
+    if (eTurno) {
+      console.error("Error obteniendo turnos:", eTurno);
+      return { success: false, error: eTurno.message };
+    }
+
+    if (!turnos || turnos.length === 0) {
+      return { success: true, data: null };
+    }
+
+    const turno = turnos[0];
+
+    const { data: vehiculo, error: errorVehiculo } = await supabase
+      .from("vehiculos")
+      .select(`
+        id, 
+        placa, 
+        conductor_id, 
+        tipo_vehiculo_id,
+        tipo_vehiculo ( id, nombre, capacidad_max )
+      `)
+      .eq("id", turno.vehiculo_id)
       .maybeSingle();
 
-    if (eTurno) throw eTurno;
-    if (!turno) return { success: true, data: null };
+    if (errorVehiculo) {
+      console.error("Error obteniendo vehículo:", errorVehiculo);
+    }
 
-    const vehiculoId = turno.vehiculo_id;
-
-    // ── Obtener la ruta asignada al vehículo ────────────────────────
-    const { data: rutaHorario, error: eRutaHorario } = await supabase
+    const { data: horarios, error: errorHorarios } = await supabase
       .from("ruta_horarios")
-      .select(`
-        id, nombre_turno, hora_inicio, hora_fin,
-         lunes, martes, miercoles, jueves, viernes, sabado, domingo,
+      .select(
+        `
+        id,
         ruta_id,
-        rutas ( id, numero_ruta, nombre, color )
-      `)
-      .eq("vehiculo_id", vehiculoId)
-      .limit(1)
-      .maybeSingle();
+        nombre_turno,
+        hora_inicio,
+        hora_fin,
+        vehiculo_id,
+        rutas(id, numero_ruta, nombre, color, trayecto)
+      `
+      )
+      .eq("turno_id", turno.id)
+      .eq("activo", true)
+      .limit(1);
 
-    if (eRutaHorario) throw eRutaHorario;
+    if (errorHorarios) {
+      console.error("Error obteniendo horarios:", errorHorarios);
+      return { success: false, error: errorHorarios.message };
+    }
 
-    const rutaId = rutaHorario?.ruta_id;
+    if (!horarios || horarios.length === 0) {
+      return { success: true, data: null };
+    }
 
-    // ── Carga en paralelo ───────────────────────────────────────────
-    const [
-      { data: paradasData },
-      { data: pasajerosData },
-      { data: historialData },
-      { data: reportesPendientes },
-    ] = await Promise.all([
+    const horario = horarios[0];
+    const ruta = horario.rutas;
 
-      // Paradas de la ruta
-      rutaId
-        ? supabase
-            .from("ruta_paradas")
-            .select("orden, tiempo_desde_inicio, paradas ( id, nombre )")
-            .eq("ruta_id", rutaId)
-            .order("orden")
-        : Promise.resolve({ data: [] }),
+    if (!ruta) {
+      return { success: true, data: null };
+    }
 
-      // Cuántos usuarios suben en cada parada
-      rutaId
-        ? supabase
-            .from("usuario_ruta")
-            .select("parada_origen_id, paradas!usuario_ruta_parada_origen_id_fkey ( nombre )")
-            .eq("ruta_id", rutaId)
-            .eq("activa", true)
-        : Promise.resolve({ data: [] }),
+    const { data: paradasRuta, error: errorParadas } = await supabase
+      .from("ruta_paradas")
+      .select(
+        `
+        id,
+        parada_id,
+        orden,
+        tiempo_desde_inicio,
+        paradas(id, nombre, latitud, longitud, descripcion)
+      `
+      )
+      .eq("ruta_id", ruta.id)
+      .order("orden", { ascending: true });
 
-      // Historial últimos 4 turnos (excluyendo hoy)
-      supabase
-        .from("turnos")
-        .select(`
-          fecha, estado, hora_inicio_real, hora_fin_real,
-          vehiculo_id,
-          vehiculo:vehiculos ( placa )
-        `)
-        .eq("conductor_id", conductorId)
-        .neq("fecha", hoy)
-        .order("fecha", { ascending: false })
-        .limit(4),
+    if (errorParadas) {
+      console.error("Error obteniendo paradas:", errorParadas);
+    }
 
-      // Reportes pendientes que involucran al conductor
-      supabase
-        .from("reportes")
-        .select("id, tipo, descripcion, estado, fecha")
-        .eq("estado", "pendiente")
-        .limit(3),
-    ]);
-
-    // ── Para el historial, obtener la ruta de cada vehículo ─────────
-    const historialConRutas = await Promise.all(
-  (historialData ?? []).map(async (h) => {
-    const { data: rutaHistorial } = await supabase
-      .from("ruta_horarios")
+    const { data: pasajeros, error: errorPasajeros } = await supabase
+      .from("usuario_ruta")
       .select(`
-        nombre_turno, hora_inicio, hora_fin,
-        lunes, martes, miercoles, jueves, viernes, sabado, domingo,
-        rutas ( numero_ruta )
+        parada_origen_id,
+        paradas!usuario_ruta_parada_origen_id_fkey ( id, nombre )
       `)
-      .eq("vehiculo_id", h.vehiculo_id)
-      .limit(1)
+      .eq("ruta_id", ruta.id)
+      .eq("activa", true);
+
+    if (errorPasajeros) {
+      console.error("Error obteniendo pasajeros:", errorPasajeros);
+    }
+
+    const { data: ubicacion, error: errorUbicacion } = await supabase
+      .from("ubicacion_conductor")
+      .select("latitud, longitud, velocidad, updated_at")
+      .eq("conductor_id", conductorId)
       .maybeSingle();
 
-    return {
-      fecha: h.fecha,
-      estado: h.estado,
-      nombreTurno: rutaHistorial?.nombre_turno,
-      horaInicio: rutaHistorial?.hora_inicio,
-      horaFin: rutaHistorial?.hora_fin,
-      numeroRuta: rutaHistorial?.rutas?.numero_ruta,
-      placa: h.vehiculo?.placa,
-      horaInicioReal: h.hora_inicio_real,
-      horaFinReal: h.hora_fin_real,
-      dias: {
-        lunes: rutaHistorial?.lunes,
-        martes: rutaHistorial?.martes,
-        miercoles: rutaHistorial?.miercoles,
-        jueves: rutaHistorial?.jueves,
-        viernes: rutaHistorial?.viernes,
-        sabado: rutaHistorial?.sabado,
-        domingo: rutaHistorial?.domingo,
-      },
-    };
-  })
-);
-    // ── Agrupar usuarios por parada ─────────────────────────────────
+    if (errorUbicacion && errorUbicacion.code !== "PGRST116") {
+      console.warn("Advertencia obteniendo ubicación:", errorUbicacion);
+    }
+
+    const { data: historial, error: errorHistorial } = await supabase
+      .from("turnos")
+      .select(
+        `
+        id,
+        fecha,
+        estado,
+        hora_inicio_real,
+        hora_fin_real,
+        vehiculos(placa),
+        ruta_horarios!inner(ruta_id, rutas(numero_ruta, nombre))
+      `
+      )
+      .eq("conductor_id", conductorId)
+      .eq("estado", "completado")
+      .order("fecha", { ascending: false })
+      .limit(5);
+
+    if (errorHistorial) {
+      console.warn("Advertencia obteniendo historial:", errorHistorial);
+    }
+
     const usuariosPorParada = {};
-    (pasajerosData ?? []).forEach((ur) => {
+    (pasajeros ?? []).forEach((ur) => {
       const pid = ur.parada_origen_id;
       usuariosPorParada[pid] = (usuariosPorParada[pid] ?? 0) + 1;
     });
 
-    // ── Paradas enriquecidas con conteo ─────────────────────────────
-    const paradas = (paradasData ?? []).map((rp) => ({
-      id:              rp.paradas.id,
-      nombre:          rp.paradas.nombre,
-      orden:           rp.orden,
-      eta:             rp.tiempo_desde_inicio,
-      usuariosSuben:   usuariosPorParada[rp.paradas.id] ?? 0,
+    const paradas = (paradasRuta ?? []).map((rp) => ({
+      id: rp.paradas.id,
+      nombre: rp.paradas.nombre,
+      latitud: rp.paradas.latitud,
+      longitud: rp.paradas.longitud,
+      orden: rp.orden,
+      eta: rp.tiempo_desde_inicio,
+      usuariosSuben: usuariosPorParada[rp.paradas.id] ?? 0,
     }));
 
-    const ruta = rutaHorario?.rutas;
-    const vehiculo = turno.vehiculos;
-    const totalPasajeros = Object.values(usuariosPorParada).reduce((a, b) => a + b, 0);
+    const totalPasajeros = Object.values(usuariosPorParada).reduce(
+      (a, b) => a + b,
+      0
+    );
 
     return {
       success: true,
       data: {
         turno: {
-          id:             turno.id,
-          estado:         turno.estado,
-          fecha:          turno.fecha,
+          id: turno.id,
+          estado: turno.estado,
+          fecha: turno.fecha,
           horaInicioReal: turno.hora_inicio_real,
-          horaFinReal:    turno.hora_fin_real,
-          nombreTurno:    rutaHorario?.nombre_turno,
-          horaInicio:     rutaHorario?.hora_inicio,
-          horaFin:        rutaHorario?.hora_fin,
-          dias: {
-        lunes: rutaHorario?.lunes,
-        martes: rutaHorario?.martes,
-        miercoles: rutaHorario?.miercoles,
-        jueves: rutaHorario?.jueves,
-        viernes: rutaHorario?.viernes,
-        sabado: rutaHorario?.sabado,
-        domingo: rutaHorario?.domingo,
-      },
+          horaFinReal: turno.hora_fin_real,
+          nombreTurno: horario.nombre_turno,
+          horaInicio: horario.hora_inicio,
+          horaFin: horario.hora_fin,
         },
-        ruta: ruta
-          ? {
-              id:         ruta.id,
-              numeroRuta: ruta.numero_ruta,
-              nombre:     ruta.nombre,
-              color:      ruta.color,
-            }
-          : null,
+        ruta: {
+          id: ruta.id,
+          numeroRuta: ruta.numero_ruta,
+          nombre: ruta.nombre,
+          color: ruta.color,
+          trayecto: ruta.trayecto,
+        },
         vehiculo: vehiculo
           ? {
-              id:       vehiculo.id,
-              placa:    vehiculo.placa,
+              id: vehiculo.id,
+              placa: vehiculo.placa,
               capacidad: vehiculo.tipo_vehiculo?.capacidad_max ?? 0,
-              tipo:     vehiculo.tipo_vehiculo?.nombre ?? "Buseta",
+              tipo: vehiculo.tipo_vehiculo?.nombre ?? "Buseta",
+            }
+          : null,
+        ubicacion: ubicacion
+          ? {
+              latitud: ubicacion.latitud,
+              longitud: ubicacion.longitud,
+              velocidad: ubicacion.velocidad,
+              updated_at: ubicacion.updated_at,
             }
           : null,
         paradas,
         totalPasajeros,
-        historial: historialConRutas,
-        reportesPendientes: reportesPendientes ?? [],
+        historial: historial ?? [],
       },
     };
   } catch (error) {
     console.error("Error en getDashboardConductor:", error.message);
     return { success: false, error: error.message };
   }
-}
+};
 
-/**
- * Actualiza el estado del turno activo del conductor.
- * Estados válidos: 'en_curso' | 'completado' | 'cancelado'
- */
-export async function actualizarEstadoTurno(turnoId, nuevoEstado) {
+export const actualizarEstadoTurno = async (conductorId, nuevoEstado) => {
   try {
-    const cambios = { estado: nuevoEstado };
-    if (nuevoEstado === "completado") {
-      cambios.hora_fin_real = new Date().toISOString();
-    } else if (nuevoEstado === "en_curso") {
-      cambios.hora_inicio_real = new Date().toISOString();
+    if (!conductorId) {
+      return { success: false, error: "Conductor ID requerido" };
     }
+
+    if (!["en_curso", "completado", "cancelado"].includes(nuevoEstado)) {
+      return { success: false, error: "Estado inválido" };
+    }
+
+    const hoy = new Date().toISOString().split("T")[0];
+
     const { data, error } = await supabase
       .from("turnos")
-      .update(cambios)
-      .eq("id", turnoId)
-      .select()
-      .maybeSingle();
+      .update({
+        estado: nuevoEstado,
+        hora_fin_real:
+          nuevoEstado === "completado" ? new Date().toISOString() : null,
+      })
+      .eq("conductor_id", conductorId)
+      .eq("fecha", hoy)
+      .in("estado", ["en_curso", "programado"])
+      .select();
+
+    if (error) {
+      console.error("Error actualizando estado:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error en actualizarEstadoTurno:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export async function actualizarUbicacionConductor(
+  conductorId,
+  latitud,
+  longitud,
+  velocidad = null
+) {
+  try {
+    if (!conductorId || latitud == null || longitud == null) {
+      return { success: false, error: "Parámetros incompletos" };
+    }
+
+    const { data, error } = await supabase
+      .from("ubicacion_conductor")
+      .upsert(
+        {
+          conductor_id: conductorId,
+          latitud,
+          longitud,
+          velocidad,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "conductor_id" }
+      )
+      .select();
+
     if (error) throw error;
     return { success: true, data };
   } catch (error) {
-    console.error("Error actualizando turno:", error.message);
+    console.error("Error en actualizarUbicacionConductor:", error.message);
     return { success: false, error: error.message };
   }
 }
 
-/** "06:00:00" → "6:00 AM" */
+export const obtenerHistorialTurnos = async (conductorId, limite = 10) => {
+  try {
+    if (!conductorId) {
+      return { success: false, error: "Conductor ID requerido" };
+    }
+
+    const { data, error } = await supabase
+      .from("turnos")
+      .select(
+        `
+        id,
+        fecha,
+        estado,
+        hora_inicio_real,
+        hora_fin_real,
+        vehiculos(placa),
+        ruta_horarios!inner(ruta_id, rutas(numero_ruta, nombre))
+      `
+      )
+      .eq("conductor_id", conductorId)
+      .eq("estado", "completado")
+      .order("fecha", { ascending: false })
+      .limit(limite);
+
+    if (error) {
+      console.error("Error obteniendo historial:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error en obtenerHistorialTurnos:", error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 export function formatearHora(hora) {
   if (!hora) return "";
   const [h, m] = hora.split(":").map(Number);
   const periodo = h >= 12 ? "PM" : "AM";
-  const hora12  = h % 12 === 0 ? 12 : h % 12;
+  const hora12 = h % 12 === 0 ? 12 : h % 12;
   return `${hora12}:${String(m).padStart(2, "0")} ${periodo}`;
 }
 
-/** Nombre legible del turno */
-export function nombreTurno(turno) {
-  const map = { manana: "Mañana", tarde: "Tarde", noche: "Noche" };
-  return map[turno] ?? turno;
-}
+export const nombreTurno = (nombre) => {
+  const map = {
+    manana: "Mañana",
+    tarde: "Tarde",
+    noche: "Noche",
+  };
+  return map[nombre] || nombre;
+};
