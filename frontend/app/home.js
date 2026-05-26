@@ -201,24 +201,6 @@ export default function Home() {
       inicio: () => <DashboardConductor />,
 
       turnos: () => <MisTurnos />,
-      
-      rutas: () => (
-        <View style={{ flex: 1 }}>
-          <Header
-            titulo="Mi Ruta"
-            subtitulo="Ruta asignada para hoy"
-            showBack={false}
-            iconoDerecha={
-              <TouchableOpacity onPress={handleGoToProfile}>
-                <Ionicons name="settings-outline" size={36} color="#fff" />
-              </TouchableOpacity>
-            }
-          />
-          <TabPendiente nombre="Mi Ruta" icono="navigate-outline" />
-        </View>
-      ),
-
-      turnos: () => <MisTurnos />,
 
       rutas: () => <MapaRutaConductor />,
 

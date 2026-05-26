@@ -4,13 +4,13 @@ import {
   Switch, ActivityIndicator, StyleSheet, ScrollView,
   RefreshControl, TextInput,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import Header from "../../components/Header";
 import theme from "../../constants/theme";
 import { useToast } from "../../context/ToastContext";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   verificarDependenciasVehiculo,
   buscarVehiculosReemplazo,
@@ -203,13 +203,14 @@ export default function VehiculosScreen() {
   try {
     setProcesandoDesactivacion(true);
     
+    // GUARDAR REFERENCIA DEL VEHÍCULO COMPLETO
     setVehiculoDesactivando(vehiculo);
     
     const dependencias = await verificarDependenciasVehiculo(vehiculo.id);
     
     if (!dependencias.tiene_dependencias) {
       await desactivarVehiculo(vehiculo.id);
-      showSuccess(`Vehículo ${vehiculo.placa} desactivado correctamente.`);
+      Alert.alert("Éxito", `Vehículo ${vehiculo.placa} desactivado correctamente.`);
       await fetchVehiculos();
       return;
     }
@@ -231,7 +232,7 @@ export default function VehiculosScreen() {
     setModalDesactivarVisible(true);
     
   } catch (error) {
-    showError(`No se pudo validar la desactivación: ${error.message}`);
+    Alert.alert("Error", `No se pudo validar la desactivación: ${error.message}`);
   } finally {
     setProcesandoDesactivacion(false);
   }
@@ -240,7 +241,7 @@ export default function VehiculosScreen() {
   // ── CONFIRMAR DESACTIVACIÓN CON REEMPLAZO 
   async function confirmarDesactivacionConReemplazo() {
   if (!vehiculoSeleccionadoReemplazo) {
-    showWarning("Selecciona un vehículo de reemplazo.");
+    Alert.alert("Atención", "Selecciona un vehículo de reemplazo.");
     return;
   }
 
@@ -267,16 +268,19 @@ export default function VehiculosScreen() {
 
     await desactivarVehiculo(vehiculoDesactivando.id);
 
-    showSuccess(`Vehículo ${vehiculoDesactivando.placa} desactivado. Reemplazado por ${vehiculoSeleccionadoReemplazo.placa}.`);
+    Alert.alert(
+      "Éxito",
+      `Vehículo ${vehiculoDesactivando.placa} desactivado. Reemplazado por ${vehiculoSeleccionadoReemplazo.placa}.\n\n${dependenciasVehiculo.usuarios_afectados} usuarios notificados.`
+    );
 
     setModalDesactivarVisible(false);
-    setVehiculoDesactivando(null);
+    setVehiculoDesactivando(null);  // LIMPIAR REFERENCIA
     setVehiculoSeleccionadoReemplazo(null);
     cerrarEdicion();
     await fetchVehiculos();
 
   } catch (error) {
-    showError(`No se pudo completar el reemplazo: ${error.message}`);
+    Alert.alert("Error", `No se pudo completar el reemplazo: ${error.message}`);
   } finally {
     setProcesandoDesactivacion(false);
   }
@@ -314,7 +318,7 @@ export default function VehiculosScreen() {
             await fetchVehiculos();
 
           } catch (error) {
-            showError(`No se pudo desactivar la ruta: ${error.message}`);
+            Alert.alert("Error", `No se pudo desactivar la ruta: ${error.message}`);
           } finally {
             setProcesandoDesactivacion(false);
           }
@@ -328,7 +332,9 @@ export default function VehiculosScreen() {
   async function handleGuardar() {
     if (!editando) return;
     
+    // Si está intentando desactivar el vehículo
     if (editando.activo === true && formActivo === false) {
+      // Cerrar modal de edición y abrir flujo de desactivación
       cerrarEdicion();
       await validarDesactivacion(editando);
       return;
@@ -351,12 +357,12 @@ export default function VehiculosScreen() {
 
       if (error) throw error;
 
-      showSuccess("Vehículo actualizado correctamente.");
+      Alert.alert("Éxito", "Vehículo actualizado correctamente.");
       cerrarEdicion();
       await fetchVehiculos();
 
     } catch (err) {
-      showError(err.message);
+      Alert.alert("Error", err.message);
     } finally {
       setGuardando(false);
     }
@@ -520,7 +526,7 @@ export default function VehiculosScreen() {
             </ScrollView>
 
             <View style={s.modalFoot}>
-              <TouchableOpacity style={s.btnCancel} onPress={cerrarEdicion}>
+              <TouchableOpacity style={s.btnCancel} onPress={cerrarEdicion} disabled={guardando}>
                 <Text style={s.btnCancelText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.btnSave} onPress={handleGuardar} disabled={guardando}>
@@ -710,7 +716,7 @@ export default function VehiculosScreen() {
   );
 }
 
-// Estilos
+// ─── ESTILOS ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: T.background },
   searchWrap: {

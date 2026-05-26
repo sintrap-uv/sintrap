@@ -53,6 +53,11 @@ export async function getTurnosConductor(conductorId) {
 /**
  * Carga todos los datos del dashboard del conductor.
  * @param {string} conductorId - UUID del conductor autenticado
+ *
+ * Obtiene el dashboard del conductor con su turno actual, ruta y paradas.
+ * Error anterior: "JSON object requested, multiple (or no) rows returned"
+ * Causa: El conductor podía tener múltiples turnos (programado, en curso, etc)
+ * Solución: Filtrar por fecha = hoy y estado en ['en_curso', 'programado']
  */
 export const getDashboardConductor = async (conductorId) => {
   try {
@@ -60,8 +65,10 @@ export const getDashboardConductor = async (conductorId) => {
       return { success: false, error: "Conductor ID requerido" };
     }
 
+    // Fecha local Colombia (evita bug UTC que adelanta un día)
     const hoy = new Date().toLocaleDateString("en-CA");
 
+    // ── TURNO DE HOY ────────────────────────────────────────────────
     const { data: turnos, error: eTurno } = await supabase
       .from("turnos")
       .select(
@@ -78,7 +85,7 @@ export const getDashboardConductor = async (conductorId) => {
       .eq("conductor_id", conductorId)
       .eq("fecha", hoy)
       .in("estado", ["en_curso", "programado"])
-      .order("estado", { ascending: false })
+      .order("estado", { ascending: false }) // en_curso primero
       .limit(1);
 
     if (eTurno) {
@@ -86,12 +93,14 @@ export const getDashboardConductor = async (conductorId) => {
       return { success: false, error: eTurno.message };
     }
 
+    // Si no hay turno hoy, retornar null (sin ruta asignada)
     if (!turnos || turnos.length === 0) {
       return { success: true, data: null };
     }
 
     const turno = turnos[0];
 
+    // ── INFORMACIÓN DEL VEHÍCULO ────────────────────────────────────
     const { data: vehiculo, error: errorVehiculo } = await supabase
       .from("vehiculos")
       .select(`
@@ -108,6 +117,7 @@ export const getDashboardConductor = async (conductorId) => {
       console.error("Error obteniendo vehículo:", errorVehiculo);
     }
 
+    // ── HORARIO DE LA RUTA ──────────────────────────────────────────
     const { data: horarios, error: errorHorarios } = await supabase
       .from("ruta_horarios")
       .select(
@@ -130,6 +140,7 @@ export const getDashboardConductor = async (conductorId) => {
       return { success: false, error: errorHorarios.message };
     }
 
+    // Si no hay horario, no hay ruta asignada
     if (!horarios || horarios.length === 0) {
       return { success: true, data: null };
     }
@@ -141,6 +152,7 @@ export const getDashboardConductor = async (conductorId) => {
       return { success: true, data: null };
     }
 
+    // ── PARADAS DE LA RUTA ──────────────────────────────────────────
     const { data: paradasRuta, error: errorParadas } = await supabase
       .from("ruta_paradas")
       .select(
@@ -159,6 +171,7 @@ export const getDashboardConductor = async (conductorId) => {
       console.error("Error obteniendo paradas:", errorParadas);
     }
 
+    // ── USUARIOS POR PARADA ─────────────────────────────────────────
     const { data: pasajeros, error: errorPasajeros } = await supabase
       .from("usuario_ruta")
       .select(`
@@ -172,6 +185,7 @@ export const getDashboardConductor = async (conductorId) => {
       console.error("Error obteniendo pasajeros:", errorPasajeros);
     }
 
+    // ── UBICACIÓN ACTUAL DEL CONDUCTOR ──────────────────────────────
     const { data: ubicacion, error: errorUbicacion } = await supabase
       .from("ubicacion_conductor")
       .select("latitud, longitud, velocidad, updated_at")
@@ -182,6 +196,7 @@ export const getDashboardConductor = async (conductorId) => {
       console.warn("Advertencia obteniendo ubicación:", errorUbicacion);
     }
 
+    // ── HISTORIAL DE TURNOS COMPLETADOS ─────────────────────────────
     const { data: historial, error: errorHistorial } = await supabase
       .from("turnos")
       .select(
@@ -204,12 +219,16 @@ export const getDashboardConductor = async (conductorId) => {
       console.warn("Advertencia obteniendo historial:", errorHistorial);
     }
 
+    // ── TRANSFORMAR DATOS ───────────────────────────────────────────
+
+    // Usuarios por parada
     const usuariosPorParada = {};
     (pasajeros ?? []).forEach((ur) => {
       const pid = ur.parada_origen_id;
       usuariosPorParada[pid] = (usuariosPorParada[pid] ?? 0) + 1;
     });
 
+    // Paradas enriquecidas
     const paradas = (paradasRuta ?? []).map((rp) => ({
       id: rp.paradas.id,
       nombre: rp.paradas.nombre,
@@ -225,6 +244,7 @@ export const getDashboardConductor = async (conductorId) => {
       0
     );
 
+    // ── CONSTRUIR RESPUESTA ─────────────────────────────────────────
     return {
       success: true,
       data: {
@@ -272,13 +292,18 @@ export const getDashboardConductor = async (conductorId) => {
   }
 };
 
+/**
+ * Actualiza el estado del turno actual del conductor
+ */
 export const actualizarEstadoTurno = async (conductorId, nuevoEstado) => {
   try {
     if (!conductorId) {
       return { success: false, error: "Conductor ID requerido" };
     }
 
-    if (!["en_curso", "completado", "cancelado"].includes(nuevoEstado)) {
+    if (
+      !["en_curso", "completado", "cancelado"].includes(nuevoEstado)
+    ) {
       return { success: false, error: "Estado inválido" };
     }
 
@@ -308,6 +333,13 @@ export const actualizarEstadoTurno = async (conductorId, nuevoEstado) => {
   }
 };
 
+/**
+ * Actualiza la ubicación del conductor en la BD.
+ * @param {string} conductorId - UUID del conductor
+ * @param {number} latitud - Latitud GPS
+ * @param {number} longitud - Longitud GPS
+ * @param {number|null} velocidad - Velocidad en km/h (opcional)
+ */
 export async function actualizarUbicacionConductor(
   conductorId,
   latitud,
@@ -341,6 +373,11 @@ export async function actualizarUbicacionConductor(
   }
 }
 
+/**
+ * Obtiene el historial de turnos de un conductor
+ * @param {string} conductorId - UUID del conductor
+ * @param {number} limite - Número de registros a obtener (default: 10)
+ */
 export const obtenerHistorialTurnos = async (conductorId, limite = 10) => {
   try {
     if (!conductorId) {
@@ -377,6 +414,14 @@ export const obtenerHistorialTurnos = async (conductorId, limite = 10) => {
   }
 };
 
+// ────────────────────────────────────────────────────────────────────────────────
+// FUNCIONES UTILIDAD
+// ────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Formatea hora en formato 24h a formato 12h
+ * "06:00:00" → "6:00 AM"
+ */
 export function formatearHora(hora) {
   if (!hora) return "";
   const [h, m] = hora.split(":").map(Number);
@@ -385,6 +430,10 @@ export function formatearHora(hora) {
   return `${hora12}:${String(m).padStart(2, "0")} ${periodo}`;
 }
 
+/**
+ * Traduce el nombre del turno del DB al español
+ * "manana" → "Mañana"
+ */
 export const nombreTurno = (nombre) => {
   const map = {
     manana: "Mañana",
