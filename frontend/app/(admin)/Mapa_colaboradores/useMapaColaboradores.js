@@ -283,11 +283,22 @@ export const useMapaColaboradores = () => {
 
             if (modoEdicionRef.current && mensaje.id && mensaje.lat && mensaje.lon) {
                 if (mensaje.tipo === 'nuevaParada') {
-                    setPuntosParada(prev => [...prev, { id: mensaje.id, lat: mensaje.lat, lon: mensaje.lon }]);
+                    setPuntosParada(prev => [...prev, {
+                        id: mensaje.id,
+                        lat: mensaje.lat,
+                        lon: mensaje.lon,
+                        direccion: mensaje.direccion ?? null
+                    }]);
                 } else {
-                    setPuntosRuta(prev => [...prev, { id: mensaje.id, lat: mensaje.lat, lon: mensaje.lon }]);
+                    setPuntosRuta(prev => [...prev, {
+                        id: mensaje.id,
+                        lat: mensaje.lat,
+                        lon: mensaje.lon,
+                        direccion: mensaje.direccion ?? null
+                    }]);
                 }
                 return;
+
             }
         } catch { /* mensaje no JSON */ }
     };
