@@ -20,6 +20,7 @@ import { getProfile } from "../services/profileService";
 import NotificacionToast from "../components/ToastNotificacion";
 import { ToastProvider } from "../context/ToastContext";
 import { useToast } from "../context/ToastContext";
+import { AuthProvider } from "../context/AuthContext";
 
 import { getStoredSession } from "../services/authStorageService";
 import theme from "../constants/theme";
@@ -28,11 +29,11 @@ const T = theme.lightMode;
 
 function AppConToast() {
   const { toast, hideToast } = useToast();
-  
+
   return (
     <>
       <Slot />
-      <NotificacionToast 
+      <NotificacionToast
         visible={toast.visible}
         mensaje={toast.message}
         tipo={toast.tipo}
@@ -48,7 +49,6 @@ export default function RootLayout() {
   const ejecutado = useRef(false);
 
   useEffect(() => {
-
     // Solo ejecutar una vez
     if (ejecutado.current) return;
     ejecutado.current = true;
@@ -56,20 +56,20 @@ export default function RootLayout() {
     const iniciar = async () => {
       try {
         const storedSession = await getStoredSession();
-        
+
         if (storedSession?.user) {
           // Restaurar sesión en Supabase
           await supabase.auth.setSession({
             access_token: storedSession.access_token,
             refresh_token: storedSession.refresh_token,
           });
-          
+
           // Obtener perfil
           const { data: perfil } = await getProfile(storedSession.user.id);
-          
+
           // Quitar el loading
           setVerificando(false);
-          
+
           // Redirigir
           if (perfil?.rol) {
             router.replace("/home");
@@ -91,7 +91,6 @@ export default function RootLayout() {
     iniciar();
   }, []);
 
-
   if (verificando) {
     return (
       <View
@@ -107,11 +106,11 @@ export default function RootLayout() {
     );
   }
 
-
   return (
-    <ToastProvider>
-      <AppConToast />
-    </ToastProvider>
+    <AuthProvider>
+      <ToastProvider>
+        <AppConToast />
+      </ToastProvider>
+    </AuthProvider>
   );
-
 }

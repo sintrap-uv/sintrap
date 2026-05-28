@@ -124,3 +124,41 @@ export const notificarConductorAsignado = async ({
 
     return { error };
 };
+
+// Enviar notificación del conductor al administrador
+export const enviarNotificacionConductor = async ({
+  conductorId,
+  conductorNombre,
+  cedula,
+  celular,
+  tipo,
+  titulo,
+  mensaje,
+  urgente = false,
+}) => {
+  const { data: admins, error: eAdmins } = await getAdministradores();
+  if (eAdmins) return { error: eAdmins };
+  if (!admins || admins.length === 0) return { error: new Error("No hay administradores registrados") };
+
+  const notificaciones = admins.map((admin) => ({
+    usuario_id: admin.id,
+    tipo,
+    titulo,
+    mensaje,
+    metadata: {
+      conductor_id:     conductorId,
+      conductor_nombre: conductorNombre,
+      cedula,
+      celular,
+      urgente,
+    },
+    leida: false,
+    fecha: new Date().toISOString(),
+  }));
+
+  const { data, error } = await supabase
+    .from("notificaciones")
+    .insert(notificaciones);
+
+  return { data, error };
+};

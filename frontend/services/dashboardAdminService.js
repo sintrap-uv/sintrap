@@ -8,16 +8,14 @@ export async function getMetricasAdmin() {
   try {
     const [
       { data: perfiles },
-      { data: vehiculos },
+      { data: vehiculosMetricas },
       { data: rutas },
       { data: turnos },
       { data: reportes },
       { data: notificaciones },
     ] = await Promise.all([
       supabase.from("profiles").select("rol, activo, fecha_registro"),
-      supabase
-        .from("vehiculos")
-        .select("activo, seguro, fecha_vencimiento, capacidad, ruta_id"),
+      supabase.rpc("get_metricas_vehiculos"),
       supabase.from("rutas").select("id, numero_ruta, nombre, color, activa"),
       supabase
         .from("turnos")
@@ -31,7 +29,10 @@ export async function getMetricasAdmin() {
       perfiles?.filter((p) => p.rol === "usuario" && p.activo).length ?? 0;
     const conductoresActivos =
       perfiles?.filter((p) => p.rol === "conductor" && p.activo).length ?? 0;
-    const busesActivos = vehiculos?.filter((v) => v.activo).length ?? 0;
+
+    // Nueva lógica para buses activos desde RPC
+    const busesActivos = vehiculosMetricas?.[0]?.total_activos ?? 0;
+
     const rutasActivas = rutas?.filter((r) => r.activa).length ?? 0;
     const turnosEnCurso =
       turnos?.filter((t) => t.estado === "en_curso").length ?? 0;
@@ -39,27 +40,10 @@ export async function getMetricasAdmin() {
       reportes?.filter((r) => r.estado === "pendiente").length ?? 0;
     const notifNoLeidas = notificaciones?.length ?? 0;
 
-    // Alertas de vehículos
-    const hoy = new Date();
-    const en30dias = new Date();
-    en30dias.setDate(hoy.getDate() + 30);
-    const segurosVencidos =
-      vehiculos?.filter(
-        (v) =>
-          v.activo &&
-          v.fecha_vencimiento &&
-          new Date(v.fecha_vencimiento) < hoy,
-      ).length ?? 0;
-    const segurosPorVencer =
-      vehiculos?.filter(
-        (v) =>
-          v.activo &&
-          v.fecha_vencimiento &&
-          new Date(v.fecha_vencimiento) >= hoy &&
-          new Date(v.fecha_vencimiento) <= en30dias,
-      ).length ?? 0;
-    const sinSeguro =
-      vehiculos?.filter((v) => v.activo && !v.seguro).length ?? 0;
+    // Alertas de vehículos desde RPC
+    const segurosVencidos = vehiculosMetricas?.[0]?.seguros_vencidos ?? 0;
+    const segurosPorVencer = vehiculosMetricas?.[0]?.seguros_por_vencer ?? 0;
+    const sinSeguro = vehiculosMetricas?.[0]?.sin_seguro ?? 0;
 
     return {
       success: true,

@@ -14,6 +14,7 @@ import BotonesFlotantes from "../components/BotonesFlotantes";
 import { getProfile } from "../services/profileService";
 import { getCurrentUser, signOut } from "../services/auth";
 import Header from "../components/Header";
+import MapaRutaUsuario from "./(usuarios)/mapa/index";
 import MisTurnos from "./(conductor)/MisTurnos";
 
 // ── Importa aquí los componentes de cada tab ──────────────────
@@ -49,7 +50,7 @@ export default function Home() {
   const [cargando, setCargando] = useState(true);
   const [serviceActive, setServiceActive] = useState(true);
 
-  const [mostrarModal, setMostarModal] = useState(true)
+  const [mostrarModal, setMostarModal] = useState(true);
 
   const [colaboradores, setColaboradores] = useState([]);
   const [grupos, setGrupos] = useState([]);
@@ -65,8 +66,8 @@ export default function Home() {
     const tab = params.tab;
     if (tab === "perfil") {
       setTabActivo("perfil");
-    } else if (tab === "favoritos") {
-      setTabActivo("favoritos");
+    } else if (tab === "mi_ruta") {
+      setTabActivo("mi_ruta");
     } else if (tab === "rutas") {
       setTabActivo("rutas");
     } else if (tab === "inicio") {
@@ -92,8 +93,12 @@ export default function Home() {
       if (data.length > 0) {
         console.log("Ejemplo de colaborador:");
         console.log(`   Nombre: ${data[0].nombre}`);
-        console.log(`   Dirección: ${data[0].ubicacion_usuario?.[0]?.direccion}`);
-        console.log(`   Coordenadas: ${data[0].ubicacion_usuario?.[0]?.latidud}, ${data[0].ubicacion_usuario?.[0]?.longitud}`);
+        console.log(
+          `   Dirección: ${data[0].ubicacion_usuario?.[0]?.direccion}`,
+        );
+        console.log(
+          `   Coordenadas: ${data[0].ubicacion_usuario?.[0]?.latidud}, ${data[0].ubicacion_usuario?.[0]?.longitud}`,
+        );
       }
 
       // 3. Agrupar por cercanía
@@ -109,14 +114,12 @@ export default function Home() {
           console.log(`   - ${col.nombre}`);
         });
       });
-
     } catch (error) {
       console.error("Error:", error);
     } finally {
       setCargandoPrueba(false);
     }
   };
-
 
   const cargarPerfil = async () => {
     try {
@@ -132,10 +135,9 @@ export default function Home() {
 
       const ubicacionData = await ObtenerDireccionUsuario(user.id);
       const tienedireccion = !!ubicacionData?.direccion;
-      setMostarModal(!tienedireccion)
-
+      setMostarModal(!tienedireccion);
     } catch (e) {
-      console.error('Error cargando perfil:', e.message);
+      console.error("Error cargando perfil:", e.message);
     } finally {
       setCargando(false);
     }
@@ -162,9 +164,11 @@ export default function Home() {
       rutas: () => <TodasLasRutasScreen />,
       buses: () => <VehiculosScreen />,
       graficas: () => <EstadisticasScreen />,
-      crear_Ruta: () => (<Bienvenida onNavegar={(tab) => setTabActivo(tab)} />),
+      crear_Ruta: () => <Bienvenida onNavegar={(tab) => setTabActivo(tab)} />,
       mapa_colaboradores: () => <MapaColaboradores key={tabActivo} />,
-      configurar_buses: () => <ConfiguracionBuses onNavegar={(tab) => setTabActivo(tab)} />,
+      configurar_buses: () => (
+        <ConfiguracionBuses onNavegar={(tab) => setTabActivo(tab)} />
+      ),
       crear_Conductor: () => <ConductoresScreen />,
       crear_Bus: () => <RegistrarVehiculo />,
 
@@ -200,7 +204,7 @@ export default function Home() {
       
       rutas: () => <MapaRutaConductor />,
 
-      agregar: () => <EnviarNotificacion />,
+      agregar: () => <EnviarNotificacion onBack={() => setTabActivo("inicio")} />,
       
       bus: () => <MisBusesScreen />,
 
@@ -220,8 +224,12 @@ export default function Home() {
           onSettings={() => console.log("Configuración")}
           onChangePassword={() => console.log("Cambiar contraseña")}
           onLogout={handleLogout}
-          onMyVehicle={() => router.push("/(conductor)/mis-buses?returnTo=perfil")}
-          onAssignedRoutes={() => router.push("/(conductor)/DashboardConductor?returnTo=perfil")}
+          onMyVehicle={() =>
+            router.push("/(conductor)/mis-buses?returnTo=perfil")
+          }
+          onAssignedRoutes={() =>
+            router.push("/(conductor)/DashboardConductor?returnTo=perfil")
+          }
           serviceActive={serviceActive}
           onToggleService={() => setServiceActive((prev) => !prev)}
           onBack={() => setTabActivo("inicio")}
@@ -232,24 +240,8 @@ export default function Home() {
     // ── USUARIO ──
     usuario: {
       inicio: () => <DashboardUsuario />,
-      
-      favoritos: () => (
-        <View style={{ flex: 1 }}>
-          <Header
-            titulo="Favoritos"
-            subtitulo="Tus rutas favoritas"
-            iconoDerecha={
-              <TouchableOpacity onPress={() => router.push({
-                pathname: "/(notificaciones)/NotificacionesUsuarios",
-                params: { returnTo: "favoritos" }
-              })}>
-                <Ionicons name="notifications-outline" size={24} color="#fff" />
-              </TouchableOpacity>
-            }
-          />
-          <TabPendiente nombre="Favoritos" icono="heart-outline" />
-        </View>
-      ),
+
+      mi_ruta: () => <MapaRutaUsuario />,
 
       rutas: () => (
         <View style={{ flex: 1 }}>
@@ -257,10 +249,14 @@ export default function Home() {
             titulo="Rutas"
             subtitulo="Explora las rutas disponibles"
             iconoDerecha={
-              <TouchableOpacity onPress={() => router.push({
-                pathname: "/(notificaciones)/NotificacionesUsuarios",
-                params: { returnTo: "rutas" }
-              })}>
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/(notificaciones)/NotificacionesUsuarios",
+                    params: { returnTo: "rutas" },
+                  })
+                }
+              >
                 <Ionicons name="notifications-outline" size={24} color="#fff" />
               </TouchableOpacity>
             }
@@ -268,7 +264,7 @@ export default function Home() {
           <TabPendiente nombre="Rutas" icono="location-outline" />
         </View>
       ),
-      
+
       perfil: () => (
         <ProfileCard
           name={perfil?.nombre ?? ""}
@@ -311,12 +307,9 @@ export default function Home() {
     );
   }
 
-  if (mostrarModal && perfil?.rol === 'usuario') {
+  if (mostrarModal && perfil?.rol === "usuario") {
     return (
-      <CajaDireccion
-        id={userId}
-        onGuardado={() => setMostarModal(false)}
-      />
+      <CajaDireccion id={userId} onGuardado={() => setMostarModal(false)} />
     );
   }
 
@@ -326,20 +319,24 @@ export default function Home() {
       <View style={styles.contenido}>{renderContenido()}</View>
 
       {/* ── Navbar fijo abajo ───────────────────────────────── */}
-{tabActivo === 'crear' && (
-  <BotonesFlotantes onAccion={(key) => {
-    if (key === 'bus') setTabActivo('crear_Bus');
-    if (key === 'conductor') setTabActivo('crear_Conductor');
-    if (key === 'ruta') setTabActivo('crear_Ruta');
-  }} />
-)}
-{tabActivo !== 'crear_Ruta' && tabActivo !== 'crear_Bus' && tabActivo !== 'crear_Conductor' && (
-  <BottomNavBar
-    rol={perfil?.rol ?? 'usuario'}
-    initialTab={tabActivo}
-    onTabPress={(key) => setTabActivo(key)}
-  />
-)}
+      {tabActivo === "crear" && (
+        <BotonesFlotantes
+          onAccion={(key) => {
+            if (key === "bus") setTabActivo("crear_Bus");
+            if (key === "conductor") setTabActivo("crear_Conductor");
+            if (key === "ruta") setTabActivo("crear_Ruta");
+          }}
+        />
+      )}
+      {tabActivo !== "crear_Ruta" &&
+        tabActivo !== "crear_Bus" &&
+        tabActivo !== "crear_Conductor" && (
+          <BottomNavBar
+            rol={perfil?.rol ?? "usuario"}
+            initialTab={tabActivo}
+            onTabPress={(key) => setTabActivo(key)}
+          />
+        )}
     </View>
   );
 }
