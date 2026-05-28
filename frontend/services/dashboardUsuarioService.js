@@ -100,7 +100,7 @@ async function obtenerYGuardarUbicacion(usuarioId) {
 
 // ─── Función principal ────────────────────────────────────────────────────────
 //Obtiene todas las rutas activas cerca de la ubicación del usuario.
-export async function getRutasCercanas(usuarioId, radioMetros = 500) {
+export async function getRutasCercanas(usuarioId, radioMetros = 300) {
   try {
 
     //1. vamos a utulizar la dirrecion guarda de supabaes para saber donde se encuentra el usuario 

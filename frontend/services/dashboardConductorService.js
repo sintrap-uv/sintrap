@@ -53,6 +53,11 @@ export async function getTurnosConductor(conductorId) {
 /**
  * Carga todos los datos del dashboard del conductor.
  * @param {string} conductorId - UUID del conductor autenticado
+ *
+ * Obtiene el dashboard del conductor con su turno actual, ruta y paradas.
+ * Error anterior: "JSON object requested, multiple (or no) rows returned"
+ * Causa: El conductor podía tener múltiples turnos (programado, en curso, etc)
+ * Solución: Filtrar por fecha = hoy y estado en ['en_curso', 'programado']
  */
 export const getDashboardConductor = async (conductorId) => {
   try {
@@ -78,7 +83,7 @@ export const getDashboardConductor = async (conductorId) => {
       .eq("conductor_id", conductorId)
       .eq("fecha", hoy)
       .in("estado", ["en_curso", "programado"])
-      .order("estado", { ascending: false })
+      .order("estado", { ascending: false }) // en_curso primero
       .limit(1);
 
     if (eTurno) {
@@ -90,8 +95,10 @@ export const getDashboardConductor = async (conductorId) => {
       return { success: true, data: null };
     }
 
-    const turno      = turnos[0];
-    const vehiculoId = turno.vehiculo_id;
+    // Si no hay turno hoy, retornar null (sin ruta asignada)
+    if (!turnos || turnos.length === 0) {
+      return { success: true, data: null };
+    }
 
     // ── INFORMACIÓN DEL VEHÍCULO ────────────────────────────────────
     const { data: vehiculo, error: errorVehiculo } = await supabase
@@ -259,9 +266,9 @@ export const getDashboardConductor = async (conductorId) => {
       success: true,
       data: {
         turno: {
-          id:             turno.id,
-          estado:         turno.estado,
-          fecha:          turno.fecha,
+          id: turno.id,
+          estado: turno.estado,
+          fecha: turno.fecha,
           horaInicioReal: turno.hora_inicio_real,
           horaFinReal:    turno.hora_fin_real,
           nombreTurno:    horario.nombre_turno,
@@ -269,11 +276,11 @@ export const getDashboardConductor = async (conductorId) => {
           horaFin:        horario.hora_fin,
         },
         ruta: {
-          id:         ruta.id,
+          id: ruta.id,
           numeroRuta: ruta.numero_ruta,
           nombre:     ruta.nombre,
           color:      ruta.color,
-          trayecto:   trayectoWKT,   // ← WKT desde RPC para mapa-ruta.js
+          trayecto:   trayectoWKT,
         },
         vehiculo: vehiculo
           ? {
@@ -343,6 +350,10 @@ export const actualizarEstadoTurno = async (conductorId, nuevoEstado) => {
 
 /**
  * Actualiza la ubicación del conductor en la BD.
+ * @param {string} conductorId - UUID del conductor
+ * @param {number} latitud - Latitud GPS
+ * @param {number} longitud - Longitud GPS
+ * @param {number|null} velocidad - Velocidad en km/h (opcional)
  */
 export async function actualizarUbicacionConductor(
   conductorId,
@@ -421,7 +432,7 @@ export function formatearHora(hora) {
   if (!hora) return "";
   const [h, m] = hora.split(":").map(Number);
   const periodo = h >= 12 ? "PM" : "AM";
-  const hora12  = h % 12 === 0 ? 12 : h % 12;
+  const hora12 = h % 12 === 0 ? 12 : h % 12;
   return `${hora12}:${String(m).padStart(2, "0")} ${periodo}`;
 }
 

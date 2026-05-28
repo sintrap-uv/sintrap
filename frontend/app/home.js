@@ -84,14 +84,14 @@ export default function Home() {
 
     try {
       // 1. Obtener colaboradores
-      console.log("Obteniendo colaboradores...");
+      console.log("📡 Obteniendo colaboradores...");
       const data = await ubicacionColaboradores();
       setColaboradores(data);
-      console.log(`Encontrados ${data.length} colaboradores con ubicación`);
+      console.log(`✅ Encontrados ${data.length} colaboradores con ubicación`);
 
       // 2. Mostrar algunos ejemplos
       if (data.length > 0) {
-        console.log("Ejemplo de colaborador:");
+        console.log("📋 Ejemplo de colaborador:");
         console.log(`   Nombre: ${data[0].nombre}`);
         console.log(
           `   Dirección: ${data[0].ubicacion_usuario?.[0]?.direccion}`,
@@ -102,20 +102,20 @@ export default function Home() {
       }
 
       // 3. Agrupar por cercanía
-      console.log("Agrupando por cercanía...");
+      console.log("🔄 Agrupando por cercanía...");
       const clusters = agruparPorCercania(data, 0.3);
       setGrupos(clusters);
 
       // 4. Mostrar resultados
-      console.log(`Se crearon ${clusters.length} grupos`);
+      console.log(`✅ Se crearon ${clusters.length} grupos`);
       clusters.forEach((grupo, index) => {
-        console.log(`Grupo ${index + 1}: ${grupo.cantidad} personas`);
-        grupo.colaboradores.forEach(col => {
+        console.log(`📦 Grupo ${index + 1}: ${grupo.cantidad} personas`);
+        grupo.colaboradores.forEach((col) => {
           console.log(`   - ${col.nombre}`);
         });
       });
     } catch (error) {
-      console.error("Error:", error);
+      console.error("❌ Error:", error);
     } finally {
       setCargandoPrueba(false);
     }
@@ -201,7 +201,7 @@ export default function Home() {
       inicio: () => <DashboardConductor />,
 
       turnos: () => <MisTurnos />,
-      
+
       rutas: () => <MapaRutaConductor />,
 
       agregar: () => <EnviarNotificacion onBack={() => setTabActivo("inicio")} />,
