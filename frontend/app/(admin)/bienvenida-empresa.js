@@ -6,7 +6,9 @@ import theme from "../../constants/theme";
 
 export default function Bienvenida({ onNavegar }) {
     const [cargando, setCargando] = useState(true);
-    const [configuracionExistente, setConfiguracionExistente] = useState(false);
+
+
+
 
 
     const existe = async () => {
@@ -21,7 +23,18 @@ export default function Bienvenida({ onNavegar }) {
     }
 
     useEffect(() => {
-        existe();
+        const verificarYRedirigir = async () => {
+            const existeConfiguracion = await existeConfiguracionBuses();
+
+            if (existeConfiguracion) {
+                // Si YA EXISTE ubicación → ir directamente al mapa
+                onNavegar('mapa_colaboradores');
+            } else {
+                // Si NO EXISTE ubicación → mostrar pantalla de bienvenida
+                setCargando(false);
+            }
+        };
+            verificarYRedirigir();
     }, [])
 
 
