@@ -37,7 +37,25 @@ export default function ResetPassword({ onDone }) {
     checkSession()
   }, [])
 
+  const validar = () => {
+    const e = {}
+    if (password.length < 8)
+      e.password = "Mínimo 8 caracteres"
+    else if (!/[A-Z]/.test(password))
+      e.password = "Debe tener al menos 1 mayúscula"
+    else if (!/[0-9]/.test(password))
+      e.password = "Debe tener al menos 1 número"
+    if (!confirmPassword)
+      e.confirmPassword = "Confirma tu contraseña"
+    else if (password !== confirmPassword)
+      e.confirmPassword = "Las contraseñas no coinciden"
+    setErrores(e)
+    return Object.keys(e).length === 0
+  }
+
   const handleUpdatePassword = async () => {
+    if (!validar()) return;
+    
     if (!password || !confirmPassword) {
       alert("Por favor completa todos los campos.");
       return;

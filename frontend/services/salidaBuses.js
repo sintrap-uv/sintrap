@@ -1,19 +1,31 @@
 import { supabase } from "./supabase";
 
 export const ubicacionBuses = async (lat, lon) => {
-   try {
-        // Obtenemos el usuario autenticado
+    try {
         const { data: { user } } = await supabase.auth.getUser();
-        
         if (!user) throw new Error("No hay una sesión de administrador activa.");
+
+        //  Verificar si YA EXISTE configuración (sin importar quién)
+        const { data: existeConfig } = await supabase
+            .from('configuracion_buses')
+            .select('id')
+            .limit(1);
+        
+        if (existeConfig && existeConfig.length > 0) {
+            return { 
+                success: false, 
+                error: "La ubicación de salida ya fue configurada. No se puede modificar." 
+            };
+        }
 
         const puntoWKT = `POINT(${lon} ${lat})`;
 
         const { data, error } = await supabase
             .from('configuracion_buses')
-            .upsert({ 
-                id: user.id, // Usamos su UID de auth.users
+            .insert({
+                id: user.id,
                 ubicacion_salida: puntoWKT,
+                creado_en: new Date().toISOString(),
                 actualizado_en: new Date().toISOString()
             })
             .select();
@@ -28,41 +40,62 @@ export const ubicacionBuses = async (lat, lon) => {
     }
 }
 
-//vamos a verificar si existen la ubicacion de los buses
+// CORREGIDO: No filtrar por usuario, solo verificar si existe ALGÚN registro
 export const existeConfiguracionBuses = async () => {
-   const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
+    try {
+        const { data, error } = await supabase
+            .from('configuracion_buses')
+            .select('id')
+            .limit(1);
 
-    const { data, error } = await supabase
-        .from('configuracion_buses')
-        .select('ubicacion_salida')
-        .eq('id', user.id) // Filtramos por su ID único
-        .maybeSingle();
+        if (error) {
+            console.error("Error verificar configuracion:", error);
+            return false;
+        }
 
-    if (error) {
-        console.error("Error verificar configuracion:", error);
+        return data && data.length > 0;
+    } catch (error) {
+        console.error("Error:", error);
         return false;
     }
-    
-    return !!(data && data.ubicacion_salida);
 };
 
-//vamos a obtener la ubicacion de los buses
+export const verificarConfiguracionExistente = async () => {
+    try {
+        const { data, error } = await supabase
+            .from('configuracion_buses')
+            .select('id')
+            .limit(1);
+
+        if (error) {
+            console.error("Error verificando configuración:", error);
+            return { existe: false };
+        }
+
+        return { existe: data && data.length > 0 };
+    } catch (error) {
+        console.error("Error:", error);
+        return { existe: false };
+    }
+};
+
+// CORREGIDO: No filtrar por usuario
 export const obtenerUbicacionBuses = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    try {
+        const { data, error } = await supabase
+            .rpc('obtener_ubicacion_buses');
 
-    const { data, error } = await supabase
-        .rpc('obtener_ubicacion_buses', { user_id: user.id });
+        if (error) {
+            console.error("Error obteniendo ubicacion:", error);
+            return null;
+        }
 
-    if (error) {
-        console.error("Error obteniendo ubicacion:", error);
+        if (!data || data.length === 0) return null;
+
+        console.log("✅ Ubicacion empresa:", data[0]);
+        return { lat: data[0].lat, lon: data[0].lon };
+    } catch (error) {
+        console.error("Error:", error);
         return null;
     }
-
-    if (!data || data.length === 0) return null;
-
-    console.log("✅ Ubicacion empresa:", data[0]);
-    return { lat: data[0].lat, lon: data[0].lon };
-
 };

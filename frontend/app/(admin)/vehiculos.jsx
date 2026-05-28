@@ -2,12 +2,15 @@ import { useState, useEffect, useCallback } from "react";
 import {
   View, Text, FlatList, TouchableOpacity, Modal,
   Switch, ActivityIndicator, StyleSheet, ScrollView,
-  RefreshControl, TextInput, Alert,
+  RefreshControl, TextInput,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
+import Header from "../../components/Header";
 import theme from "../../constants/theme";
+import { useToast } from "../../context/ToastContext";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   verificarDependenciasVehiculo,
   buscarVehiculosReemplazo,
@@ -15,12 +18,19 @@ import {
   notificarCambioVehiculo,
   desactivarRutaCompleta,
   desactivarVehiculo,
+  Alert,
   obtenerVehiculoCompleto
 } from "../../services/vehicleService";
 
 const T = theme.lightMode;
 
 export default function VehiculosScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const returnTo = params.returnTo;
+  const vieneDelPerfil = returnTo === "perfil";
+  const { showSuccess, showError, showWarning } = useToast();
+  
   const [vehiculos, setVehiculos] = useState([]);
   const [conductores, setConductores] = useState([]);
   const [tiposVehiculo, setTiposVehiculo] = useState([]);
@@ -55,6 +65,10 @@ export default function VehiculosScreen() {
   const [vehiculosReemplazo, setVehiculosReemplazo] = useState([]);
   const [vehiculoSeleccionadoReemplazo, setVehiculoSeleccionadoReemplazo] = useState(null);
   const [procesandoDesactivacion, setProcesandoDesactivacion] = useState(false);
+
+  const handleGoToProfile = () => {
+    router.push("/home?tab=perfil");
+  };
 
   // ── FETCH VEHÍCULOS 
   const fetchVehiculos = useCallback(async () => {
@@ -290,19 +304,16 @@ export default function VehiculosScreen() {
               await desactivarRutaCompleta(
                 ruta.ruta_id,
                 `Vehículo ${vehiculoDesactivando.placa} fuera de servicio sin reemplazo disponible`,
-                vehiculoDesactivando.placa  // USAR vehiculoDesactivando
+                vehiculoDesactivando.placa
               );
             }
 
-            await desactivarVehiculo(vehiculoDesactivando.id);  // USAR vehiculoDesactivando
+            await desactivarVehiculo(vehiculoDesactivando.id);
 
-            Alert.alert(
-              "Ruta desactivada",
-              `Vehículo ${vehiculoDesactivando.placa} desactivado.\n\nRutas desactivadas: ${dependenciasVehiculo.rutas.length}\nUsuarios notificados: ${dependenciasVehiculo.usuarios_afectados}`
-            );
+            showSuccess(`Vehículo ${vehiculoDesactivando.placa} desactivado. Rutas desactivadas: ${dependenciasVehiculo.rutas.length}`);
 
             setModalDesactivarVisible(false);
-            setVehiculoDesactivando(null);  // LIMPIAR REFERENCIA
+            setVehiculoDesactivando(null);
             cerrarEdicion();
             await fetchVehiculos();
 
@@ -369,6 +380,15 @@ export default function VehiculosScreen() {
 
   return (
     <View style={s.container}>
+      <Header
+        titulo="Vehículos"
+        subtitulo="Gestión de flota vehicular"
+        iconoDerecha={
+          <TouchableOpacity onPress={handleGoToProfile}>
+            <Ionicons name="settings-outline" size={36} color="#fff" />
+          </TouchableOpacity>
+        }
+      />
       {/* Buscador */}
       <View style={s.searchWrap}>
         <Ionicons name="search-outline" size={18} color={T.icon.secondary} />

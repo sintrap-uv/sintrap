@@ -1,0 +1,13 @@
+name: Create Production Builds
+
+# Se dispara automáticamente se hace un push en la rama main en GitGub
+on:
+  push:
+    branches: ["master"]
+
+jobs:
+  build_android:
+    type: build
+    params:
+      platform: android
+      profile: production

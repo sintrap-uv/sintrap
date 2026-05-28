@@ -1,20 +1,20 @@
-// useMapaColaboradores.js
+// useMapaConductores.js
 import { useState, useEffect, useRef } from "react";
-import { ubicacionColaboradores } from "../../../services/colaboradores";
-import { agruparPorCercania } from "../../../services/zonas";
-import { guardarRutaCompleta, getRutasConTrayecto } from "../../../services/rutaServices";
-import { obtenerUbicacionBuses } from "../../../services/salidaBuses";
+import { ubicacionConductores } from "../../../../services/conductoresMapServices";
+import { agruparPorCercania } from "../../../../services/zonas";
+import { guardarRutaCompleta, getRutasConTrayecto } from "../../../../services/rutaServices";
+import { obtenerUbicacionBuses } from "../../../../services/salidaBuses";
 import { generarRutaOptima } from "./rutaUtils";
-import { useToast } from "../../../context/ToastContext";
-import { supabase } from "../../../services/supabase";
-import { verificarEstadoVehiculo, verificarConflictoHorarioVehiculo } from '../../../services/rutaServices';
-import { getVehiculosDisponibles, getVehiculoPorConductor } from "../../../services/vehicleService";
-import { getConductoresDisponibles } from "../../../services/driverService";
+import { useToast } from "../../../../context/ToastContext";
+import { supabase } from "../../../../services/supabase";
+import { verificarEstadoVehiculo, verificarConflictoHorarioVehiculo } from '../../../../services/rutaServices';
+import { getVehiculosDisponibles, getVehiculoPorConductor } from "../../../../services/vehicleService";
+import { getConductoresDisponibles } from "../../../../services/driverService";
 
 
 
-export const useMapaColaboradores = () => {
-    const [colaboradores, setColaboradores] = useState([]);
+export const useMapaConductores = () => {
+    const [conductor, setConductor] = useState([]);
     const [grupos, setGrupos] = useState([]);
     const [cargando, setCargando] = useState(true);
     const [modoEdicion, setModoEdicion] = useState(false);
@@ -283,22 +283,11 @@ export const useMapaColaboradores = () => {
 
             if (modoEdicionRef.current && mensaje.id && mensaje.lat && mensaje.lon) {
                 if (mensaje.tipo === 'nuevaParada') {
-                    setPuntosParada(prev => [...prev, {
-                        id: mensaje.id,
-                        lat: mensaje.lat,
-                        lon: mensaje.lon,
-                        direccion: mensaje.direccion ?? null
-                    }]);
+                    setPuntosParada(prev => [...prev, { id: mensaje.id, lat: mensaje.lat, lon: mensaje.lon }]);
                 } else {
-                    setPuntosRuta(prev => [...prev, {
-                        id: mensaje.id,
-                        lat: mensaje.lat,
-                        lon: mensaje.lon,
-                        direccion: mensaje.direccion ?? null
-                    }]);
+                    setPuntosRuta(prev => [...prev, { id: mensaje.id, lat: mensaje.lat, lon: mensaje.lon }]);
                 }
                 return;
-
             }
         } catch { /* mensaje no JSON */ }
     };

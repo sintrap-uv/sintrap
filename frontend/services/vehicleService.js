@@ -32,6 +32,9 @@ export async function obtenerVehiculos() {
 }
 
 export async function registerVehicle(vehicleData) {
+  const fechaInicio = vehicleData.seguro ? vehicleData.fecha_inicio : null;
+  const fechaVencimiento = vehicleData.seguro ? vehicleData.fecha_vencimiento : null;
+
   const { data, error } = await supabase
     .from('vehiculos')
     .insert([
@@ -39,8 +42,8 @@ export async function registerVehicle(vehicleData) {
         placa: vehicleData.placa,
         conductor_id: vehicleData.conductor_id,
         seguro: vehicleData.seguro,
-        fecha_inicio: vehicleData.fecha_inicio,
-        fecha_vencimiento: vehicleData.fecha_vencimiento,
+        fecha_inicio: fechaInicio,
+        fecha_vencimiento: fechaVencimiento,
         tipo_vehiculo_id: vehicleData.tipo_vehiculo_id,
       },
     ]);
@@ -55,7 +58,7 @@ export async function getVehiculoPorConductor(conductorId) {
     .select('id, placa, conductor_id')
     .eq('conductor_id', conductorId)
     .eq('activo', true)
-    .single();
+    .maybeSingle();
 
   if (error) return null;
   return data;
@@ -76,30 +79,35 @@ export async function verificarConflictoHorarioVehiculo(vehiculoId, horaInicio) 
   return !!data;
 }
 
-export async function getVehiculosDisponibles(hora_inicio) {
-  if (!hora_inicio) return [];
+export async function getVehiculosDisponibles(horaInicio, horaFin, diasSemana) {
+  if (!horaInicio) return [];
 
-  const { data: ocupados, error: errorOcupados } = await supabase
-    .from('ruta_horarios')
-    .select('vehiculo_id')
-    .eq('hora_inicio', hora_inicio);
+  try {
+    const { data: ocupados, error: errorOcupados } = await supabase
+      .from('ruta_horarios')
+      .select('vehiculo_id')
+      .eq('hora_inicio', horaInicio);
 
-  if (errorOcupados) throw errorOcupados;
+    if (errorOcupados) throw errorOcupados;
 
-  const ocupadosIds = (ocupados || []).map(item => item.vehiculo_id);
+    const ocupadosIds = (ocupados || []).map(item => item.vehiculo_id);
 
-  let query = supabase
-    .from('vehiculos')
-    .select('id, placa, conductor_id, seguro, activo, fecha_vencimiento, tipo_vehiculo_id')
-    .eq('activo', true);
+    let query = supabase
+      .from('vehiculos')
+      .select('id, placa, conductor_id, seguro, activo, fecha_vencimiento, tipo_vehiculo_id')
+      .eq('activo', true);
 
-  if (ocupadosIds.length > 0) {
-    query = query.not('id', 'in', `(${ocupadosIds.join(',')})`);
+    if (ocupadosIds.length > 0) {
+      query = query.not('id', 'in', `(${ocupadosIds.join(',')})`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error en getVehiculosDisponibles:', error);
+    return [];
   }
-
-  const { data, error } = await query;
-  if (error) throw error;
-  return data || [];
 }
 
 export async function getConductoresDisponibles(horaInicio) {
