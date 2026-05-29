@@ -204,8 +204,8 @@ export default function Home() {
 
       rutas: () => <MapaRutaConductor />,
 
-      agregar: () => <EnviarNotificacion />,
-
+      agregar: () => <EnviarNotificacion onBack={() => setTabActivo("inicio")} />,
+      
       bus: () => <MisBusesScreen />,
 
       perfil: () => (
