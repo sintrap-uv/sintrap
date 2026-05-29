@@ -16,6 +16,7 @@ import { createDriverAccount, updateDriver } from "../../../services/driverServi
 import theme from "../../../constants/theme";
 import Header from "../../../components/Header";
 import { useToast } from "../../../context/ToastContext";
+import validarDominioEmail from "../../../utils/validarDominios";
 
 const T = theme.lightMode;
 
@@ -34,6 +35,7 @@ function validarForm(form, esNuevo) {
 
   if (esNuevo) {
     if (!form.email.trim()) errores.email = "El email es requerido";
+    else if (!validarDominioEmail(form.email.trim())) errores.email = "Dominio de email no permitido";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errores.email = "Email inválido";
 
     if (!form.password) errores.password = "La contraseña es requerida";
