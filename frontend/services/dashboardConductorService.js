@@ -2,7 +2,6 @@ import { supabase } from "./supabase";
 
 /**
  * Obtiene TODOS los turnos de un conductor (para MisTurnos)
- * @param {string} conductorId - UUID del conductor
  */
 export async function getTurnosConductor(conductorId) {
   try {
@@ -52,12 +51,6 @@ export async function getTurnosConductor(conductorId) {
 
 /**
  * Carga todos los datos del dashboard del conductor.
- * @param {string} conductorId - UUID del conductor autenticado
- *
- * Obtiene el dashboard del conductor con su turno actual, ruta y paradas.
- * Error anterior: "JSON object requested, multiple (or no) rows returned"
- * Causa: El conductor podía tener múltiples turnos (programado, en curso, etc)
- * Solución: Filtrar por fecha = hoy y estado en ['en_curso', 'programado']
  */
 export const getDashboardConductor = async (conductorId) => {
   try {
@@ -83,7 +76,7 @@ export const getDashboardConductor = async (conductorId) => {
       .eq("conductor_id", conductorId)
       .eq("fecha", hoy)
       .in("estado", ["en_curso", "programado"])
-      .order("estado", { ascending: false }) // en_curso primero
+      .order("estado", { ascending: false })
       .limit(1);
 
     if (eTurno) {
@@ -95,10 +88,9 @@ export const getDashboardConductor = async (conductorId) => {
       return { success: true, data: null };
     }
 
-    // Si no hay turno hoy, retornar null (sin ruta asignada)
-    if (!turnos || turnos.length === 0) {
-      return { success: true, data: null };
-    }
+    // ← ESTAS DOS LÍNEAS SON LAS QUE FALTABAN
+    const turno      = turnos[0];
+    const vehiculoId = turno.vehiculo_id;
 
     // ── INFORMACIÓN DEL VEHÍCULO ────────────────────────────────────
     const { data: vehiculo, error: errorVehiculo } = await supabase
@@ -120,7 +112,6 @@ export const getDashboardConductor = async (conductorId) => {
     // ── HORARIO DE LA RUTA: turno_id primero, fallback vehiculo_id ──
     let horario = null;
 
-    // Intento 1: por turno_id (más preciso)
     const { data: h1, error: e1 } = await supabase
       .from("ruta_horarios")
       .select(`
@@ -135,7 +126,6 @@ export const getDashboardConductor = async (conductorId) => {
     if (!e1 && h1) {
       horario = h1;
     } else {
-      // Intento 2: por vehiculo_id (fallback para conductores sin turno_id)
       const { data: h2, error: e2 } = await supabase
         .from("ruta_horarios")
         .select(`
@@ -160,12 +150,6 @@ export const getDashboardConductor = async (conductorId) => {
     if (!ruta)  return { success: true, data: null };
 
     // ── TRAYECTO WKT via RPC ────────────────────────────────────────
-    // Supabase no serializa columnas geometry directamente.
-    // Requiere la función en Supabase:
-    // CREATE OR REPLACE FUNCTION get_trayecto_wkt(p_ruta_id int)
-    // RETURNS text LANGUAGE sql SECURITY DEFINER AS $$
-    //   SELECT ST_AsText(trayecto) FROM rutas WHERE id = p_ruta_id;
-    // $$;
     let trayectoWKT = null;
     if (horario.ruta_id) {
       const { data: wkt, error: eWkt } = await supabase
@@ -238,15 +222,12 @@ export const getDashboardConductor = async (conductorId) => {
     }
 
     // ── TRANSFORMAR DATOS ───────────────────────────────────────────
-
-    // Usuarios por parada
     const usuariosPorParada = {};
     (pasajeros ?? []).forEach((ur) => {
       const pid = ur.parada_origen_id;
       usuariosPorParada[pid] = (usuariosPorParada[pid] ?? 0) + 1;
     });
 
-    // Paradas enriquecidas
     const paradas = (paradasRuta ?? []).map((rp) => ({
       id:            rp.paradas.id,
       nombre:        rp.paradas.nombre,
@@ -266,9 +247,9 @@ export const getDashboardConductor = async (conductorId) => {
       success: true,
       data: {
         turno: {
-          id: turno.id,
-          estado: turno.estado,
-          fecha: turno.fecha,
+          id:             turno.id,
+          estado:         turno.estado,
+          fecha:          turno.fecha,
           horaInicioReal: turno.hora_inicio_real,
           horaFinReal:    turno.hora_fin_real,
           nombreTurno:    horario.nombre_turno,
@@ -276,7 +257,7 @@ export const getDashboardConductor = async (conductorId) => {
           horaFin:        horario.hora_fin,
         },
         ruta: {
-          id: ruta.id,
+          id:         ruta.id,
           numeroRuta: ruta.numero_ruta,
           nombre:     ruta.nombre,
           color:      ruta.color,
@@ -311,7 +292,6 @@ export const getDashboardConductor = async (conductorId) => {
 
 /**
  * Actualiza el estado del turno actual del conductor.
- * Estados válidos: 'en_curso' | 'completado' | 'cancelado'
  */
 export const actualizarEstadoTurno = async (conductorId, nuevoEstado) => {
   try {
@@ -350,10 +330,6 @@ export const actualizarEstadoTurno = async (conductorId, nuevoEstado) => {
 
 /**
  * Actualiza la ubicación del conductor en la BD.
- * @param {string} conductorId - UUID del conductor
- * @param {number} latitud - Latitud GPS
- * @param {number} longitud - Longitud GPS
- * @param {number|null} velocidad - Velocidad en km/h (opcional)
  */
 export async function actualizarUbicacionConductor(
   conductorId,
@@ -432,7 +408,7 @@ export function formatearHora(hora) {
   if (!hora) return "";
   const [h, m] = hora.split(":").map(Number);
   const periodo = h >= 12 ? "PM" : "AM";
-  const hora12 = h % 12 === 0 ? 12 : h % 12;
+  const hora12  = h % 12 === 0 ? 12 : h % 12;
   return `${hora12}:${String(m).padStart(2, "0")} ${periodo}`;
 }
 
