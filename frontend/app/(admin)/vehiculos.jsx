@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   View, Text, FlatList, TouchableOpacity, Modal,
   Switch, ActivityIndicator, StyleSheet, ScrollView,
-  RefreshControl, TextInput,
+  RefreshControl, TextInput, Alert,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -18,7 +18,6 @@ import {
   notificarCambioVehiculo,
   desactivarRutaCompleta,
   desactivarVehiculo,
-  Alert,
   obtenerVehiculoCompleto,
 } from "../../services/vehicleService";
 
