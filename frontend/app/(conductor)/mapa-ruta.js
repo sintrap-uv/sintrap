@@ -1,3 +1,4 @@
+// app/(conductor)/mapa-ruta.js
 import { useRef, useState, useEffect } from "react";
 import {
   View,
@@ -16,7 +17,7 @@ import theme from "../../constants/theme";
 
 const T = theme.lightMode;
 
-// Parser WKT → [[lat, lon], ...]
+// ─── Parser WKT → [[lat, lon], ...] ─────────────────────────────────────────
 const parsearTrayecto = (wkt) => {
   if (!wkt) return [];
   try {
@@ -31,10 +32,9 @@ const parsearTrayecto = (wkt) => {
   }
 };
 
-// ### HTML del mapa — usa OSRM para trazar sobre calles reales #### 
+// ─── HTML del mapa ────────────────────────────────────────────────────────────
 const generarHtmlMapaRuta = ({ puntos, paradas, centroInicial }) => {
 
-  // Marcadores rojos numerados para las paradas
   const paradaMarkersJS = paradas
     .filter((p) => p.latitud && p.longitud)
     .map((p, i) => `
@@ -49,9 +49,12 @@ const generarHtmlMapaRuta = ({ puntos, paradas, centroInicial }) => {
     `)
     .join("\n");
 
-  // Puntos del trayecto como array JS
-
-  const puntosJS = JSON.stringify(puntos); 
+  const puntosJS  = JSON.stringify(puntos);
+  const paradasJS = JSON.stringify(
+    paradas
+      .filter((p) => p.latitud && p.longitud)
+      .map((p) => [p.latitud, p.longitud])
+  );
 
   return `
 <!DOCTYPE html>
@@ -70,86 +73,125 @@ const generarHtmlMapaRuta = ({ puntos, paradas, centroInicial }) => {
   var map = L.map('map', { zoomControl: true }).setView([${centroInicial}], 14);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-  // Paradas
+  // Marcadores de paradas
   ${paradaMarkersJS}
 
-  // Puntos del trayecto guardados en la BD
   var puntosTrayecto = ${puntosJS};
+  var coordsParadas  = ${paradasJS};
 
-  // Trazar la ruta por calles reales usando OSRM
-  // Construye la URL con todos los puntos en secuencia
-  function trazarRutaOSRM(puntos) {
-    if (!puntos || puntos.length < 2) return;
+  /**
+   * Construye la lista de waypoints para OSRM combinando:
+   * - Primer y último punto del trayecto (origen y destino)
+   * - Todas las paradas (waypoints intermedios obligatorios)
+   * Ordenados por proximidad al origen para que el recorrido sea coherente.
+   */
+  function construirWaypoints(puntos, paradas) {
+    if (!puntos || puntos.length === 0) return paradas;
 
-    // OSRM espera coordenadas como lon,lat separadas por ;
-    var coords = puntos.map(function(p) {
-      return p[1] + ',' + p[0]; // lon,lat
+    var origen  = puntos[0];
+    var destino = puntos[puntos.length - 1];
+
+    // Calcular distancia euclidiana simple (suficiente para ordenar)
+    function dist(a, b) {
+      var dlat = a[0] - b[0];
+      var dlon = a[1] - b[1];
+      return Math.sqrt(dlat * dlat + dlon * dlon);
+    }
+
+    // Ordenar paradas por distancia al origen
+    var paradasOrdenadas = paradas.slice().sort(function(a, b) {
+      return dist(a, origen) - dist(b, origen);
+    });
+
+    // Construir: origen → paradas ordenadas → destino
+    // Evitar duplicar si origen/destino ya coinciden con alguna parada
+    var waypoints = [origen];
+    paradasOrdenadas.forEach(function(p) {
+      // Solo agregar si no es casi igual al origen o destino
+      if (dist(p, origen) > 0.0001 && dist(p, destino) > 0.0001) {
+        waypoints.push(p);
+      }
+    });
+    waypoints.push(destino);
+
+    return waypoints;
+  }
+
+  function trazarRutaOSRM(puntos, paradas) {
+    var waypoints = construirWaypoints(puntos, paradas);
+
+    if (waypoints.length < 2) {
+      // Fallback: dibujar línea directa con los puntos disponibles
+      var fallback = puntos.length > 0 ? puntos : paradas;
+      if (fallback.length > 0) {
+        var poly = L.polyline(fallback, { color: '#22C55E', weight: 5, opacity: 0.7, dashArray: '8,4' }).addTo(map);
+        map.fitBounds(poly.getBounds(), { padding: [40, 40] });
+      }
+      return;
+    }
+
+    // OSRM espera lon,lat separados por ;
+    var coords = waypoints.map(function(p) {
+      return p[1] + ',' + p[0];
     }).join(';');
 
-    var url = 'https://router.project-osrm.org/route/v1/driving/' + coords + '?geometries=geojson&overview=full';
+    var url = 'https://router.project-osrm.org/route/v1/driving/'
+      + coords
+      + '?geometries=geojson&overview=full';
 
     fetch(url)
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.routes && data.routes.length > 0) {
           var coordenadasRuta = data.routes[0].geometry.coordinates.map(function(p) {
-            return [p[1], p[0]]; // GeoJSON viene como [lon, lat], Leaflet necesita [lat, lon]
+            return [p[1], p[0]]; // GeoJSON [lon,lat] → Leaflet [lat,lon]
           });
 
           var polyline = L.polyline(coordenadasRuta, {
-            color: '#3B82F6',
-            weight: 5,
+            color:   '#22C55E',
+            weight:  5,
             opacity: 0.85
           }).addTo(map);
 
-          // Ajustar la vista para mostrar toda la ruta
           map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
         } else {
-          // Fallback: trazar línea directa si OSRM no responde
-          var polyline = L.polyline(puntos, {
-            color: '#3B82F6',
-            weight: 5,
-            opacity: 0.85,
-            dashArray: '8,4'
+          // OSRM respondió pero sin rutas — fallback línea directa
+          var poly = L.polyline(waypoints, {
+            color: '#22C55E', weight: 5, opacity: 0.85, dashArray: '8,4'
           }).addTo(map);
-          map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+          map.fitBounds(poly.getBounds(), { padding: [40, 40] });
         }
         window.ReactNativeWebView && window.ReactNativeWebView.postMessage(
           JSON.stringify({ tipo: 'listo' })
         );
       })
-      .catch(function(err) {
-        // Fallback sin conexión: línea directa entre puntos
-        var polyline = L.polyline(puntos, {
-          color: '#080aa1',
-          weight: 5,
-          opacity: 0.7,
-          dashArray: '8,4'
+      .catch(function() {
+        // Sin conexión — fallback línea directa
+        var poly = L.polyline(waypoints, {
+          color: '#22C55E', weight: 5, opacity: 0.7, dashArray: '8,4'
         }).addTo(map);
-        map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+        map.fitBounds(poly.getBounds(), { padding: [40, 40] });
         window.ReactNativeWebView && window.ReactNativeWebView.postMessage(
           JSON.stringify({ tipo: 'listo' })
         );
       });
   }
 
-  trazarRutaOSRM(puntosTrayecto);
+  trazarRutaOSRM(puntosTrayecto, coordsParadas);
 <\/script>
 </body>
 </html>`;
 };
 
-// ##### Componente principal #####
-
+// ─── Componente principal ─────────────────────────────────────────────────────
 export default function MapaRutaConductor() {
-  const router     = useRef(null);
   const routerNav  = useRouter();
   const webViewRef = useRef(null);
 
-  const [cargando,  setCargando]  = useState(true);
-  const [error,     setError]     = useState(null);
-  const [htmlMapa,  setHtmlMapa]  = useState(null);
-  const [infoRuta,  setInfoRuta]  = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [error,    setError]    = useState(null);
+  const [htmlMapa, setHtmlMapa] = useState(null);
+  const [infoRuta, setInfoRuta] = useState(null);
 
   useEffect(() => {
     const cargar = async () => {
@@ -166,15 +208,14 @@ export default function MapaRutaConductor() {
 
         const { ruta, paradas } = resultado.data;
 
-        // Parsear WKT → [[lat, lon], ...]
         const puntos = parsearTrayecto(ruta?.trayecto);
 
-        // Centro: primer punto del trayecto → primera parada → empresa
+        // Centro: primera parada → primer punto trayecto → empresa
         const centro =
-          puntos.length > 0
-            ? `${puntos[0][0]}, ${puntos[0][1]}`
-            : paradas?.length > 0 && paradas[0].latitud
+          paradas?.length > 0 && paradas[0].latitud
             ? `${paradas[0].latitud}, ${paradas[0].longitud}`
+            : puntos.length > 0
+            ? `${puntos[0][0]}, ${puntos[0][1]}`
             : "4.0863, -76.195";
 
         setInfoRuta({
@@ -200,22 +241,13 @@ export default function MapaRutaConductor() {
   }, []);
 
   const handleMensaje = (event) => {
-    try {
-      JSON.parse(event.nativeEvent.data);
-    } catch (_) {}
+    try { JSON.parse(event.nativeEvent.data); } catch (_) {}
   };
 
-  // Cargando
   if (cargando) {
     return (
       <View style={s.root}>
-        <Header
-          titulo="Mi ruta"
-          subtitulo="Cargando..."
-          mode="light"
-          showBack
-          onBack={() => routerNav.back()}
-        />
+        <Header titulo="Mi ruta" subtitulo="Cargando..." mode="light" showBack onBack={() => routerNav.back()} />
         <View style={s.centrado}>
           <ActivityIndicator size="large" color={T.Button.primary.background} />
           <Text style={s.textoSecundario}>Cargando tu ruta asignada...</Text>
@@ -224,17 +256,10 @@ export default function MapaRutaConductor() {
     );
   }
 
-  //  Error / sin ruta 
   if (error) {
     return (
       <View style={s.root}>
-        <Header
-          titulo="Mi ruta"
-          subtitulo="Sin ruta"
-          mode="light"
-          showBack
-          onBack={() => routerNav.back()}
-        />
+        <Header titulo="Mi ruta" subtitulo="Sin ruta" mode="light" showBack onBack={() => routerNav.back()} />
         <View style={s.centrado}>
           <Ionicons name="map-outline" size={56} color="#D1D5DB" />
           <Text style={s.errorTitulo}>Sin ruta disponible</Text>
@@ -244,19 +269,15 @@ export default function MapaRutaConductor() {
     );
   }
 
-  // Mapa
   return (
     <View style={s.root}>
       <Header
         titulo={infoRuta?.nombre ?? "Mi ruta"}
-        subtitulo={
-          infoRuta?.numeroRuta ? `Ruta ${infoRuta.numeroRuta}` : "Ruta asignada"
-        }
+        subtitulo={infoRuta?.numeroRuta ? `Ruta ${infoRuta.numeroRuta}` : "Ruta asignada"}
         mode="light"
         showBack
         onBack={() => routerNav.back()}
       />
-
       <WebView
         ref={webViewRef}
         style={s.mapa}
@@ -272,37 +293,15 @@ export default function MapaRutaConductor() {
 }
 
 const s = StyleSheet.create({
-  root:  { flex: 1, backgroundColor: T.background },
-  mapa:  { flex: 1 },
+  root:    { flex: 1, backgroundColor: T.background },
+  mapa:    { flex: 1 },
   centrado: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    padding: 32,
+    flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 32,
   },
   errorTitulo: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: T.text.primary,
-    textAlign: "center",
+    fontSize: 18, fontWeight: "600", color: T.text.primary, textAlign: "center",
   },
   textoSecundario: {
-    fontSize: 14,
-    color: T.text.secondary,
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  btnVolver: {
-    marginTop: 16,
-    backgroundColor: T.Button.primary.background,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  btnVolverTexto: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 14, color: T.text.secondary, textAlign: "center", lineHeight: 20,
   },
 });

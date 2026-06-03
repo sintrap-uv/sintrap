@@ -8,7 +8,7 @@ import {
   RefreshControl,
   StyleSheet,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, AntDesign } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import { useRouter, useFocusEffect } from "expo-router";
 import { getProfile } from "../../services/profileService";
@@ -164,6 +164,31 @@ export default function DashboardAdmin() {
   const [actividad, setActividad] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
+
+  const cargarVehiculos = async () => {
+    setCargandoVehiculos(true);
+    try {
+      const { data, error } = await supabase
+        .from("vehiculos")
+        .select(`
+          id, placa, activo, seguro,
+          fecha_inicio, fecha_vencimiento,
+          tipo_vehiculo_id, conductor_id,
+          numero_ruta, cantidad_pasajeros,
+          conductor:profiles(id, nombre),
+          tipo_vehiculo(id, nombre, capacidad_max)
+        `)
+        .order("placa", { ascending: true });
+
+      if (!error && data) {
+        setVehiculosConDetalles(data);
+      }
+    } catch (err) {
+      console.error("Error cargando vehículos:", err);
+    } finally {
+      setCargandoVehiculos(false);
+    }
+  };
 
   useEffect(() => {
     const cargarPerfil = async () => {
@@ -337,7 +362,7 @@ export default function DashboardAdmin() {
           icono: "shield-off",
           tipo: "warning",
           mensaje: `${alertas.sinSeguro} bus${alertas.sinSeguro > 1 ? "es" : ""} sin seguro registrado`,
-          ruta: "/(admin)/registrado",
+          ruta: "/(admin)/vehiculos",
         },
       ].filter(Boolean)
     : [];
@@ -422,6 +447,18 @@ export default function DashboardAdmin() {
       </View>
       <Text style={styles.accionLabel}>Registrar bus</Text>
     </TouchableOpacity>
+
+    <TouchableOpacity
+      style={styles.accionBtn}
+      onPress={() => router.push("/(admin)/conductores/gestion?returnTo=home")}
+      activeOpacity={0.8}
+    >
+      <View style={[styles.accionIcono, { backgroundColor: "#EDE9FE" }]}>
+        <Ionicons name="person-outline" size={26} color="#8B5CF6" />
+      </View>
+      <Text style={styles.accionLabel}>Registrar conductor</Text>
+    </TouchableOpacity>
+
   </View>
 </View>
 

@@ -10,31 +10,41 @@ import { getProfile } from "../../services/profileService";
 import { getCurrentUser } from "../../services/auth";
 import theme from "../../constants/theme";
 import Header from "../../components/Header";
+import NotificacionToast from "../../components/ToastNotificacion";
 
 const t = theme.lightMode
 
 const TIPOS = [
-  { key: "alerta_retraso",    label: "Retraso en Bus",    icono: "time-outline",        color: "#F59E0B", tipo: "alerta_general" },
-  { key: "sistema_inicio",    label: "Inicio de Turno",   icono: "play-circle-outline", color: "#16A34A", tipo: "sistema"        },
-  { key: "sistema_fin",       label: "Fin de Turno",      icono: "stop-circle-outline", color: "#6B7280", tipo: "sistema"        },
-  { key: "alerta_incidente",  label: "Incidente en Ruta", icono: "warning-outline",     color: "#EF4444", tipo: "alerta_general" },
+  { key: "alerta_retraso",   label: "Retraso en Bus",    icono: "time-outline",        color: "#F59E0B", tipo: "alerta_general" },
+  { key: "sistema_inicio",   label: "Inicio de Turno",   icono: "play-circle-outline", color: "#16A34A", tipo: "sistema"        },
+  { key: "sistema_fin",      label: "Fin de Turno",      icono: "stop-circle-outline", color: "#6B7280", tipo: "sistema"        },
+  { key: "alerta_incidente", label: "Incidente en Ruta", icono: "warning-outline",     color: "#EF4444", tipo: "alerta_general" },
 ]
 
-export default function EnviarNotificacion() {
+export default function EnviarNotificacion({ onBack }) {
   const router = useRouter()
-  const [user, setUser] = useState(null)
-  const [perfil, setPerfil] = useState(null)
+  const [user, setUser]                   = useState(null)
+  const [perfil, setPerfil]               = useState(null)
   const [tipoSeleccionado, setTipoSeleccionado] = useState(TIPOS[0])
-  const [mensaje, setMensaje] = useState("")
-  const [loading, setLoading] = useState(false)           
-  const [urgente, setUrgente] = useState(false)              
+  const [mensaje, setMensaje]             = useState("")
+  const [loading, setLoading]             = useState(false)
+  const [urgente, setUrgente]             = useState(false)
+  const [toast, setToast]                 = useState({ visible: false, mensaje: "", tipo: "info" })
+
+  const mostrarToast = (mensaje, tipo = "info") => {
+    setToast({ visible: true, mensaje, tipo })
+  }
+
+  const handleVolver = () => {
+    if (onBack) onBack()
+    else router.back()
+  }
 
   useEffect(() => {
     const getUser = async () => {
       const { data } = await getCurrentUser()
       const usuario = data?.user
       setUser(usuario)
-
       if (usuario?.id) {
         const { data: perfilData } = await getProfile(usuario.id)
         setPerfil(perfilData)
@@ -45,33 +55,34 @@ export default function EnviarNotificacion() {
 
   const handleEnviar = async () => {
     if (!mensaje.trim()) {
-      alert("El mensaje no puede estar vacío")
+      mostrarToast("El mensaje no puede estar vacío", "advertencia")
       return
     }
     if (!user?.id) {
-      alert("No se pudo obtener el usuario. Intenta cerrar y abrir la app.")
+      mostrarToast("No se pudo obtener el usuario. Intenta cerrar y abrir la app.", "error")
       return
     }
 
     setLoading(true)
     const { error } = await enviarNotificacionConductor({
-      conductorId: user?.id,
-      conductorNombre: perfil?.nombre ?? "Conductor",
-      cedula: perfil?.cedula ?? "—",
-      celular: perfil?.celular ?? "—",
-      tipo: tipoSeleccionado.tipo ?? tipoSeleccionado.key,
-      titulo: tipoSeleccionado.label,
-      mensaje: mensaje.trim(),
+      conductorId:      user?.id,
+      conductorNombre:  perfil?.nombre ?? "Conductor",
+      cedula:           perfil?.cedula ?? "—",
+      celular:          perfil?.celular ?? "—",
+      tipo:             tipoSeleccionado.tipo ?? tipoSeleccionado.key,
+      titulo:           tipoSeleccionado.label,
+      mensaje:          mensaje.trim(),
       urgente,
     })
     setLoading(false)
 
     if (error) {
-      alert("Error al enviar la notificación: " + error.message)
+      mostrarToast("Error al enviar: " + error.message, "error")
     } else {
-      alert("Notificación enviada exitosamente")
+      mostrarToast("Notificación enviada exitosamente", "exito")
       setMensaje("")
-      router.back()
+      // Volver después de que el toast sea visible
+      setTimeout(() => handleVolver(), 1500)
     }
   }
 
@@ -81,7 +92,7 @@ export default function EnviarNotificacion() {
         titulo="Enviar notificación"
         subtitulo="Al administrador"
         showBack={true}
-        onBack={() => router.back()}
+        onBack={handleVolver}
       />
 
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -183,6 +194,14 @@ export default function EnviarNotificacion() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      {/* Toast flotante — fuera del ScrollView */}
+      <NotificacionToast
+        visible={toast.visible}
+        mensaje={toast.mensaje}
+        tipo={toast.tipo}
+        alOcultar={() => setToast(prev => ({ ...prev, visible: false }))}
+      />
     </View>
   )
 }
@@ -242,7 +261,7 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   previewNombre: { fontSize: 14, fontWeight: "700", color: "#111827" },
-  previewDato: { fontSize: 12, color: "#6B7280", marginTop: 1 },
+  previewDato:   { fontSize: 12, color: "#6B7280", marginTop: 1 },
   urgenteBadge: {
     backgroundColor: "#EF4444",
     borderRadius: 8,
@@ -268,6 +287,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     marginTop: 24,
   },
-  btnDisabled: { opacity: 0.6 },
+  btnDisabled:    { opacity: 0.6 },
   btnEnviarTexto: { color: "#fff", fontSize: 16, fontWeight: "700" },
 })
