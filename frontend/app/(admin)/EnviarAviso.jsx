@@ -15,7 +15,7 @@ const t = theme.lightMode
 
 const TIPOS = [
   { key: "alerta_general",  label: "Retraso en Bus",    icono: "time-outline",        color: "#F59E0B" },
-  { key: "sistema_inicio",         label: "Inicio de Turno",   icono: "play-circle-outline", color: "#16A34A" },
+  { key: "bus_aproximandose",         label: "Inicio de Turno",   icono: "play-circle-outline", color: "#16A34A" },
   { key: "sistema_fin",         label: "Fin de Turno",      icono: "stop-circle-outline", color: "#6B7280" },
   { key: "alerta_suspension",  label: "Incidente en Ruta", icono: "warning-outline",     color: "#EF4444" },
 ]
@@ -79,7 +79,7 @@ export default function EnviarAviso() {
     } else {
       alert(`Aviso enviado a ${usuarios.length} usuarios.`)
       setMensaje("")
-      router.back()
+      //router.back()
     }
   }
 
@@ -89,7 +89,7 @@ export default function EnviarAviso() {
         titulo="Crear aviso"
         subtitulo="Se enviará a todos los usuarios"
         showBack={true}
-        onBack={() => router.back()}
+        //onBack={() => router.back()}
       />
 
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">

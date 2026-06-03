@@ -15,6 +15,7 @@ import { supabase } from "../../services/supabase";
 import theme from "../../constants/theme";
 import { getRutasCercanas, calcularETA, marcarNotifLeida, formatearHora, obtenerDiasOperacion } from "../../services/dashboardUsuarioService";
 import Header from "../../components/Header";
+import { useNotificaciones } from "../../hooks/useNotificaciones";
 
 const T = theme.lightMode;
 
@@ -94,6 +95,7 @@ export default function DashboardUsuario() {
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
   const [sinRuta, setSinRuta] = useState(false);
+  const { noLeidas} = useNotificaciones(userId)
 
   // Obtener el userId del usuario autenticado
   useEffect(() => {
@@ -162,12 +164,12 @@ export default function DashboardUsuario() {
             style={{ position: "relative" }}
           >
             <Ionicons name="notifications-outline" size={24} color="#fff" />
-            {rutasCercanas.some(r => r.notificaciones?.length > 0) && (
+             {noLeidas > 0 && (
               <View style={styles.badgeNotif}>
-                <Text style={styles.badgeNotifTexto}>
-                  {rutasCercanas.reduce((acc, r) => acc + (r.notificaciones?.length || 0), 0)}
-                </Text>
-              </View>
+               <Text style={styles.badgeNotifTexto}>
+              {noLeidas > 9 ? "9+" : noLeidas}
+          </Text>
+         </View>
             )}
           </TouchableOpacity>
         }

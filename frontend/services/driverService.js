@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+ import { supabase } from "./supabase";
 import { getVehiculosDisponibles } from "./vehicleService";
 // ─────────────────────────────────────────────
 // OBTENER TODOS LOS CONDUCTORES
@@ -160,19 +160,45 @@ export async function updateDriver(conductorId, cambios) {
  * @param {boolean} estadoActual - Valor actual de 'activo'
  * @returns {Promise<{ data: object|null, error: object|null }>}
  */
-export async function toggleDriverStatus(conductorId, estadoActual) {
+ export async function toggleDriverStatus(conductorId, estadoActual) {
+  
+  // ── Validación: no desactivar si tiene turno activo ──
+  if (estadoActual === true) {
+    const { data: turnosActivos, error: turnoError } = await supabase
+      .from('turnos')
+      .select('id, estado')
+      .eq('conductor_id', conductorId)
+      .in('estado', ['programado','en_curso']);
+      console.log('TURNOS DEL CONDUCTOR:' , turnosActivos);
+
+    if (turnoError) {
+      console.error('driverService.toggleDriverStatus (validación):', turnoError.message);
+      return { data: null, error: turnoError };
+    }
+
+    if (turnosActivos && turnosActivos.length > 0) {
+      return {
+        data: null,
+        error: {
+          message: 'No se puede desactivar el conductor porque tiene un turno activo en curso.'
+        }
+      };
+    }
+  }
+
+  // ── Si no tiene turnos activos, procede a cambiar estado ──
   const { data, error } = await supabase
-    .from("profiles")
+    .from('profiles')
     .update({
       activo: !estadoActual,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", conductorId)
+    .eq('id', conductorId)
     .select()
     .single();
 
   if (error) {
-    console.error("driverService.toggleDriverStatus:", error.message);
+    console.error('driverService.toggleDriverStatus:', error.message);
   }
 
   return { data: data ?? null, error: error ?? null };
