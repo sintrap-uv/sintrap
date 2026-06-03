@@ -1,4 +1,4 @@
-import { supabase } from "./supabase"
+ import { supabase } from "./supabase"
 
 // Obtener notificaciones de un usuario
 export const getNotificaciones = async (usuarioId) => {
@@ -134,22 +134,22 @@ export const enviarNotificacionConductor = async ({
   tipo,
   titulo,
   mensaje,
-  urgente,
+  urgente = false,
 }) => {
-  // Obtener todos los administradores
-  const { data: admins, error: errorAdmins } = await getAdministradores();
-  if (errorAdmins) return { error: errorAdmins };
-  if (!admins || admins.length === 0) return { error: { message: "No hay administradores registrados" } };
+  const { data: admins, error: eAdmins } = await getAdministradores();
+  if (eAdmins) return { error: eAdmins };
+  if (!admins || admins.length === 0) return { error: new Error("No hay administradores registrados") };
 
-  // Crear una notificación para cada administrador
   const notificaciones = admins.map((admin) => ({
     usuario_id: admin.id,
-    tipo: tipo ?? "alerta_general",
-    titulo: `${urgente ? "🚨 URGENTE - " : ""}${titulo}`,
-    mensaje: `Conductor: ${conductorNombre} | Cédula: ${cedula} | Cel: ${celular}\n\n${mensaje}`,
+    tipo,
+    titulo,
+    mensaje,
     metadata: {
-      conductor_id: conductorId,
+      conductor_id:     conductorId,
       conductor_nombre: conductorNombre,
+      cedula,
+      celular,
       urgente,
     },
     leida: false,
