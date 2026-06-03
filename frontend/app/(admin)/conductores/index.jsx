@@ -74,7 +74,7 @@ export default function ConductoresScreen() {
           onPress: async () => {
             const { error: err } = await toggleDriverStatus(conductor.id, conductor.activo);
             if (err) {
-              showError("No se pudo cambiar el estado.");
+              showError(err.message ?? "No se pudo cambiar el estado.");
             } else {
               setConductores((prev) =>
                 prev.map((c) =>

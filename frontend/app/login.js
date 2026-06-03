@@ -104,10 +104,10 @@ const inp = StyleSheet.create({
     flexDirection: "row", alignItems: "center",
     backgroundColor: C.inputBg,
     borderRadius: 14, borderWidth: 1.5,
-    paddingHorizontal: 8, paddingVertical: 8,
+    paddingHorizontal: 6, paddingVertical: 8,
   },
-  icon:  { marginRight: 25 },
-  field: { flex: 1, fontSize: 14, color: C.text, letterSpacing: 0.9 },
+  icon:  { marginRight: 8 },
+  field: { flex: 1, fontSize: 14, color: C.text },
 });
 
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────
