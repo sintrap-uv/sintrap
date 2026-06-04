@@ -1,4 +1,4 @@
-import { supabase } from "./supabase"
+ import { supabase } from "./supabase"
 
 // Obtener notificaciones de un usuario
 export const getNotificaciones = async (usuarioId) => {
